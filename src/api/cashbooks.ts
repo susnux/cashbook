@@ -19,10 +19,11 @@ interface ApiOptions {
 }
 
 /**
+ * Generate the OCS URL for an API endpoint of the cashbook app
  *
- * @param endpoint
- * @param path
- * @param options
+ * @param endpoint - The API endpoint to use
+ * @param path - Optional sub path appended to the endpoint URL (including the leading slash)
+ * @param options - Options for the API route
  */
 function generateApiRoute(
 	endpoint: API_ENDPOINT,
@@ -83,12 +84,12 @@ type FetchEntryOption = {
 }
 
 /**
- * Fetch list of available cashbooks for the current user
+ * Fetch a paginated list of entries of a cashbook
  *
- * @param cashbook
- * @param root0
- * @param root0.offset
- * @param root0.limit
+ * @param cashbook - The cashbook to fetch the entries for
+ * @param options - Pagination options
+ * @param options.offset - Number of entries to skip
+ * @param options.limit - Maximum number of entries to fetch
  */
 export async function fetchEntries(cashbook: ICashbook, { offset, limit }: FetchEntryOption): Promise<ICashbookEntry[]> {
 	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries?limit=${limit}&offset=${offset}`))
@@ -105,12 +106,12 @@ type FetchEntryByDateOption = {
 }
 
 /**
- * Fetch list of available cashbooks for the current user
+ * Fetch all entries of a cashbook within a date range
  *
- * @param cashbook
- * @param root0
- * @param root0.begin
- * @param root0.end
+ * @param cashbook - The cashbook to fetch the entries for
+ * @param options - The date range to fetch
+ * @param options.begin - Start of the date range
+ * @param options.end - End of the date range
  */
 export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end }: FetchEntryByDateOption): Promise<ICashbookEntry[]> {
 	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries/print?begin=${begin.toISOString()}&end=${end.toISOString()}`))
@@ -122,8 +123,10 @@ export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end }: Fe
 }
 
 /**
+ * Create a new cashbook
  *
- * @param cashbook
+ * @param cashbook - The cashbook to create
+ * @return The newly created cashbook
  */
 export async function createCashbook(cashbook: Omit<ICashbook, 'id'>): Promise<ICashbook> {
 	const postData = { ...cashbook }
@@ -167,8 +170,9 @@ export async function importSumupCashbook(files: File[]): Promise<ICashbook> {
 }
 
 /**
+ * Delete a cashbook
  *
- * @param cashbook
+ * @param cashbook - The cashbook to delete
  */
 export async function deleteCashbook(cashbook: ICashbook): Promise<void> {
 	await axios.delete(generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}`))

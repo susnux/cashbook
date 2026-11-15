@@ -15,9 +15,10 @@ const CashbookExportView = () => import('./views/ExportView.vue')
 const baseUrl = generateUrl('/apps/cashbook')
 
 /**
+ * Get a route parameter as a single string (repeatable parameters return their first value)
  *
- * @param paramName
- * @param routeParams
+ * @param paramName - The name of the route parameter
+ * @param routeParams - The parameters of the current route
  */
 function normalizeParam(paramName: string, routeParams: RouteParams) {
 	return typeof routeParams[paramName] === 'string' ? routeParams[paramName] : routeParams[paramName][0]

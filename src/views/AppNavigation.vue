@@ -38,8 +38,9 @@ async function importCashbook() {
 }
 
 /**
+ * Delete the given cashbook and remove it from the store
  *
- * @param cashbook
+ * @param cashbook - The cashbook to delete
  */
 async function onDeleteCashbook(cashbook: ICashbook) {
 	await deleteCashbook(cashbook)
@@ -55,10 +56,11 @@ async function createNew() {
 
 // TODO: Replace with function from nc-vue when released
 /**
+ * Mount a dialog component and destroy it again once it is closed
  *
- * @param dialog
- * @param props
- * @param onClose
+ * @param dialog - The dialog component to show
+ * @param props - Props to pass to the dialog component
+ * @param onClose - Callback invoked with the payload of the dialog's close event
  */
 function spawnDialog<P extends Array<unknown> = unknown[]>(
 	dialog: Component,
