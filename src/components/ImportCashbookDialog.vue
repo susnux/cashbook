@@ -4,16 +4,15 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { ICashbook } from '../models/Cashbook';
+import type { ICashbook } from '../models/Cashbook'
 
-import { t } from '@nextcloud/l10n';
-import { computed, ref } from 'vue';
-import { importSumupCashbook } from '../api/cashbooks';
-import logger from '../utils/logger.ts';
-
+import { t } from '@nextcloud/l10n'
+import { computed, ref } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
+import { importSumupCashbook } from '../api/cashbooks'
+import logger from '../utils/logger.ts'
 
 const emit = defineEmits<{
 	(e: 'close', cashbook?: ICashbook): void

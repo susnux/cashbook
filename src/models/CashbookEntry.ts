@@ -3,24 +3,24 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import { t } from "@nextcloud/l10n"
+import { t } from '@nextcloud/l10n'
 
 export enum EntryReason {
 	DayOpening = 'day-opening',
 	DayClosing = 'day-closing',
 	Correction = 'correction',
 
-	IncomeBankTransfer  = 'income-bank',
-	IncomeMisc          = 'income-misc',
-	IncomeSales         = 'income-sales',
+	IncomeBankTransfer = 'income-bank',
+	IncomeMisc = 'income-misc',
+	IncomeSales = 'income-sales',
 
 	ExpenseBankTransfer = 'expense-bank',
-	ExpenseGoods        = 'expense-goods',
-	ExpenseSalary       = 'expense-salary',
-	ExpenseTips         = 'expense-tips',
-	ExpenseChange       = 'expense-change',
-	ExpenseRefund       = 'expense-refund',
-	ExpenseMisc         = 'expense-misc',
+	ExpenseGoods = 'expense-goods',
+	ExpenseSalary = 'expense-salary',
+	ExpenseTips = 'expense-tips',
+	ExpenseChange = 'expense-change',
+	ExpenseRefund = 'expense-refund',
+	ExpenseMisc = 'expense-misc',
 }
 
 export const EntryReasonReadable: Record<EntryReason, string> = Object.freeze({
@@ -50,7 +50,7 @@ interface BaseEntry {
 	referenceDate?: Date
 	tax?: number
 
-	reason: EntryReason,
+	reason: EntryReason
 
 	/** Entry that amends this entry */
 	amendment?: number

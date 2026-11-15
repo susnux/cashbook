@@ -3,17 +3,16 @@
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbookEntry } from '../models/CashbookEntry';
+import type { ICashbookEntry } from '../models/CashbookEntry'
 
 import { t } from '@nextcloud/l10n'
-import { computed, ref, watchEffect } from 'vue';
-import { useRouter } from 'vue-router';
-import { fetchEntriesByDate } from '../api/cashbooks';
-import { useCashbookStore } from '../store/cashbookStore';
-
+import { computed, ref, watchEffect } from 'vue'
+import { useRouter } from 'vue-router'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import CashbookTable from '../components/CashbookTable.vue';
+import CashbookTable from '../components/CashbookTable.vue'
+import { fetchEntriesByDate } from '../api/cashbooks'
+import { useCashbookStore } from '../store/cashbookStore'
 
 const props = defineProps<{
 	cashbookId: number
@@ -27,7 +26,7 @@ const entries = ref<ICashbookEntry[]>([])
 const cashbook = computed(() => store.cashbooks.find((cb) => cb.id === props.cashbookId))
 watchEffect(async () => {
 	if (cashbook.value) {
-		//entries.value = await fetchEntries(cashbook.value, { offset: 0, limit: 10 })
+		// entries.value = await fetchEntries(cashbook.value, { offset: 0, limit: 10 })
 		entries.value = await fetchEntriesByDate(cashbook.value, { begin: new Date('2025-01-01T00:00:00+01:00'), end: new Date('2025-03-31T23:59:00+02:00') })
 	}
 })
@@ -50,7 +49,9 @@ watchEffect(() => {
 	</NcEmptyContent>
 
 	<div v-else>
-		<h2 :class="$style.heading">{{ cashbook.name }}</h2>
+		<h2 :class="$style.heading">
+			{{ cashbook.name }}
+		</h2>
 
 		<CashbookTable :cashbook :entries />
 	</div>

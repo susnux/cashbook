@@ -3,21 +3,27 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { OCSResponse } from "@nextcloud/typings/ocs";
-import type { ICashbook } from "../models/Cashbook";
+import type { OCSResponse } from '@nextcloud/typings/ocs'
+import type { ICashbook } from '../models/Cashbook'
+import type { ICashbookEntry } from '../models/CashbookEntry'
 
-import { generateOcsUrl } from "@nextcloud/router";
 import axios from '@nextcloud/axios'
-import type { ICashbookEntry } from "../models/CashbookEntry";
+import { generateOcsUrl } from '@nextcloud/router'
 
 enum API_ENDPOINT {
-	Cashbook = 'cashbooks'
+	Cashbook = 'cashbooks',
 }
 
 interface ApiOptions {
 	version: '1'
 }
 
+/**
+ *
+ * @param endpoint
+ * @param path
+ * @param options
+ */
 function generateApiRoute(
 	endpoint: API_ENDPOINT,
 	path = '',
@@ -78,11 +84,14 @@ type FetchEntryOption = {
 
 /**
  * Fetch list of available cashbooks for the current user
+ *
+ * @param cashbook
+ * @param root0
+ * @param root0.offset
+ * @param root0.limit
  */
 export async function fetchEntries(cashbook: ICashbook, { offset, limit }: FetchEntryOption): Promise<ICashbookEntry[]> {
-	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(
-		generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries?limit=${limit}&offset=${offset}`),
-	)
+	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries?limit=${limit}&offset=${offset}`))
 	if (data.ocs.meta.status !== 'ok') {
 		throw new Error(data.ocs.meta.message, { cause: data.ocs })
 	}
@@ -97,11 +106,14 @@ type FetchEntryByDateOption = {
 
 /**
  * Fetch list of available cashbooks for the current user
+ *
+ * @param cashbook
+ * @param root0
+ * @param root0.begin
+ * @param root0.end
  */
 export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end }: FetchEntryByDateOption): Promise<ICashbookEntry[]> {
-	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(
-		generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries/print?begin=${begin.toISOString()}&end=${end.toISOString()}`),
-	)
+	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries/print?begin=${begin.toISOString()}&end=${end.toISOString()}`))
 	if (data.ocs.meta.status !== 'ok') {
 		throw new Error(data.ocs.meta.message, { cause: data.ocs })
 	}
@@ -109,8 +121,10 @@ export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end }: Fe
 	return data.ocs.data.map(parseEntry)
 }
 
-
-
+/**
+ *
+ * @param cashbook
+ */
 export async function createCashbook(cashbook: Omit<ICashbook, 'id'>): Promise<ICashbook> {
 	const postData = { ...cashbook }
 	delete (postData as Partial<ICashbook>).id
@@ -152,6 +166,10 @@ export async function importSumupCashbook(files: File[]): Promise<ICashbook> {
 	return await fetchCashbook(data.ocs.data.id)
 }
 
+/**
+ *
+ * @param cashbook
+ */
 export async function deleteCashbook(cashbook: ICashbook): Promise<void> {
 	await axios.delete(generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}`))
 }

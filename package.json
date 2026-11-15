@@ -11,6 +11,11 @@
     "stylelint": "stylelint src/**/*.vue src/**/*.scss src/**/*.css",
     "watch": "NODE_ENV=development vite --mode development build --watch"
   },
+  "allowScripts": {
+    "@parcel/watcher": true,
+    "core-js": true,
+    "esbuild": true
+  },
   "browserslist": [
     "extends @nextcloud/browserslist-config"
   ],
@@ -39,10 +44,5 @@
   "engines": {
     "node": "^22.0.0",
     "npm": "^10.0.0"
-  },
-  "allowScripts": {
-    "@parcel/watcher": true,
-    "core-js": true,
-    "esbuild": true
   }
 }

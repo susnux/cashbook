@@ -3,19 +3,19 @@
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbook } from '../models/Cashbook';
-import { EntryReasonReadable, type ICashbookEntry } from '../models/CashbookEntry';
+import type { ICashbook } from '../models/Cashbook'
+import type { ICashbookEntry } from '../models/CashbookEntry'
 
-import { mdiEye, mdiInformation, mdiPencil, mdiTrashCan } from '@mdi/js';
-import { getCanonicalLocale } from '@nextcloud/l10n';
-import { useFormatTime } from '@nextcloud/vue';
-import { computed } from 'vue';
-import { formatCurrency } from '../utils/formatter.ts';
-
-import NcActions from '@nextcloud/vue/components/NcActions'
+import { mdiEye, mdiInformation, mdiPencil, mdiTrashCan } from '@mdi/js'
+import { getCanonicalLocale } from '@nextcloud/l10n'
+import { useFormatTime } from '@nextcloud/vue'
+import { computed } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionLink from '@nextcloud/vue/components/NcActionLink'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
+import { EntryReasonReadable } from '../models/CashbookEntry'
+import { formatCurrency } from '../utils/formatter.ts'
 
 const props = defineProps<{
 	cashbook: ICashbook
@@ -47,7 +47,7 @@ const formattedReason = computed(() => props.modelValue.reason && EntryReasonRea
 			{{ formatCurrency(modelValue.balance, cashbook.currency) }}
 		</td>
 		<td>
-			<NcActions force-menu>
+			<NcActions forceMenu>
 				<template #icon>
 					<NcIconSvgWrapper v-if="modelValue.amendment || modelValue.original" :path="mdiInformation" />
 					<NcIconSvgWrapper v-else :path="mdiPencil" />

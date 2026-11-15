@@ -11,7 +11,6 @@ export interface ICashbook {
 }
 
 export class Cashbook implements ICashbook {
-
 	public id: number
 	public name: string
 	public account: string
@@ -23,5 +22,4 @@ export class Cashbook implements ICashbook {
 		this.name = data.name
 		this.currency = data.currency
 	}
-
 }
