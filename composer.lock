@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "22fce3a7a8f7ef5d8ed06c7001b19393",
+    "content-hash": "967808c14cfc6c15aea0511a37b4c4bd",
     "packages": [
         {
             "name": "bamarni/composer-bin-plugin",
