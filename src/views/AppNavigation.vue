@@ -4,7 +4,7 @@ import type { Component } from 'vue'
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbook } from '../models/Cashbook'
+import type { ICashbook } from '../models/Cashbook.ts'
 
 import { mdiImport, mdiTrashCan } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
@@ -20,8 +20,8 @@ import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import ImportCashbookDialog from '../components/ImportCashbookDialog.vue'
 import NewCashbookDialog from '../components/NewCashbookDialog.vue'
-import { deleteCashbook } from '../api/cashbooks'
-import { useCashbookStore } from '../store/cashbookStore'
+import { deleteCashbook } from '../api/cashbooks.ts'
+import { useCashbookStore } from '../store/cashbookStore.ts'
 
 const store = useCashbookStore()
 const router = useRouter()

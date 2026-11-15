@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { ICashbook } from '../models/Cashbook'
+import type { ICashbook } from '../models/Cashbook.ts'
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { fetchCashbooks } from '../api/cashbooks'
+import { fetchCashbooks } from '../api/cashbooks.ts'
 import logger from '../utils/logger.ts'
 
 export const useCashbookStore = defineStore('cashbook', () => {

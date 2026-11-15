@@ -3,15 +3,15 @@
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbook } from '../models/Cashbook'
-import type { ICashbookEntry } from '../models/CashbookEntry'
+import type { ICashbook } from '../models/Cashbook.ts'
+import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { t } from '@nextcloud/l10n'
 import { computed } from 'vue'
 import NcDateTime from '@nextcloud/vue/components/NcDateTime'
 import CashbookEntry from './CashbookEntry.vue'
-import { EntryReason } from '../models/CashbookEntry'
-import { formatCurrency } from '../utils/formatter'
+import { EntryReason } from '../models/CashbookEntry.ts'
+import { formatCurrency } from '../utils/formatter.ts'
 
 const props = defineProps<{
 	cashbook: ICashbook
@@ -70,7 +70,7 @@ const sections = computed(() => {
 				</th>
 			</tr>
 		</thead>
-		<tbody v-for="section of sections">
+		<tbody v-for="(section, index) of sections" :key="'start' in section ? section.start.id : `section-${index}`">
 			<tr v-if="'start' in section">
 				<th colspan="8">
 					<div :class="$style.dayHeader">

@@ -5,8 +5,8 @@
 
 import { createApp } from 'vue'
 import CashbookPublicApp from './CashbookPublicApp.vue'
-import { router } from './router'
-import { pinia } from './store'
+import { router } from './router.ts'
+import { pinia } from './store/index.ts'
 
 const app = createApp(CashbookPublicApp)
 app.use(router)

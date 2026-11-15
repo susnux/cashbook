@@ -3,8 +3,8 @@
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbook } from '../models/Cashbook'
-import type { ICashbookEntry } from '../models/CashbookEntry'
+import type { ICashbook } from '../models/Cashbook.ts'
+import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { mdiEye, mdiInformation, mdiPencil, mdiTrashCan } from '@mdi/js'
 import { getCanonicalLocale } from '@nextcloud/l10n'
@@ -14,7 +14,7 @@ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionLink from '@nextcloud/vue/components/NcActionLink'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
-import { EntryReasonReadable } from '../models/CashbookEntry'
+import { EntryReasonReadable } from '../models/CashbookEntry.ts'
 import { formatCurrency } from '../utils/formatter.ts'
 
 const props = defineProps<{

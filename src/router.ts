@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { RouteLocation, RouteLocationNamedRaw, RouteLocationNormalized, RouteParams } from 'vue-router'
+import type { RouteLocationNormalized, RouteParams } from 'vue-router'
 
 import { generateUrl } from '@nextcloud/router'
 import { createRouter, createWebHistory } from 'vue-router'

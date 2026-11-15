@@ -4,8 +4,8 @@
  */
 
 import type { OCSResponse } from '@nextcloud/typings/ocs'
-import type { ICashbook } from '../models/Cashbook'
-import type { ICashbookEntry } from '../models/CashbookEntry'
+import type { ICashbook } from '../models/Cashbook.ts'
+import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'

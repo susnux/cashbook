@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { ICashbook } from '../models/Cashbook'
+import type { ICashbook } from '../models/Cashbook.ts'
 
 import { t } from '@nextcloud/l10n'
 import { ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
-import { createCashbook } from '../api/cashbooks'
-import { useCashbookStore } from '../store/cashbookStore'
+import { createCashbook } from '../api/cashbooks.ts'
+import { useCashbookStore } from '../store/cashbookStore.ts'
 
 const props = defineProps<{
 	cashbook?: Omit<ICashbook, 'id'>
@@ -78,8 +78,8 @@ const open = ref(true)
 
 <template>
 	<NcDialog
+		v-model:open="open"
 		isForm
-		:v-model:open="open"
 		:buttons="buttons"
 		:name="t('cashbook', 'New cashbook')">
 		<NcTextField v-model="newCashbook.name" required :label="t('cashbook', 'Cashbook name')" />
