@@ -92,9 +92,11 @@ const formattedReason = computed(() => props.modelValue.reason && EntryReasonRea
 .wrappedText {
 	text-wrap: wrap;
 }
+
 .amended td {
 	text-decoration: line-through;
 }
+
 .balanceColumn {
 	font-weight: bold;
 }
