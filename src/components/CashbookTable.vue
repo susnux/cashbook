@@ -175,7 +175,7 @@ const sections = computed(() => {
 
 		/* Balance is numeric */
 			{
-			text-align: right;
+			text-align: end;
 		}
 	}
 
