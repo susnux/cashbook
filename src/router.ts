@@ -3,15 +3,23 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import { generateUrl } from "@nextcloud/router"
-import { createRouter, createWebHistory, type RouteLocation, type RouteLocationNamedRaw, type RouteLocationNormalized, type RouteParams } from "vue-router"
-import EmptyView from "./views/EmptyView.vue"
+import type { RouteLocationNormalized, RouteParams } from 'vue-router'
+
+import { generateUrl } from '@nextcloud/router'
+import { createRouter, createWebHistory } from 'vue-router'
+import EmptyView from './views/EmptyView.vue'
 
 const CashbookView = () => import('./views/CashbookView.vue')
 const CashbookExportView = () => import('./views/ExportView.vue')
 
 const baseUrl = generateUrl('/apps/cashbook')
 
+/**
+ * Get a route parameter as a single string (repeatable parameters return their first value)
+ *
+ * @param paramName - The name of the route parameter
+ * @param routeParams - The parameters of the current route
+ */
 function normalizeParam(paramName: string, routeParams: RouteParams) {
 	return typeof routeParams[paramName] === 'string' ? routeParams[paramName] : routeParams[paramName][0]
 }
@@ -31,7 +39,7 @@ export const routes = [
 		component: CashbookView,
 		props: (route: RouteLocationNormalized) => ({
 			cashbookId: Number.parseInt(normalizeParam('cashbook', route.params)),
-			entryId: Number.parseInt(normalizeParam('entry', route.params))
+			entryId: Number.parseInt(normalizeParam('entry', route.params)),
 		}),
 	},
 	{

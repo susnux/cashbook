@@ -2,18 +2,19 @@
   "name": "cashbook",
   "version": "1.0.0",
   "license": "AGPL-3.0-or-later",
-  "engines": {
-    "node": "^22.0.0",
-    "npm": "^10.0.0"
-  },
   "type": "module",
   "scripts": {
     "build": "NODE_ENV=production vite --mode production build",
     "dev": "NODE_ENV=development vite --mode development build",
-    "watch": "NODE_ENV=development vite --mode development build --watch",
-    "lint": "eslint src",
-    "lint:fix": "eslint --fix src",
-    "stylelint": "stylelint src/**/*.vue src/**/*.scss src/**/*.css"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "stylelint": "stylelint src/**/*.vue src/**/*.scss src/**/*.css",
+    "watch": "NODE_ENV=development vite --mode development build --watch"
+  },
+  "allowScripts": {
+    "@parcel/watcher": true,
+    "core-js": true,
+    "esbuild": true
   },
   "browserslist": [
     "extends @nextcloud/browserslist-config"
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@nextcloud/browserslist-config": "^3.1.2",
+    "@nextcloud/eslint-config": "^9.0.1",
     "@nextcloud/typings": "^1.10.0",
     "@nextcloud/vite-config": "^2.5.4",
     "@vue/tsconfig": "^0.9.1",
@@ -39,9 +41,8 @@
     "typescript": "^6.0.3",
     "vite": "^7.3.7"
   },
-  "allowScripts": {
-    "@parcel/watcher": true,
-    "core-js": true,
-    "esbuild": true
+  "engines": {
+    "node": "^22.0.0",
+    "npm": "^10.0.0"
   }
 }

@@ -1,31 +1,34 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
 /*!
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbook } from '../models/Cashbook';
+import type { ICashbook } from '../models/Cashbook.ts'
 
-import { mdiImport, mdiTrashCan } from '@mdi/js';
+import { mdiImport, mdiTrashCan } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
 import { spawnDialog as spawnNcDialog } from '@nextcloud/vue/functions/dialog'
-import { createVNode, getCurrentInstance, render, toRaw, type Component } from 'vue';
-import { useRouter } from 'vue-router';
-import { deleteCashbook } from '../api/cashbooks';
-import { useCashbookStore } from '../store/cashbookStore';
-
-import NcActionButton from '@nextcloud/vue/components/NcActionButton';
-import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation';
-import NcAppNavigationCaption from '@nextcloud/vue/components/NcAppNavigationCaption';
-import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem';
-import NcAppNavigationList from '@nextcloud/vue/components/NcAppNavigationList';
-import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew';
-import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper';
-import ImportCashbookDialog from '../components/ImportCashbookDialog.vue';
-import NewCashbookDialog from '../components/NewCashbookDialog.vue';
+import { createVNode, getCurrentInstance, render, toRaw } from 'vue'
+import { useRouter } from 'vue-router'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
+import NcAppNavigationCaption from '@nextcloud/vue/components/NcAppNavigationCaption'
+import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
+import NcAppNavigationList from '@nextcloud/vue/components/NcAppNavigationList'
+import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew'
+import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
+import ImportCashbookDialog from '../components/ImportCashbookDialog.vue'
+import NewCashbookDialog from '../components/NewCashbookDialog.vue'
+import { deleteCashbook } from '../api/cashbooks.ts'
+import { useCashbookStore } from '../store/cashbookStore.ts'
 
 const store = useCashbookStore()
 const router = useRouter()
 
+/**
+ *
+ */
 async function importCashbook() {
 	const cashbook = await spawnNcDialog(ImportCashbookDialog)
 	if (cashbook) {
@@ -34,16 +37,31 @@ async function importCashbook() {
 	}
 }
 
+/**
+ * Delete the given cashbook and remove it from the store
+ *
+ * @param cashbook - The cashbook to delete
+ */
 async function onDeleteCashbook(cashbook: ICashbook) {
 	await deleteCashbook(cashbook)
 	store.cashbooks = store.cashbooks.filter(({ id }) => id !== cashbook.id)
 }
 
+/**
+ *
+ */
 async function createNew() {
 	spawnDialog<[ICashbook]>(NewCashbookDialog)
 }
 
 // TODO: Replace with function from nc-vue when released
+/**
+ * Mount a dialog component and destroy it again once it is closed
+ *
+ * @param dialog - The dialog component to show
+ * @param props - Props to pass to the dialog component
+ * @param onClose - Callback invoked with the payload of the dialog's close event
+ */
 function spawnDialog<P extends Array<unknown> = unknown[]>(
 	dialog: Component,
 	props?: unknown[],
@@ -56,7 +74,7 @@ function spawnDialog<P extends Array<unknown> = unknown[]>(
 	const vueComponent = createVNode(dialog, {
 		...props,
 		onclose: (...rest: unknown[]) => {
-			onClose(...rest.map(v => toRaw(v)) as P)
+			onClose(...rest.map((v) => toRaw(v)) as P)
 			// destroy the component
 			render(null, el)
 			el.remove()
@@ -77,8 +95,8 @@ function spawnDialog<P extends Array<unknown> = unknown[]>(
 	<NcAppNavigation>
 		<NcAppNavigationNew :text="t('cashbook', 'New cashbook')" @click="createNew" />
 		<NcAppNavigationCaption
-			heading-id="cashbook-app-navigation-your-cashbooks"
-			is-heading
+			headingId="cashbook-app-navigation-your-cashbooks"
+			isHeading
 			:name="t('cashbook', 'Your cashbooks')" />
 		<NcAppNavigationList aria-labelledby="cashbook-app-navigation-your-cashbooks">
 			<NcAppNavigationItem

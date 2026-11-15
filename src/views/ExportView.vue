@@ -3,16 +3,16 @@
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbookEntry } from '../models/CashbookEntry';
-import { t } from '@nextcloud/l10n'
-import { computed, ref, watchEffect } from 'vue';
-import { useRouter } from 'vue-router';
-import { useCashbookStore } from '../store/cashbookStore';
-import { fetchEntriesByDate } from '../api/cashbooks';
+import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
+import { t } from '@nextcloud/l10n'
+import { computed, ref, watchEffect } from 'vue'
+import { useRouter } from 'vue-router'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import CashbookTable from '../components/CashbookTable.vue';
+import CashbookTable from '../components/CashbookTable.vue'
+import { fetchEntriesByDate } from '../api/cashbooks.ts'
+import { useCashbookStore } from '../store/cashbookStore.ts'
 
 const props = defineProps<{
 	cashbookId: number
@@ -54,7 +54,9 @@ watchEffect(() => {
 	</NcEmptyContent>
 
 	<div v-else>
-		<h2 :class="$style.heading">{{ cashbook.name }}</h2>
+		<h2 :class="$style.heading">
+			{{ cashbook.name }}
+		</h2>
 
 		<CashbookTable :cashbook :entries />
 	</div>

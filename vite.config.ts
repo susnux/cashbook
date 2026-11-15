@@ -8,8 +8,8 @@ import { join, resolve } from 'path'
 
 export default createAppConfig(
 	{
-		'main': resolve(join('src', 'main.ts')),
-		'export': resolve(join('src', 'export.ts')),
+		main: resolve(join('src', 'main.ts')),
+		export: resolve(join('src', 'export.ts')),
 	},
 	{
 		createEmptyCSSEntryPoints: true,

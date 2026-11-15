@@ -4,16 +4,15 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { ICashbook } from '../models/Cashbook';
+import type { ICashbook } from '../models/Cashbook.ts'
 
-import { t } from '@nextcloud/l10n';
-import { ref, watch } from 'vue';
-import { createCashbook } from '../api/cashbooks';
-import { useCashbookStore } from '../store/cashbookStore';
-
+import { t } from '@nextcloud/l10n'
+import { ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import { createCashbook } from '../api/cashbooks.ts'
+import { useCashbookStore } from '../store/cashbookStore.ts'
 
 const props = defineProps<{
 	cashbook?: Omit<ICashbook, 'id'>
@@ -67,6 +66,9 @@ const buttons: InstanceType<typeof NcDialog>['buttons'] = [
 
 const store = useCashbookStore()
 
+/**
+ *
+ */
 async function onCreateCashbook() {
 	const cb = await createCashbook(newCashbook.value)
 	store.cashbooks.push(cb)
@@ -76,19 +78,19 @@ const open = ref(true)
 
 <template>
 	<NcDialog
-		is-form
-		:v-model:open="open"
+		v-model:open="open"
+		isForm
 		:buttons="buttons"
 		:name="t('cashbook', 'New cashbook')">
-		<NcTextField required :label="t('cashbook', 'Cashbook name')" v-model="newCashbook.name"/>
-		<NcTextField :label="t('cashbook', 'Account')" v-model="newCashbook.account" />
+		<NcTextField v-model="newCashbook.name" required :label="t('cashbook', 'Cashbook name')" />
+		<NcTextField v-model="newCashbook.account" :label="t('cashbook', 'Account')" />
 		<NcSelect
+			v-model="newCashbook.currency"
 			:class="$style.currencySelect"
 			:clearable="false"
-			:input-label="t('cashbook', 'Currency')"
+			:inputLabel="t('cashbook', 'Currency')"
 			:options="allCurrencies"
-			required
-			v-model="newCashbook.currency" />
+			required />
 	</NcDialog>
 </template>
 

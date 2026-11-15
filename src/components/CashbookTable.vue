@@ -3,16 +3,15 @@
  * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import type { ICashbook } from '../models/Cashbook';
-import type { ICashbookEntry } from '../models/CashbookEntry';
+import type { ICashbook } from '../models/Cashbook.ts'
+import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
-import { t } from '@nextcloud/l10n';
-import { computed } from 'vue';
-import { EntryReason } from '../models/CashbookEntry';
-import { formatCurrency } from '../utils/formatter';
-
-import NcDateTime from '@nextcloud/vue/components/NcDateTime';
-import CashbookEntry from './CashbookEntry.vue';
+import { t } from '@nextcloud/l10n'
+import { computed } from 'vue'
+import NcDateTime from '@nextcloud/vue/components/NcDateTime'
+import CashbookEntry from './CashbookEntry.vue'
+import { EntryReason } from '../models/CashbookEntry.ts'
+import { formatCurrency } from '../utils/formatter.ts'
 
 const props = defineProps<{
 	cashbook: ICashbook
@@ -33,7 +32,7 @@ const sections = computed(() => {
 			list.at(-1)!.entries.push(entry)
 		}
 	}
-	return list as unknown as {start: ICashbookEntry, end: ICashbookEntry, entries: ICashbookEntry[]}[]
+	return list as unknown as { start: ICashbookEntry, end: ICashbookEntry, entries: ICashbookEntry[] }[]
 })
 </script>
 
@@ -71,7 +70,7 @@ const sections = computed(() => {
 				</th>
 			</tr>
 		</thead>
-		<tbody v-for="section of sections">
+		<tbody v-for="(section, index) of sections" :key="'start' in section ? section.start.id : `section-${index}`">
 			<tr v-if="'start' in section">
 				<th colspan="8">
 					<div :class="$style.dayHeader">
@@ -79,13 +78,13 @@ const sections = computed(() => {
 							<span :class="$style.textBold">
 								{{ t('cashbook', 'Opened:') }}
 							</span>
-							<NcDateTime :relative-time="false" :timestamp="section.start.date" :format="{ dateStyle: 'medium', timeStyle: 'short' }" />
+							<NcDateTime :relativeTime="false" :timestamp="section.start.date" :format="{ dateStyle: 'medium', timeStyle: 'short' }" />
 						</div>
 						<div v-if="'end' in section">
 							<span :class="$style.textBold">
 								{{ t('cashbook', 'Closed:') }}
 							</span>
-							<NcDateTime :relative-time="false" :timestamp="section.end.date" :format="{ dateStyle: 'medium', timeStyle: 'short' }" />
+							<NcDateTime :relativeTime="false" :timestamp="section.end.date" :format="{ dateStyle: 'medium', timeStyle: 'short' }" />
 							<template v-if="section.end.reference">
 								<span :class="$style.textBold">
 									{{ t('cashbook', 'Z-number:') }}
@@ -112,7 +111,11 @@ const sections = computed(() => {
 					</div>
 				</th>
 			</tr>
-			<CashbookEntry v-for="entry in section.entries" :key="entry.id" :cashbook="cashbook" :model-value="entry" />
+			<CashbookEntry
+				v-for="entry in section.entries"
+				:key="entry.id"
+				:cashbook="cashbook"
+				:modelValue="entry" />
 		</tbody>
 	</table>
 </template>
@@ -191,7 +194,7 @@ const sections = computed(() => {
 		--default-font-size: 11pt;
 		font-size: var(--default-font-size);
 		table-layout: fixed;
-		
+
 		thead th {
 			font-size: 12pt;
 
