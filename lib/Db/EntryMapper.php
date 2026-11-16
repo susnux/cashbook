@@ -15,16 +15,20 @@ use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
 
 /**
- * @template-implements QBMapper<Entry>
+ * @template-extends QBMapper<Entry>
  */
-class EntryMapper extends QBMapper {
+final class EntryMapper extends QBMapper {
 
+	/** @psalm-suppress PossiblyUnusedMethod Created by the DI container */
 	public function __construct(
 		IDBConnection $db,
 	) {
 		parent::__construct($db, 'cashbook_cashbook_entries', Entry::class);
 	}
 
+	/**
+	 * @return list<Entry>
+	 */
 	public function getEntries(Cashbook $cashbook, int $offset = 0, int $limit = 50): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
@@ -35,10 +39,15 @@ class EntryMapper extends QBMapper {
 			->setMaxResults($limit)
 			->setFirstResult($offset);
 		$entries = $this->findEntities($qb);
-		array_walk($entries, fn (Entry $entry) => $entry->setCashbook($cashbook));
+		foreach ($entries as $entry) {
+			$entry->setCashbook($cashbook);
+		}
 		return $entries;
 	}
 
+	/**
+	 * @return list<Entry>
+	 */
 	public function getEntriesByDate(Cashbook $cashbook, \DateTimeImmutable $begin, \DateTimeImmutable $end): array {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('id')
@@ -49,7 +58,7 @@ class EntryMapper extends QBMapper {
 				$qb->expr()->gte('datetime', $qb->createNamedParameter($begin, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)),
 			)
 			->setMaxResults(1);
-		$idStart = $qb->executeQuery()->fetchOne();
+		$idStart = (int)$qb->executeQuery()->fetchOne();
 
 		$qb = $this->db->getQueryBuilder();
 		$qbEnd = $this->db->getQueryBuilder();
@@ -71,7 +80,7 @@ class EntryMapper extends QBMapper {
 				$qb->expr()->gt('id', $qbEnd->createFunction('(' . $qbEnd->getSQL() . ')')),
 			)
 			->setMaxResults(1);
-		$idEnd = $qb->executeQuery()->fetchOne();
+		$idEnd = (int)$qb->executeQuery()->fetchOne();
 
 		\OCP\Server::get(LoggerInterface::class)->error('Entry date range IDs: {start} - {end}', ['start' => $idStart, 'end' => $idEnd]);
 
@@ -84,7 +93,9 @@ class EntryMapper extends QBMapper {
 				$qb->expr()->lte('id', $qb->createNamedParameter($idEnd, IQueryBuilder::PARAM_INT)),
 			);
 		$entries = $this->findEntities($qb);
-		array_walk($entries, fn (Entry $entry) => $entry->setCashbook($cashbook));
+		foreach ($entries as $entry) {
+			$entry->setCashbook($cashbook);
+		}
 		return $entries;
 	}
 }

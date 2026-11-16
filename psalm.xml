@@ -11,6 +11,7 @@
 	xsi:schemaLocation="https://getpsalm.org/schema/config vendor-bin/psalm/vendor/vimeo/psalm/config.xsd"
 	findUnusedBaselineEntry="true"
 	findUnusedCode="true"
+	phpVersion="8.3"
 >
 	<projectFiles>
 		<directory name="lib" />
@@ -22,4 +23,13 @@
 	<extraFiles>
 		<directory name="vendor-bin/nextcloud-ocp/vendor" />
 	</extraFiles>
+	<issueHandlers>
+		<UndefinedDocblockClass>
+			<errorLevel type="suppress">
+				<!-- Doctrine is provided by the server but not shipped with nextcloud/ocp -->
+				<referencedClass name="Doctrine\DBAL\Schema\Schema" />
+				<referencedClass name="Doctrine\DBAL\Schema\Table" />
+			</errorLevel>
+		</UndefinedDocblockClass>
+	</issueHandlers>
 </psalm>

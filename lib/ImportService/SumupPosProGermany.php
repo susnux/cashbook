@@ -22,11 +22,20 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Allow to import the cashbook of the SumUp POS Pro (German version)
+ *
+ * @psalm-type CsvRecord = array<string, string>
+ * @psalm-api Instantiated by class name from the import API request
  */
-class SumupPosProGermany implements IImportService {
+final class SumupPosProGermany implements IImportService {
 
+	/** @var ?Iterator<array-key, CsvRecord> */
 	protected ?Iterator $reportIterator = null;
+	/**
+	 * @var Iterator<array-key, CsvRecord>
+	 * @psalm-suppress PropertyNotSetInConstructor Set at the beginning of import()
+	 */
 	protected Iterator $cashbookIterator;
+	/** @psalm-suppress PropertyNotSetInConstructor Set in import() before it is used */
 	protected Cashbook $cashbook;
 	protected \DateTimeZone $timezone;
 
@@ -67,6 +76,11 @@ class SumupPosProGermany implements IImportService {
 		$this->timezone = $timeZoneFactory->getTimeZone();
 	}
 
+	/**
+	 * @param array{name: list<string>, tmp_name: list<string>, ...} $files
+	 * @param array{timezone?: non-empty-string}|null $options
+	 */
+	#[\Override]
 	public function import(array $files, ?array $options = null): Cashbook {
 		// As the very first set we need to set the timezone as this is used by all other
 		// import related code paths - sadly the dates and times are not exported with timezone information.
@@ -96,13 +110,15 @@ class SumupPosProGermany implements IImportService {
 		}
 
 		try {
-			$cashbookCsv = Reader::createFromPath($cashbookCsvFile);
+			$cashbookCsv = Reader::from($cashbookCsvFile, 'r');
 			$cashbookCsv->setHeaderOffset(0);
 			$cashbookCsv->setDelimiter(self::CSV_DELIMITER);
 			$cashbookCsv->setEnclosure(self::CSV_ENCLOSURE);
-			$this->cashbookIterator = $cashbookCsv->getRecords(
+			/** @var Iterator<array-key, CsvRecord> $records */
+			$records = $cashbookCsv->getRecords(
 				$this->mapCashbookCsvHeader($cashbookCsv->getHeader())
 			);
+			$this->cashbookIterator = $records;
 			$this->cashbookIterator->rewind();
 		} catch (\Exception $error) {
 			throw new InvalidArgumentException('Cashbook header not readable', previous: $error);
@@ -116,13 +132,15 @@ class SumupPosProGermany implements IImportService {
 			$this->logger->error('REPORT: ' . $reportCsvFile);
 			// Lets see if we have a report available
 			if ($reportCsvFile !== '') {
-				$reportCsv = Reader::createFromPath($reportCsvFile);
+				$reportCsv = Reader::from($reportCsvFile, 'r');
 				$reportCsv->setHeaderOffset(0);
 				$reportCsv->setDelimiter(self::CSV_DELIMITER);
 				$reportCsv->setEnclosure(self::CSV_ENCLOSURE);
-				$this->reportIterator = $reportCsv->getRecords(
+				/** @var Iterator<array-key, CsvRecord> $records */
+				$records = $reportCsv->getRecords(
 					$this->mapReportCsvHeader($reportCsv->getHeader()),
 				);
+				$this->reportIterator = $records;
 				$this->reportIterator->rewind();
 			} else {
 				$this->reportIterator = null;
@@ -132,12 +150,13 @@ class SumupPosProGermany implements IImportService {
 		}
 
 		// Seek the begin of the cashbook according to the report information
+		$report = null;
 		if ($this->reportIterator !== null) {
-			$report = $this->reportIterator->current();
+			$report = $this->currentRecord($this->reportIterator);
 			$reportDate = $this->parseDateTime($report['opening']);
 
 			while ($this->cashbookIterator->valid()) {
-				$entry = $this->cashbookIterator->current();
+				$entry = $this->currentRecord($this->cashbookIterator);
 				$cashbookDate = $this->parseDateTime($entry['datetime']);
 				if ($cashbookDate >= $reportDate) {
 					break;
@@ -146,7 +165,7 @@ class SumupPosProGermany implements IImportService {
 			}
 		}
 
-		$entry = $this->cashbookIterator->current();
+		$entry = $this->currentRecord($this->cashbookIterator);
 		$currency = $entry['currency'];
 		// Validate the currency
 		try {
@@ -156,18 +175,18 @@ class SumupPosProGermany implements IImportService {
 		}
 
 		$this->cashbook = new Cashbook();
-		$this->cashbook->setOwner($this->userId);
+		$this->cashbook->setOwner($this->getUserId());
 		$this->cashbook->setCurrency($currency);
 		$this->cashbook->setName($entry['store']);
 		$this->cashbook->setAccount($entry['storeId']);
 
 		// Get the initial amount of the cashbooks entry - needed to calculate initial balance
-		$amount = $this->parseMoney($entry['debit'] ?: '0', $currency)
-			->plus($this->parseMoney($entry['credit'] ?: '0', $currency));
+		$amount = $this->parseAmount($entry['debit'])
+			->plus($this->parseAmount($entry['credit']));
 		$total = $this->parseMoney($entry['total'])->minus($amount);
 
 		// If we have a report we need to validate we start with the same money
-		if (isset($report) && !$total->isEqualTo($this->parseMoney($report['balanceStart'], $currency))) {
+		if ($report !== null && !$total->isEqualTo($this->parseMoney($report['balanceStart']))) {
 			$this->logger->error('FFF %s %s %s', [(string)$total, (string)$amount, (string)$this->parseMoney('-100,00')]);
 			throw new InvalidArgumentException('Report and cashbook do not match on cash balance');
 		}
@@ -189,17 +208,22 @@ class SumupPosProGermany implements IImportService {
 		return $this->cashbook;
 	}
 
-	protected function iterateReport() {
-		while ($this->reportIterator->valid()) {
-			$record = $this->reportIterator->current();
+	protected function iterateReport(): void {
+		if ($this->reportIterator === null) {
+			return;
+		}
+
+		$reportIterator = $this->reportIterator;
+		while ($reportIterator->valid()) {
+			$record = $this->currentRecord($reportIterator);
 			$opening = $this->parseDateTime($record['opening']);
-			$openingBalance = $this->parseMoney($record['balanceStart'], $this->cashbook->getCurrency());
+			$openingBalance = $this->parseMoney($record['balanceStart']);
 			$closing = $this->parseDateTime($record['closing']);
-			$closingBalance = $this->parseMoney($record['balanceEnd'], $this->cashbook->getCurrency());
+			$closingBalance = $this->parseMoney($record['balanceEnd']);
 
 			$startEntry = Entry::create(
 				$this->cashbook,
-				$this->userId,
+				$this->getUserId(),
 				$opening,
 				'',
 				EntryReason::DayOpening,
@@ -223,7 +247,7 @@ class SumupPosProGermany implements IImportService {
 
 			$endEntry = Entry::create(
 				$this->cashbook,
-				$this->userId,
+				$this->getUserId(),
 				$closing,
 				'',
 				EntryReason::DayClosing,
@@ -233,31 +257,34 @@ class SumupPosProGermany implements IImportService {
 			);
 			$this->entryMapper->insert($endEntry);
 
-			$this->reportIterator->next();
+			$reportIterator->next();
 		}
 
 	}
 
 	/**
+	 * Import the cashbook entries until the given limit is reached.
 	 *
-	 * @param Iterator<string|int, array<string|int, mixed>>& $cashbookIterator
+	 * @param ?\DateTimeImmutable $limit Stop before the first entry at or after this date (null to import all remaining entries)
+	 * @return ?Entry The last imported entry
 	 */
 	protected function iterateCashbook(?\DateTimeImmutable $limit = null): ?Entry {
+		$entry = null;
 		while ($this->cashbookIterator->valid()) {
-			$record = $this->cashbookIterator->current();
+			$record = $this->currentRecord($this->cashbookIterator);
 			$datetime = $this->parseDateTime($record['datetime']);
 
 			if (($limit !== null && $datetime >= $limit)) {
 				break;
 			}
 
-			$amount = $this->parseMoney($record['debit'] ?: '0', $this->cashbook->getCurrency())
-				->minus($this->parseMoney($record['credit'] ?: '0', $this->cashbook->getCurrency())->abs());
-			$total = $this->parseMoney($record['total'], $this->cashbook->getCurrency());
+			$amount = $this->parseAmount($record['debit'])
+				->minus($this->parseAmount($record['credit'])->abs());
+			$total = $this->parseMoney($record['total']);
 
 			$entry = Entry::create(
 				$this->cashbook,
-				$this->userId,
+				$this->getUserId(),
 				$this->parseDateTime($record['datetime']),
 				$record['text'],
 				$this->mapReason($record['reason']),
@@ -269,7 +296,19 @@ class SumupPosProGermany implements IImportService {
 
 			$this->cashbookIterator->next();
 		}
-		return $entry ?? null;
+		return $entry;
+	}
+
+	/**
+	 * Get the id of the user the cashbook is imported for.
+	 *
+	 * @throws \RuntimeException If no user is logged in
+	 */
+	protected function getUserId(): string {
+		if ($this->userId === null) {
+			throw new \RuntimeException('Cannot import a cashbook without a user.');
+		}
+		return $this->userId;
 	}
 
 	/**
@@ -277,6 +316,28 @@ class SumupPosProGermany implements IImportService {
 	 */
 	protected function normalizeNumber(string $number): string {
 		return str_replace(',', '.', $number);
+	}
+
+	/**
+	 * Get the current record of a CSV iterator.
+	 *
+	 * @param Iterator<array-key, CsvRecord> $iterator
+	 * @return CsvRecord
+	 * @throws InvalidArgumentException If there is no current record
+	 */
+	protected function currentRecord(Iterator $iterator): array {
+		$record = $iterator->current();
+		if ($record === null) {
+			throw new InvalidArgumentException('Unexpected end of CSV file.');
+		}
+		return $record;
+	}
+
+	/**
+	 * Get the Money value of an optional CSV amount (empty values are zero).
+	 */
+	protected function parseAmount(string $value): Money {
+		return $this->parseMoney($value === '' ? '0' : $value);
 	}
 
 	/**
@@ -293,6 +354,9 @@ class SumupPosProGermany implements IImportService {
 
 	/**
 	 * Map localized CSV header to english keys.
+	 *
+	 * @param array<string> $headers
+	 * @return array<string>
 	 */
 	protected function mapCashbookCsvHeader(array $headers): array {
 		return array_map(fn (string $name) => self::CSV_HEADER_MAPPING[$name] ?? $name, $headers);
@@ -300,6 +364,9 @@ class SumupPosProGermany implements IImportService {
 
 	/**
 	 * Map localized CSV header to english keys.
+	 *
+	 * @param array<string> $header
+	 * @return array<string>
 	 */
 	protected function mapReportCsvHeader(array $header): array {
 		return array_map(fn (string $name) => self::CSV_REPORT_HEADER_MAPPING[$name] ?? $name, $header);
