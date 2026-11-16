@@ -1107,7 +1107,7 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid date passed",
+                        "description": "Invalid date passed or the range contains too many entries",
                         "content": {
                             "application/json": {
                                 "schema": {

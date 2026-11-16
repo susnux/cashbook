@@ -44,6 +44,9 @@ use Psr\Log\LoggerInterface;
  */
 final class ApiController extends OCSController {
 
+	/** Maximum number of entries loaded by `getCashbookEntriesPrint()`, limits the memory used by a request */
+	public const int MAX_PRINT_ENTRIES = 20_000;
+
 	public function __construct(
 		IRequest $request,
 		protected ContainerInterface $container,
@@ -140,7 +143,7 @@ final class ApiController extends OCSController {
 	 * @param string $begin Start of the date range (ISO 8601 date time, inclusive)
 	 * @param string $end End of the date range (ISO 8601 date time, exclusive)
 	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
-	 * @throws OCSBadRequestException Invalid date passed
+	 * @throws OCSBadRequestException Invalid date passed or the range contains too many entries
 	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
 	 *
 	 * 200: Entries returned
@@ -165,7 +168,11 @@ final class ApiController extends OCSController {
 			throw new OCSNotFoundException();
 		}
 
-		$entries = $this->entryMapper->getEntriesByDate($cashbook, $dateBegin, $dateEnd);
+		$entries = $this->entryMapper->getEntriesByDate($cashbook, $dateBegin, $dateEnd, self::MAX_PRINT_ENTRIES + 1);
+		if (count($entries) > self::MAX_PRINT_ENTRIES) {
+			throw new OCSBadRequestException($this->l10n->t('The period contains more than %s entries. Choose a shorter period.', [self::MAX_PRINT_ENTRIES]));
+		}
+
 		/** @var list<Entry> $collapsedEntries */
 		$collapsedEntries = [];
 		foreach ($entries as $entry) {

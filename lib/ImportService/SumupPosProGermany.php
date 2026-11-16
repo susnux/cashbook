@@ -52,6 +52,8 @@ final class SumupPosProGermany implements IImportService {
 	protected const string CASHBOOK_FILE_PREFIX = 'Kassenbuch_';
 	protected const string CSV_ENCLOSURE = '"';
 	protected const string CSV_DELIMITER = ';';
+	/** Maximum number of rows of an imported CSV file, all rows are imported in a single transaction */
+	public const int MAX_ROWS = 100_000;
 
 	protected const array CSV_HEADER_MAPPING = [
 		'Geschäft' => 'store',
@@ -121,6 +123,8 @@ final class SumupPosProGermany implements IImportService {
 		try {
 			$this->cashbookIterator = $this->readCsv($cashbookCsvFile, self::CSV_HEADER_MAPPING);
 			$this->reportIterator = $reportCsvFile === '' ? null : $this->readCsv($reportCsvFile, self::CSV_REPORT_HEADER_MAPPING);
+		} catch (InvalidInputException $error) {
+			throw $error;
 		} catch (Exception $error) {
 			throw new InvalidInputException('The selected files are not valid CSV files.', $this->l10n->t('The selected files are not valid CSV files.'), previous: $error);
 		}
@@ -281,12 +285,20 @@ final class SumupPosProGermany implements IImportService {
 	 *
 	 * @param array<string, string> $headerMapping
 	 * @return Iterator<array-key, CsvRecord>
+	 * @throws InvalidInputException If the file has more than `MAX_ROWS` rows
 	 */
 	protected function readCsv(string $path, array $headerMapping): Iterator {
 		$csv = Reader::from($path, 'r');
 		$csv->setHeaderOffset(0);
 		$csv->setDelimiter(self::CSV_DELIMITER);
 		$csv->setEnclosure(self::CSV_ENCLOSURE);
+
+		if (count($csv) > self::MAX_ROWS) {
+			throw new InvalidInputException(
+				sprintf('The selected files contain more than %d rows.', self::MAX_ROWS),
+				$this->l10n->t('The selected files contain more than %s rows. Export a shorter period.', [self::MAX_ROWS]),
+			);
+		}
 
 		$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csv->getHeader());
 		/** @var Iterator<array-key, CsvRecord> $records */

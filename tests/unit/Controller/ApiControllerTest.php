@@ -292,6 +292,41 @@ final class ApiControllerTest extends TestCase {
 		));
 	}
 
+	public static function dataGetCashbookEntriesPrintLimit(): array {
+		return [
+			'at the limit' => [ApiController::MAX_PRINT_ENTRIES, true],
+			'above the limit' => [ApiController::MAX_PRINT_ENTRIES + 1, false],
+		];
+	}
+
+	#[DataProvider('dataGetCashbookEntriesPrintLimit')]
+	public function testGetCashbookEntriesPrintLimit(int $count, bool $allowed): void {
+		$cashbook = $this->createCashbook('alice');
+		$amount = Money::of('1.00', 'EUR');
+		$db = Server::get(IDBConnection::class);
+		$db->beginTransaction();
+		for ($index = 0; $index < $count; $index++) {
+			$this->entryMapper->insert(Entry::create(
+				$cashbook,
+				'alice',
+				new \DateTimeImmutable('2025-01-02 10:00', new \DateTimeZone('UTC')),
+				'Sale ' . $index,
+				EntryReason::IncomeSales,
+				$amount,
+				$amount,
+			));
+		}
+		$db->commit();
+
+		$controller = $this->createController();
+		if (!$allowed) {
+			$this->expectException(OCSBadRequestException::class);
+			$this->expectExceptionMessage('translated: The period contains more than 20000 entries. Choose a shorter period.');
+		}
+		$response = $controller->getCashbookEntriesPrint($cashbook->getId(), '2025-01-02T00:00:00Z', '2025-01-03T00:00:00Z');
+		$this->assertCount($count, $response->getData());
+	}
+
 	public function testCreateCashbook(): void {
 		$response = $this->createController()->createCashbook('Shop', 'EUR', '1000');
 		$data = $response->getData();

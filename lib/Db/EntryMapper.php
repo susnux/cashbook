@@ -50,9 +50,10 @@ final class EntryMapper extends QBMapper {
 	 * If the range starts or ends within an open day (between a day opening and its day closing),
 	 * the range is extended to include the whole day.
 	 *
+	 * @param ?int $limit Maximum number of entries to return (null for all)
 	 * @return list<Entry>
 	 */
-	public function getEntriesByDate(Cashbook $cashbook, \DateTimeImmutable $begin, \DateTimeImmutable $end): array {
+	public function getEntriesByDate(Cashbook $cashbook, \DateTimeImmutable $begin, \DateTimeImmutable $end, ?int $limit = null): array {
 		$opening = $this->findBoundary($cashbook, EntryReason::DayOpening, 'lte', $begin, 'DESC');
 		if ($opening !== null && $this->findBoundary($cashbook, EntryReason::DayClosing, 'gte', $opening, 'ASC', $begin) === null) {
 			$begin = $opening;
@@ -73,6 +74,9 @@ final class EntryMapper extends QBMapper {
 			$qb->andWhere($qb->expr()->lte('datetime', $qb->createNamedParameter($closing, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)));
 		} else {
 			$qb->andWhere($qb->expr()->lt('datetime', $qb->createNamedParameter($end, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)));
+		}
+		if ($limit !== null) {
+			$qb->setMaxResults($limit);
 		}
 
 		return $this->findCashbookEntities($cashbook, $qb);

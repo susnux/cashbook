@@ -162,6 +162,28 @@ final class SumupPosProGermanyTest extends TestCase {
 		], $entries);
 	}
 
+	public function testImportTooManyRows(): void {
+		$file = tempnam(sys_get_temp_dir(), 'cashbook');
+		$this->assertIsString($file);
+		try {
+			$csv = fopen($file, 'w');
+			$this->assertIsResource($csv);
+			fwrite($csv, (string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0]);
+			$row = "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n";
+			fwrite($csv, str_repeat($row, SumupPosProGermany::MAX_ROWS + 1));
+			fclose($csv);
+
+			$this->createImporter()->import(['name' => ['Kassenbuch_large.csv'], 'tmp_name' => [$file]]);
+			$this->fail('Import should have failed');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The selected files contain more than 100000 rows.', $error->getMessage());
+			$this->assertSame('translated: The selected files contain more than 100000 rows. Export a shorter period.', $error->getHint());
+		} finally {
+			unlink($file);
+		}
+		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
+	}
+
 	public function testImportWithTimezoneOption(): void {
 		$cashbook = $this->createImporter()->import($this->files('Kassenbuch_basic.csv'), ['timezone' => 'UTC']);
 

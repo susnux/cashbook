@@ -11,6 +11,7 @@ import type { Period } from '../utils/period.ts'
 import { isCancel } from '@nextcloud/axios'
 import { ref, toValue, watch } from 'vue'
 import { fetchEntriesByDate } from '../api/cashbooks.ts'
+import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
 
 /**
@@ -25,6 +26,8 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 	const entries = ref<ICashbookEntry[]>([])
 	const loading = ref(false)
 	const failed = ref(false)
+	/** The error message of the server if loading failed */
+	const errorMessage = ref<string>()
 	const reloadCounter = ref(0)
 
 	watch(
@@ -32,6 +35,7 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 		async (_, __, onCleanup) => {
 			entries.value = []
 			failed.value = false
+			errorMessage.value = undefined
 			const currentCashbook = toValue(cashbook)
 			if (!currentCashbook) {
 				loading.value = false
@@ -54,6 +58,7 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 				}
 				logger.error('Failed to fetch cashbook entries', { error })
 				failed.value = true
+				errorMessage.value = getOcsErrorMessage(error)
 				loading.value = false
 			}
 		},
@@ -71,6 +76,7 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 		entries,
 		loading,
 		failed,
+		errorMessage,
 		reload,
 	}
 }

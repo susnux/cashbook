@@ -72,6 +72,17 @@ test.describe('Export cashbook', () => {
 		await expect(summary).toHaveCount(0)
 	})
 
+	test('shows the error of the server if the entries can not be loaded', async ({ cashbookApp, page }) => {
+		await page.route('**/apps/cashbook/api/v1/cashbooks/*/entries/print?*', (route) => route.fulfill({
+			status: 400,
+			json: { ocs: { meta: { status: 'failure', statuscode: 400, message: 'The period contains too many entries.' }, data: [] } },
+		}))
+		await page.goto(`apps/cashbook/${cashbookId}/export?${JANUARY_2025}`)
+
+		await expect(cashbookApp.emptyContent('Could not load the entries')).toBeVisible()
+		await expect(page.getByRole('main').getByText('The period contains too many entries.')).toBeVisible()
+	})
+
 	test('opens the print dialog', async ({ page }) => {
 		await page.addInitScript(() => {
 			window.print = () => {

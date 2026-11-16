@@ -84,4 +84,22 @@ describe('useCashbookEntries', () => {
 		expect(fetchEntriesByDate).toHaveBeenCalledTimes(2)
 		scope.stop()
 	})
+
+	it('provides the error message of the server', async () => {
+		const error = Object.assign(new Error('Request failed'), {
+			isAxiosError: true,
+			response: { status: 400, data: { ocs: { meta: { status: 'failure', statuscode: 400, message: 'Too many entries' }, data: [] } } },
+		})
+		fetchEntriesByDate.mockRejectedValueOnce(error).mockResolvedValueOnce([])
+
+		const scope = effectScope()
+		const { errorMessage, reload } = scope.run(() => useCashbookEntries(cashbookA, getPeriod('month', new Date())))!
+		await flushPromises()
+		expect(errorMessage.value).toBe('Too many entries')
+
+		reload()
+		await flushPromises()
+		expect(errorMessage.value).toBeUndefined()
+		scope.stop()
+	})
 })
