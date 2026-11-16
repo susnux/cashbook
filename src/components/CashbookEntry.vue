@@ -7,14 +7,9 @@
 import type { ICashbook } from '../models/Cashbook.ts'
 import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
-import { mdiEye, mdiInformation, mdiPencil, mdiTrashCan } from '@mdi/js'
 import { getCanonicalLocale } from '@nextcloud/l10n'
 import { useFormatTime } from '@nextcloud/vue/composables/useFormatDateTime'
 import { computed } from 'vue'
-import NcActionButton from '@nextcloud/vue/components/NcActionButton'
-import NcActionLink from '@nextcloud/vue/components/NcActionLink'
-import NcActions from '@nextcloud/vue/components/NcActions'
-import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import { EntryReasonReadable } from '../models/CashbookEntry.ts'
 import { formatCurrency } from '../utils/formatter.ts'
 
@@ -23,14 +18,13 @@ const props = defineProps<{
 	modelValue: ICashbookEntry
 }>()
 
-const formattedTime = useFormatTime(props.modelValue.date, { format: { dateStyle: 'medium', timeStyle: 'short' } })
-const formattedTax = computed(() => props.modelValue.tax?.toLocaleString(getCanonicalLocale(), { style: 'percent' }) ?? '')
-
-const formattedReason = computed(() => props.modelValue.reason && EntryReasonReadable[props.modelValue.reason])
+const formattedTime = useFormatTime(() => props.modelValue.date, { format: { dateStyle: 'medium', timeStyle: 'short' } })
+const formattedTax = computed(() => props.modelValue.tax?.toLocaleString(getCanonicalLocale(), { style: 'percent', maximumFractionDigits: 2 }) ?? '')
+const formattedReason = computed(() => props.modelValue.reason ? EntryReasonReadable[props.modelValue.reason] : '')
 </script>
 
 <template>
-	<tr :class="modelValue.amendment ? $style.amended : ''">
+	<tr>
 		<td>{{ modelValue.id }}</td>
 		<td>
 			<div :class="$style.wrappedText" v-text="formattedTime" />
@@ -47,55 +41,12 @@ const formattedReason = computed(() => props.modelValue.reason && EntryReasonRea
 		<td :class="$style.balanceColumn">
 			{{ formatCurrency(modelValue.balance, cashbook.currency) }}
 		</td>
-		<td>
-			<NcActions forceMenu>
-				<template #icon>
-					<NcIconSvgWrapper v-if="modelValue.amendment || modelValue.original" :path="mdiInformation" />
-					<NcIconSvgWrapper v-else :path="mdiPencil" />
-				</template>
-
-				<NcActionLink
-					v-if="modelValue.original"
-					name="Show amended entry"
-					:to="{ name: 'cashbook-entry', params: { cashbook: String(cashbook.id), entry: String(modelValue.original) } }">
-					<template #icon>
-						<NcIconSvgWrapper :path="mdiEye" />
-					</template>
-				</NcActionLink>
-
-				<NcActionLink
-					v-else-if="modelValue.amendment"
-					name="Show amendment"
-					:to="{ name: 'cashbook-entry', params: { cashbook: String(cashbook.id), entry: String(modelValue.amendment) } }">
-					<template #icon>
-						<NcIconSvgWrapper :path="mdiEye" />
-					</template>
-				</NcActionLink>
-
-				<template v-else>
-					<NcActionButton name="Edit">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiPencil" />
-						</template>
-					</NcActionButton>
-					<NcActionButton name="Delete">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiTrashCan" />
-						</template>
-					</NcActionButton>
-				</template>
-			</NcActions>
-		</td>
 	</tr>
 </template>
 
 <style module>
 .wrappedText {
 	text-wrap: wrap;
-}
-
-.amended td {
-	text-decoration: line-through;
 }
 
 .balanceColumn {

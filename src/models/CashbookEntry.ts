@@ -28,14 +28,14 @@ export const EntryReasonReadable: Record<EntryReason, string> = Object.freeze({
 	[EntryReason.DayClosing]: t('cashbook', 'Day closing'),
 	[EntryReason.Correction]: t('cashbook', 'Adjusting entry'),
 
-	[EntryReason.IncomeBankTransfer]: t('cashbook', 'Adjusting entry'),
+	[EntryReason.IncomeBankTransfer]: t('cashbook', 'Transfer from bank'),
 	[EntryReason.IncomeMisc]: t('cashbook', 'Miscellaneous income'),
 	[EntryReason.IncomeSales]: t('cashbook', 'Sales'),
 
 	[EntryReason.ExpenseBankTransfer]: t('cashbook', 'Transfer to bank'),
 	[EntryReason.ExpenseChange]: t('cashbook', 'Change'),
 	[EntryReason.ExpenseGoods]: t('cashbook', 'Purchases'),
-	[EntryReason.ExpenseMisc]: t('cashbook', 'Miscellaneous expanses'),
+	[EntryReason.ExpenseMisc]: t('cashbook', 'Miscellaneous expenses'),
 	[EntryReason.ExpenseRefund]: t('cashbook', 'Refund'),
 	[EntryReason.ExpenseSalary]: t('cashbook', 'Salaries'),
 	[EntryReason.ExpenseTips]: t('cashbook', 'Tips'),
@@ -52,11 +52,6 @@ interface BaseEntry {
 	tax: number | null
 
 	reason: EntryReason | null
-
-	/** Entry that amends this entry */
-	amendment?: number
-	/** Entry that is amended by this entry */
-	original?: number
 }
 
 interface DebitEntry extends BaseEntry {
