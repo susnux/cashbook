@@ -11,7 +11,9 @@ import { computed, ref } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
+import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import { importSumupCashbook } from '../api/cashbooks.ts'
+import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
 
 const emit = defineEmits<{
@@ -19,6 +21,8 @@ const emit = defineEmits<{
 }>()
 
 const files = ref<File[]>([])
+const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone)
+const timezonePickerId = 'cashbook-import-timezone'
 const error = ref('')
 const imported = ref<ICashbook>()
 
@@ -41,10 +45,11 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 async function onImport() {
 	error.value = ''
 	try {
-		imported.value = await importSumupCashbook(files.value)
+		imported.value = await importSumupCashbook(files.value, timezone.value)
 	} catch (e) {
 		logger.error('Failed to import cashbook', { error: e })
-		error.value = t('cashbook', 'Could not import the cashbook. Please make sure you selected the cashbook export (Kassenbuch_….csv) and optionally the matching daily closing report.')
+		error.value = getOcsErrorMessage(e)
+			?? t('cashbook', 'Could not import the cashbook. Please make sure you selected the cashbook export (Kassenbuch_….csv) and optionally the matching daily closing report.')
 		return false
 	}
 }
@@ -77,6 +82,10 @@ function onUpdateOpen(open: boolean) {
 				{{ file.name }}
 			</li>
 		</ul>
+		<label :class="$style.timezoneLabel" :for="`vs-${timezonePickerId}__combobox`">
+			{{ t('cashbook', 'Timezone of the export') }}
+		</label>
+		<NcTimezonePicker v-model="timezone" :uid="timezonePickerId" />
 		<NcNoteCard v-if="error" type="error" :text="error" />
 	</NcDialog>
 </template>
@@ -86,5 +95,10 @@ function onUpdateOpen(open: boolean) {
 	list-style: disc;
 	padding-inline-start: calc(3 * var(--default-grid-baseline));
 	margin-block: var(--default-grid-baseline);
+}
+
+.timezoneLabel {
+	display: block;
+	margin-block-start: calc(2 * var(--default-grid-baseline));
 }
 </style>

@@ -1018,7 +1018,16 @@
                                 "properties": {
                                     "import": {
                                         "type": "string",
-                                        "description": "The class name of the import service to use"
+                                        "enum": [
+                                            "sumup-pos-pro-de"
+                                        ],
+                                        "description": "The import format to use"
+                                    },
+                                    "timezone": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "default": null,
+                                        "description": "The timezone of the dates in the uploaded files (defaults to the timezone of the user)"
                                     }
                                 }
                             }
