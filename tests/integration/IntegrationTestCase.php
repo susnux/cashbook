@@ -81,6 +81,20 @@ abstract class IntegrationTestCase extends TestCase {
 	}
 
 	/**
+	 * Request a page of the app as the given user without following redirects.
+	 *
+	 * @param string $path Path relative to the app's web root, e.g. `42/export`
+	 */
+	protected function pageRequest(string $userId, string $path): ResponseInterface {
+		$this->assertArrayHasKey($userId, $this->users, 'Requests can only be sent as users created by the test');
+		return $this->client->request('GET', 'index.php/apps/cashbook/' . ltrim($path, '/'), [
+			RequestOptions::ALLOW_REDIRECTS => false,
+			RequestOptions::AUTH => [$userId, $this->users[$userId]],
+			RequestOptions::HEADERS => ['Accept' => 'text/html'],
+		]);
+	}
+
+	/**
 	 * Assert the status code of an OCS response and return its data.
 	 */
 	protected function assertOcsResponse(int $expectedStatus, ResponseInterface $response): mixed {

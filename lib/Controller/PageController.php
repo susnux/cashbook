@@ -60,29 +60,43 @@ final class PageController extends Controller {
 	#[NoCSRFRequired()]
 	#[FrontpageRoute(verb: 'GET', url: '/{cashbookId}', requirements: ['cashbookId' => '\d+'])]
 	public function showCashbook(int $cashbookId): TemplateResponse|RedirectResponse {
-		try {
-			$cashbook = $this->cashbookMapper->getCashbook($cashbookId);
-			if ($cashbook->getOwner() === $this->userId) {
-				return $this->index();
-			}
-		} catch (DoesNotExistException) {
-			// Cashbook does not exist so redirect below
+		if (!$this->isAccessible($cashbookId)) {
+			return $this->redirectToNotFound();
 		}
-		return new RedirectResponse(
-			$this->urlGenerator->linkToRouteAbsolute('cashbook.page.notFound')
-		);
+		return $this->index();
 	}
 
 	/**
-	 * @psalm-suppress UnusedParam The route parameter is read by the frontend
+	 * Printable page of the entries of a cashbook
 	 */
 	#[NoAdminRequired()]
 	#[NoCSRFRequired()]
 	#[FrontpageRoute(verb: 'GET', url: '/{cashbookId}/export', requirements: ['cashbookId' => '\d+'])]
-	public function exportCashbook(int $cashbookId): TemplateResponse {
+	public function exportCashbook(int $cashbookId): TemplateResponse|RedirectResponse {
+		if (!$this->isAccessible($cashbookId)) {
+			return $this->redirectToNotFound();
+		}
+
 		Util::addScript($this->appName, 'cashbook-export');
 		Util::addStyle($this->appName, 'cashbook-export');
 
 		return new TemplateResponse($this->appName, 'export', renderAs: TemplateResponse::RENDER_AS_BASE);
+	}
+
+	/**
+	 * Check if the cashbook exists and is owned by the current user
+	 */
+	private function isAccessible(int $cashbookId): bool {
+		try {
+			return $this->cashbookMapper->getCashbook($cashbookId)->getOwner() === $this->userId;
+		} catch (DoesNotExistException) {
+			return false;
+		}
+	}
+
+	private function redirectToNotFound(): RedirectResponse {
+		return new RedirectResponse(
+			$this->urlGenerator->linkToRouteAbsolute('cashbook.page.notFound')
+		);
 	}
 }

@@ -74,4 +74,31 @@ final class PageControllerTest extends TestCase {
 		$this->assertInstanceOf(RedirectResponse::class, $response);
 		$this->assertSame('https://cloud.example.com/cashbook.page.notFound', $response->getRedirectURL());
 	}
+
+	public function testExportCashbook(): void {
+		$cashbook = Server::get(CashbookService::class)->create(self::USER_ID, 'Shop', 'EUR');
+
+		$response = $this->createController()->exportCashbook($cashbook->getId());
+		$this->assertInstanceOf(TemplateResponse::class, $response);
+		$this->assertSame('export', $response->getTemplateName());
+		$this->assertSame(TemplateResponse::RENDER_AS_BASE, $response->getRenderAs());
+	}
+
+	public function testExportCashbookOfOtherUser(): void {
+		$cashbook = Server::get(CashbookService::class)->create(self::USER_ID . '-other', 'Shop', 'EUR');
+
+		try {
+			$response = $this->createController()->exportCashbook($cashbook->getId());
+		} finally {
+			Server::get(CashbookService::class)->delete($cashbook);
+		}
+		$this->assertInstanceOf(RedirectResponse::class, $response);
+		$this->assertSame('https://cloud.example.com/cashbook.page.notFound', $response->getRedirectURL());
+	}
+
+	public function testExportMissingCashbook(): void {
+		$response = $this->createController()->exportCashbook(PHP_INT_MAX);
+		$this->assertInstanceOf(RedirectResponse::class, $response);
+		$this->assertSame('https://cloud.example.com/cashbook.page.notFound', $response->getRedirectURL());
+	}
 }
