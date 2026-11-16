@@ -1,0 +1,15 @@
+/*!
+ * SPDX-FileCopyrightText: 2026 Ferdinand Thiessen <opensource@fthiessen.de>
+ * SPDX-License-Identifier: CC0-1.0
+ */
+
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+	plugins: [vue()],
+	test: {
+		environment: 'happy-dom',
+		include: ['src/**/*.spec.ts'],
+	},
+})
