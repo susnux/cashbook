@@ -16,8 +16,9 @@ use OCP\IDBConnection;
 /**
  * @template-extends QBMapper<Cashbook>
  */
-class CashbookMapper extends QBMapper {
+final class CashbookMapper extends QBMapper {
 
+	/** @psalm-suppress PossiblyUnusedMethod Created by the DI container */
 	public function __construct(
 		IDBConnection $db,
 	) {

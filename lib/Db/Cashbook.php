@@ -15,6 +15,9 @@ use OCP\AppFramework\Db\Entity;
 /**
  * @psalm-import-type CashbookCashbook from ResponseDefinitions
  *
+ * @psalm-suppress PropertyNotSetInConstructor Properties are populated by the mapper
+ * @psalm-suppress PossiblyUnusedProperty Properties are accessed through the magic getters and setters
+ *
  * @method string getName()
  * @method void setName(string $value)
  * @method string getAccount()
@@ -24,7 +27,7 @@ use OCP\AppFramework\Db\Entity;
  * @method string getOwner()
  * @method void setOwner(string $value)
  */
-class Cashbook extends Entity implements \JsonSerializable {
+final class Cashbook extends Entity implements \JsonSerializable {
 
 	/**
 	 * Name of the cashbook
@@ -60,6 +63,7 @@ class Cashbook extends Entity implements \JsonSerializable {
 	/**
 	 * @return CashbookCashbook
 	 */
+	#[\Override]
 	public function jsonSerialize(): array {
 		return [
 			'id' => $this->id,

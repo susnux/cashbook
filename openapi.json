@@ -83,7 +83,12 @@
                         "type": "string"
                     },
                     "reason": {
-                        "$ref": "#/components/schemas/EntryReason"
+                        "nullable": true,
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EntryReason"
+                            }
+                        ]
                     },
                     "reference": {
                         "type": "string",

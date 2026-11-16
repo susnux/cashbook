@@ -9,6 +9,9 @@ declare(strict_types=1);
 
 namespace OCA\Cashbook\Db;
 
+/**
+ * @psalm-suppress UnusedClass Only its constants are used
+ */
 final class EntryReason {
 	public const string DayOpening = 'day-opening';
 	public const string DayClosing = 'day-closing';

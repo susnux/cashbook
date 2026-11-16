@@ -21,18 +21,29 @@ use RuntimeException;
  * @psalm-import-type CashbookEntry from ResponseDefinitions
  * @psalm-import-type CashbookEntryReason from ResponseDefinitions
  *
- * @method int getCashbook()
- * @method \DateTimeImmutable getDatetime()
+ * @psalm-suppress PropertyNotSetInConstructor Properties are populated by the mapper
+ * @psalm-suppress PossiblyUnusedProperty Properties are accessed through the magic getters and setters
+ *
+ * @method ?Cashbook getCashbook()
  * @method int getCashbookId()
- * @method string getUser()
+ * @method \DateTimeImmutable getDatetime()
+ * @method void setDatetime(\DateTimeImmutable $datetime)
+ * @method string getUserId()
+ * @method void setUserId(string $userId)
  * @method string getText()
+ * @method void setText(string $text)
  * @method string getAmountRaw()
+ * @method void setAmountRaw(string $amountRaw)
  * @method string getBalanceRaw()
+ * @method void setBalanceRaw(string $balanceRaw)
  * @method ?string getTaxRaw()
- * @method CashbookEntryReason getReason()
+ * @method void setTaxRaw(?string $taxRaw)
+ * @method EntryReason::*|null getReason()
+ * @method void setReason(EntryReason::*|null $reason)
  * @method ?string getReference()
+ * @method void setReference(?string $reference)
  */
-class Entry extends Entity implements JsonSerializable {
+final class Entry extends Entity implements JsonSerializable {
 
 	/**
 	 * The cashbook this entry belongs to
@@ -101,7 +112,7 @@ class Entry extends Entity implements JsonSerializable {
 	protected $text;
 
 	/**
-	 * @var EntryReason::*
+	 * @var ?CashbookEntryReason
 	 */
 	protected $reason;
 
@@ -113,6 +124,9 @@ class Entry extends Entity implements JsonSerializable {
 		$this->addType('referenceDate', Types::DATE_IMMUTABLE);
 	}
 
+	/**
+	 * @param EntryReason::*|null $reason
+	 */
 	public static function create(
 		Cashbook $cashbook,
 		string $userId,
@@ -123,13 +137,13 @@ class Entry extends Entity implements JsonSerializable {
 		Money $balance,
 		?BigRational $tax = null,
 		?string $reference = null,
-	): static {
+	): self {
 		$entry = new self($cashbook);
 		$entry->setUserId($userId);
 		$entry->setDatetime($datetime);
 		$entry->setText($text);
-		$entry->setAmountRaw($amount->getAmount());
-		$entry->setBalanceRaw($balance->getAmount());
+		$entry->setAmount($amount);
+		$entry->setBalance($balance);
 		$entry->setTax($tax);
 		$entry->setReason($reason);
 		$entry->setReference($reference);
@@ -181,6 +195,7 @@ class Entry extends Entity implements JsonSerializable {
 		return Money::of($this->balanceRaw, $this->cashbook->getCurrency());
 	}
 
+	#[\Override]
 	protected function getter(string $name): mixed {
 		if ($name === 'cashbookId') {
 			return $this->cashbook?->getId() ?? $this->cashbookId;
@@ -188,6 +203,7 @@ class Entry extends Entity implements JsonSerializable {
 		return parent::getter($name);
 	}
 
+	#[\Override]
 	public function getUpdatedFields(): array {
 		if ($this->cashbook !== null && $this->cashbook->getId() !== $this->cashbookId) {
 			$this->markFieldUpdated('cashbookId');
@@ -198,6 +214,7 @@ class Entry extends Entity implements JsonSerializable {
 	/**
 	 * @return CashbookEntry
 	 */
+	#[\Override]
 	public function jsonSerialize(): array {
 		$data = [
 			'id' => $this->getId(),

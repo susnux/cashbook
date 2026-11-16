@@ -22,7 +22,10 @@ use OCP\IRequest;
 use OCP\IURLGenerator;
 use OCP\Util;
 
-class PageController extends Controller {
+/**
+ * @psalm-api Loaded by the router
+ */
+final class PageController extends Controller {
 
 	public function __construct(
 		string $appName,
@@ -48,7 +51,7 @@ class PageController extends Controller {
 	#[NoAdminRequired()]
 	#[NoCSRFRequired()]
 	#[FrontpageRoute(verb: 'GET', url: '/{cashbookId}', requirements: ['cashbookId' => '\d+'])]
-	public function showCashbook(int $cashbookId): TemplateResponse {
+	public function showCashbook(int $cashbookId): TemplateResponse|RedirectResponse {
 		try {
 			$cashbook = $this->cashbookMapper->getCashbook($cashbookId);
 			if ($cashbook->getOwner() !== $this->userId) {
@@ -65,6 +68,9 @@ class PageController extends Controller {
 		);
 	}
 
+	/**
+	 * @psalm-suppress UnusedParam The route parameter is read by the frontend
+	 */
 	#[NoAdminRequired()]
 	#[NoCSRFRequired()]
 	#[FrontpageRoute(verb: 'GET', url: '/{cashbookId}/export', requirements: ['cashbookId' => '\d+'])]

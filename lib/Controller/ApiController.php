@@ -28,7 +28,6 @@ use OCP\AppFramework\OCS\OCSBadRequestException;
 use OCP\AppFramework\OCS\OCSForbiddenException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\AppFramework\OCSController;
-use OCP\IDBConnection;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -36,14 +35,12 @@ use Psr\Log\LoggerInterface;
  * @psalm-import-type CashbookCashbook from ResponseDefinitions
  * @psalm-import-type CashbookEntry from ResponseDefinitions
  *
- * @psalm-suppress UnusedClass
+ * @psalm-api Loaded by the router
  */
-class ApiController extends OCSController {
+final class ApiController extends OCSController {
 
 	public function __construct(
 		IRequest $request,
-		protected IDBConnection $db,
-		protected \OCP\IL10N $l10n,
 		protected LoggerInterface $logger,
 		protected CashbookMapper $cashbookMapper,
 		protected EntryMapper $entryMapper,
@@ -127,7 +124,7 @@ class ApiController extends OCSController {
 
 		$entries = $this->entryMapper->getEntries($cashbook, $offset, $limit);
 		return new DataResponse(
-			array_values(array_map(static fn (Entry $entry): array => $entry->jsonSerialize(), $entries))
+			array_map(static fn (Entry $entry): array => $entry->jsonSerialize(), $entries)
 		);
 	}
 
@@ -268,6 +265,7 @@ class ApiController extends OCSController {
 	public function importCashbook(
 		string $import,
 	): DataResponse {
+		/** @var array{name: list<string>, tmp_name: list<string>, ...}|null $files Uploaded as `files[]`, null if no file was uploaded */
 		$files = $this->request->getUploadedFile('files');
 		if ($files === null) {
 			throw new OCSBadRequestException('No files provided');

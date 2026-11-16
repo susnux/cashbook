@@ -14,19 +14,24 @@ use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 
-class Application extends App implements IBootstrap {
-	public const APP_ID = 'cashbook';
+/**
+ * @psalm-api Loaded by the server
+ */
+final class Application extends App implements IBootstrap {
+	public const string APP_ID = 'cashbook';
 
 	/** @psalm-suppress PossiblyUnusedMethod */
 	public function __construct() {
 		parent::__construct(self::APP_ID);
 	}
 
+	#[\Override]
 	public function register(IRegistrationContext $context): void {
 		// Register composer autoloader
 		include_once __DIR__ . '/../../vendor/autoload.php';
 	}
 
+	#[\Override]
 	public function boot(IBootContext $context): void {
 	}
 }

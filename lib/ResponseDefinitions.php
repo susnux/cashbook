@@ -27,7 +27,7 @@ namespace OCA\Cashbook;
  *     credit?: float,
  *     text: string,
  *     date: string,
- *     reason: CashbookEntryReason,
+ *     reason: ?CashbookEntryReason,
  *     reference: ?string,
  *     tax: ?float,
  * }

@@ -12,16 +12,13 @@ namespace OCA\Cashbook\Migration;
 use Closure;
 use OCP\DB\ISchemaWrapper;
 use OCP\DB\Types;
-use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
 
-class Version000001Date20250214140000 extends SimpleMigrationStep {
-
-	public function __construct(
-		private IDBConnection $connection,
-	) {
-	}
+/**
+ * @psalm-api Loaded by the migration service
+ */
+final class Version000001Date20250214140000 extends SimpleMigrationStep {
 
 	/**
 	 * @param IOutput $output
@@ -29,6 +26,7 @@ class Version000001Date20250214140000 extends SimpleMigrationStep {
 	 * @param array $options
 	 * @return null|ISchemaWrapper
 	 */
+	#[\Override]
 	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
 		/** @var ISchemaWrapper $schema */
 		$schema = $schemaClosure();
