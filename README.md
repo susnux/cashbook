@@ -44,7 +44,17 @@ npm run test         # frontend unit tests (vitest)
 npm run lint         # ESLint
 npm run stylelint    # Stylelint
 composer run test:unit  # PHPUnit, requires an installed Nextcloud with the app enabled
+composer run test:integration  # PHPUnit API tests against a running Nextcloud, see below
 composer run cs:check   # PHP coding standard
 composer run psalm      # PHP static analysis
 composer run openapi    # regenerate openapi.json
 ```
+
+The integration tests in `tests/integration` send HTTP requests to a running Nextcloud with the app enabled.
+They create and delete their own users. Configure the instance with environment variables:
+
+```sh
+NEXTCLOUD_URL=http://nextcloud.local NEXTCLOUD_ADMIN_USER=admin NEXTCLOUD_ADMIN_PASSWORD=admin composer run test:integration
+```
+
+`NEXTCLOUD_URL` defaults to `http://localhost:8080`, the credentials default to `admin` / `admin`.

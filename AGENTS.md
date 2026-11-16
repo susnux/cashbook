@@ -70,7 +70,7 @@ Assisted-by: ClaudeCode:claude-sonnet-4-6
 ### Tests
 
 - Every added or changed UI workflow must be covered by end-to-end tests using Playwright
-- Every added API endpoint (controllers) must be tested with integration tests
+- Every added API endpoint (controllers) must be tested with integration tests in `tests/integration`. They send real requests with Guzzle to a running instance and extend `IntegrationTestCase`, which creates the test users and cleans them up.
 - Every changed or added code should have a unit test if not yet covered and if the tested area makes sense (no tests that basically mock everything).
 - In areas where unit testing is currently difficult, refactoring to enable testability is encouraged alongside the bug fix.
 
@@ -79,6 +79,7 @@ Assisted-by: ClaudeCode:claude-sonnet-4-6
 Before committing, run the checks for every area you changed and fix everything they report:
 
 - PHP (`lib/`, `tests/`): `composer run cs:check`, `composer run psalm`, `composer run test:unit`. The PHPUnit tests need a Nextcloud installation with the app enabled.
+- Controllers: also `composer run test:integration` against a running instance (see `README.md` for the environment variables).
 - Frontend (`src/`): `npm run lint`, `npm run stylelint`, `npm run test`.
 - API (controllers, `lib/ResponseDefinitions.php`): run `composer run openapi` and commit the regenerated `openapi.json`. CI fails when it is out of date.
 
