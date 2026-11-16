@@ -3,7 +3,7 @@
     "info": {
         "title": "cashbook",
         "version": "0.0.1",
-        "description": "Nextcloud based Cashbook",
+        "description": "Keep the cashbook of your shop or association",
         "license": {
             "name": "AGPL-3.0-or-later"
         }
