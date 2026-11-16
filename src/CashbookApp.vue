@@ -1,8 +1,9 @@
+<!--
+ - SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
+ - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 <script setup lang="ts">
-/*!
- * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
- */
 import { getCurrentUser } from '@nextcloud/auth'
 import { t } from '@nextcloud/l10n'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'

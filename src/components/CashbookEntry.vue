@@ -1,8 +1,9 @@
+<!--
+ - SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
+ - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 <script setup lang="ts">
-/*!
- * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
- */
 import type { ICashbook } from '../models/Cashbook.ts'
 import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 

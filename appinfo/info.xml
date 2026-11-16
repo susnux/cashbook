@@ -10,7 +10,7 @@
 	<summary>Nextcloud based Cashbook</summary>
 	<description>Nextcloud based Cashbook</description>
 	<version>0.0.1</version>
-	<licence>agpl</licence>
+	<licence>AGPL-3.0-or-later</licence>
 	<author mail="opensource@fthiessen.de" homepage="https://github.com/susnux/nextcloud-cashbook">Ferdinand Thiessen</author>
 	<namespace>Cashbook</namespace>
 	<category>office</category>

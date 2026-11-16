@@ -1,9 +1,7 @@
-<script setup lang="ts">
-/*!
- * SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
- */
-</script>
+<!--
+ - SPDX-FileCopyrightText: 2025 Ferdinand Thiessen <opensource@fthiessen.de>
+ - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
 
 <template>
 	<RouterView />
@@ -17,11 +15,13 @@
 	padding: 0;
 	position: unset;
 }
+
 #body-public.layout-base {
 	position: unset;
 	overflow: scroll;
 	background: var(--color-main-background);
 }
+
 html:has(#body-public.layout-base) {
 	background: var(--color-main-background);
 }
