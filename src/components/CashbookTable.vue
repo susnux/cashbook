@@ -19,21 +19,29 @@ const props = defineProps<{
 	entries: ICashbookEntry[]
 }>()
 
+interface Section {
+	/** The day opening entry if the section is a day */
+	start?: ICashbookEntry
+	/** The day closing entry if the day is closed */
+	end?: ICashbookEntry
+	entries: ICashbookEntry[]
+}
+
 const sections = computed(() => {
-	if (props.entries[0]?.reason !== EntryReason.DayOpening) {
-		return [{ entries: props.entries }]
-	}
-	const list = []
+	const list: Section[] = []
 	for (const entry of props.entries) {
+		const current = list.at(-1)
 		if (entry.reason === EntryReason.DayOpening) {
 			list.push({ start: entry, entries: [] })
-		} else if (entry.reason === EntryReason.DayClosing) {
-			list.at(-1)!.end = entry
+		} else if (entry.reason === EntryReason.DayClosing && current?.start && !current.end) {
+			current.end = entry
+		} else if (current && !current.end) {
+			current.entries.push(entry)
 		} else {
-			list.at(-1)!.entries.push(entry)
+			list.push({ entries: [entry] })
 		}
 	}
-	return list as unknown as { start: ICashbookEntry, end: ICashbookEntry, entries: ICashbookEntry[] }[]
+	return list
 })
 </script>
 
@@ -47,9 +55,6 @@ const sections = computed(() => {
 				</th>
 				<th>
 					<span>{{ t('cashbook', 'Reason') /* TRANSLATORS: The reason for this entry e.g. "sales" or "purchase of goods" */ }}</span>
-					<!--
-						<span>{{ t('cashbook', 'Reference') /* TRANSLATORS: The reference for this entry e.g. the number of a receipt */ }}</span>
-					-->
 				</th>
 				<th>
 					<span>{{ t('cashbook', 'Text') }}</span>
@@ -66,13 +71,10 @@ const sections = computed(() => {
 				<th>
 					<span>{{ t('cashbook', 'Balance') /* TRANSLATORS: The current balance of the cashbook */ }}</span>
 				</th>
-				<th>
-					<span class="hidden-visually">{{ t('cashbook', 'Row actions') }}</span>
-				</th>
 			</tr>
 		</thead>
-		<tbody v-for="(section, index) of sections" :key="'start' in section ? section.start.id : `section-${index}`">
-			<tr v-if="'start' in section">
+		<tbody v-for="(section, index) of sections" :key="section.start ? section.start.id : `section-${index}`">
+			<tr v-if="section.start">
 				<th colspan="8">
 					<div :class="$style.dayHeader">
 						<div>
@@ -81,7 +83,7 @@ const sections = computed(() => {
 							</span>
 							<NcDateTime :relativeTime="false" :timestamp="section.start.date" :format="{ dateStyle: 'medium', timeStyle: 'short' }" />
 						</div>
-						<div v-if="'end' in section">
+						<div v-if="section.end">
 							<span :class="$style.textBold">
 								{{ t('cashbook', 'Closed:') }}
 							</span>
@@ -103,7 +105,7 @@ const sections = computed(() => {
 								{{ formatCurrency(section.start.balance, cashbook.currency) }}
 							</span>
 						</div>
-						<div v-if="'end' in section">
+						<div v-if="section.end">
 							<span :class="$style.textBold">
 								{{ t('cashbook', 'Closing cash:') }}
 							</span>
@@ -113,8 +115,9 @@ const sections = computed(() => {
 				</th>
 			</tr>
 			<CashbookEntry
-				v-for="entry in section.entries"
+				v-for="(entry, entryIndex) in section.entries"
 				:key="entry.id"
+				:class="{ [$style.stripedRow]: entryIndex % 2 === 1 }"
 				:cashbook="cashbook"
 				:modelValue="entry" />
 		</tbody>
@@ -148,7 +151,7 @@ const sections = computed(() => {
 		border-bottom: 2px solid var(--color-border-maxcontrast);
 	}
 
-	tbody tr:nth-child(even) {
+	.stripedRow {
 		background-color: var(--color-background-dark);
 	}
 
@@ -164,18 +167,12 @@ const sections = computed(() => {
 	th {
 		padding-inline: calc(2 * var(--default-grid-baseline));
 
+		/* Serial, tax, debit, credit and balance are numeric */
 		&:nth-child(1),
-		/* Serial is numeric */
 		&:nth-child(5),
-		/* Tax is numeric */
 		&:nth-child(6),
-		/* Debit is numeric */
 		&:nth-child(7),
-		/* Credit is numeric */
-		&:nth-child(8)
-
-		/* Balance is numeric */
-			{
+		&:nth-child(8) {
 			text-align: end;
 		}
 	}
@@ -233,7 +230,6 @@ const sections = computed(() => {
 			}
 		}
 
-		th:not([colspan]):last-child, td:last-child,
 		th:not([colspan]):first-child, td:first-child {
 			display: none;
 		}

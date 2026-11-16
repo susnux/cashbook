@@ -21,11 +21,3 @@ const showNavigation = getCurrentUser() !== null
 		</NcAppContent>
 	</NcContent>
 </template>
-
-<style scoped lang="scss">
-#cashbook {
-	display: flex;
-	justify-content: center;
-	margin: 16px;
-}
-</style>

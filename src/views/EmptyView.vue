@@ -20,7 +20,7 @@ const name = computed(() => (
 ))
 
 const generalText = t('cashbook', 'Select a cashbook from the menu or create a new one.')
-const notExistText = t('cashbook', 'The cashbook your were looking for does not exist anymore or was unshared from you.')
+const notExistText = t('cashbook', 'The cashbook you were looking for does not exist anymore or was unshared from you.')
 const description = computed(() => (
 	route.name === 'not-found'
 		? `${notExistText}\n${generalText}`
