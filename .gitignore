@@ -4,6 +4,7 @@
 /.idea/
 /.vscode/
 /*.iml
+.claude/
 
 /vendor/
 /vendor-bin/*/vendor/
