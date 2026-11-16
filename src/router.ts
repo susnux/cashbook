@@ -38,6 +38,7 @@ export const routes = [
 		component: CashbookView,
 		props: (route: RouteLocationNormalized) => ({
 			cashbookId: Number.parseInt(normalizeParam('cashbook', route.params)),
+			isExport: true,
 		}),
 	},
 ]

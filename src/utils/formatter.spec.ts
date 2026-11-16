@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest'
-import { formatCurrency } from './formatter.ts'
+import { formatCurrency, formatTaxRate } from './formatter.ts'
 
 vi.mock('@nextcloud/l10n', () => ({ getCanonicalLocale: () => 'en-US' }))
 
@@ -18,5 +18,13 @@ describe('formatCurrency', () => {
 	})
 	it('formats decimal strings without losing precision', () => {
 		expect(formatCurrency('9007199254740993.10', 'EUR')).toBe('€9,007,199,254,740,993.10')
+	})
+})
+
+describe('formatTaxRate', () => {
+	it('formats the rate as percentage', () => {
+		expect(formatTaxRate(0.19)).toBe('19%')
+		expect(formatTaxRate(0.055)).toBe('5.5%')
+		expect(formatTaxRate(0)).toBe('0%')
 	})
 })

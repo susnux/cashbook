@@ -19,3 +19,12 @@ export function formatCurrency(amount: number | string, currency: string): strin
 		currency,
 	}).format(amount as number | Intl.StringNumericLiteral)
 }
+
+/**
+ * Format a tax rate as percentage using the user's locale
+ *
+ * @param rate - The tax rate (e.g. `0.19` for 19%)
+ */
+export function formatTaxRate(rate: number): string {
+	return rate.toLocaleString(getCanonicalLocale(), { style: 'percent', maximumFractionDigits: 2 })
+}

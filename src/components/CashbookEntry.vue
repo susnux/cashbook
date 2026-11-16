@@ -7,11 +7,10 @@
 import type { ICashbook } from '../models/Cashbook.ts'
 import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
-import { getCanonicalLocale } from '@nextcloud/l10n'
 import { useFormatTime } from '@nextcloud/vue/composables/useFormatDateTime'
 import { computed } from 'vue'
 import { EntryReasonReadable } from '../models/CashbookEntry.ts'
-import { formatCurrency } from '../utils/formatter.ts'
+import { formatCurrency, formatTaxRate } from '../utils/formatter.ts'
 
 const props = defineProps<{
 	cashbook: ICashbook
@@ -19,7 +18,7 @@ const props = defineProps<{
 }>()
 
 const formattedTime = useFormatTime(() => props.modelValue.date, { format: { dateStyle: 'medium', timeStyle: 'short' } })
-const formattedTax = computed(() => props.modelValue.tax?.toLocaleString(getCanonicalLocale(), { style: 'percent', maximumFractionDigits: 2 }) ?? '')
+const formattedTax = computed(() => props.modelValue.tax === null ? '' : formatTaxRate(props.modelValue.tax))
 const formattedReason = computed(() => props.modelValue.reason ? EntryReasonReadable[props.modelValue.reason] : '')
 </script>
 
