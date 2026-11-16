@@ -42,6 +42,16 @@ final class CashbookService {
 	 * @throws InvalidArgumentException If a value is invalid
 	 */
 	public function create(string $owner, string $name, string $currency, string $account = ''): Cashbook {
+		return $this->cashbookMapper->insert($this->build($owner, $name, $currency, $account));
+	}
+
+	/**
+	 * Create a new cashbook without storing it.
+	 *
+	 * @throws InvalidInputException If the name is empty
+	 * @throws InvalidArgumentException If a value is invalid
+	 */
+	public function build(string $owner, string $name, string $currency, string $account = ''): Cashbook {
 		$cashbook = new Cashbook();
 		$this->setDetails($cashbook, $name, $account);
 		try {
@@ -50,7 +60,7 @@ final class CashbookService {
 			throw new InvalidArgumentException('Unknown currency.');
 		}
 		$cashbook->setOwner($owner);
-		return $this->cashbookMapper->insert($cashbook);
+		return $cashbook;
 	}
 
 	/**

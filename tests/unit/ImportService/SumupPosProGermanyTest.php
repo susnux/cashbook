@@ -16,6 +16,7 @@ use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
+use OCA\Cashbook\Service\CashbookService;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -68,6 +69,7 @@ final class SumupPosProGermanyTest extends TestCase {
 			$this->db,
 			$this->cashbookMapper,
 			$this->entryMapper,
+			Server::get(CashbookService::class),
 		);
 	}
 
@@ -148,6 +150,8 @@ final class SumupPosProGermanyTest extends TestCase {
 			$this->getEntries($cashbook),
 		);
 		$this->assertSame([
+			// Entry before the first day of the report
+			[EntryReason::IncomeSales, '10.00', '100.00'],
 			[EntryReason::DayOpening, '0.00', '100.00'],
 			[EntryReason::IncomeSales, '20.00', '120.00'],
 			[EntryReason::ExpenseMisc, '-5.00', '115.00'],
@@ -158,6 +162,28 @@ final class SumupPosProGermanyTest extends TestCase {
 			// Entry after the last closing is imported as well
 			[EntryReason::IncomeSales, '1.00', '126.00'],
 		], $entries);
+	}
+
+	public function testImportTooManyRows(): void {
+		$file = tempnam(sys_get_temp_dir(), 'cashbook');
+		$this->assertIsString($file);
+		try {
+			$csv = fopen($file, 'w');
+			$this->assertIsResource($csv);
+			fwrite($csv, (string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0]);
+			$row = "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n";
+			fwrite($csv, str_repeat($row, SumupPosProGermany::MAX_ROWS + 1));
+			fclose($csv);
+
+			$this->createImporter()->import(['name' => ['Kassenbuch_large.csv'], 'tmp_name' => [$file]]);
+			$this->fail('Import should have failed');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The selected files contain more than 100000 rows.', $error->getMessage());
+			$this->assertSame('translated: The selected files contain more than 100000 rows. Export a shorter period.', $error->getHint());
+		} finally {
+			unlink($file);
+		}
+		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}
 
 	public function testImportWithTimezoneOption(): void {
@@ -176,9 +202,14 @@ final class SumupPosProGermanyTest extends TestCase {
 		return [
 			'no cashbook file' => [['Tagesabschluss_report.csv'], [], 'No cashbook export'],
 			'unknown currency' => [['Kassenbuch_unknown_currency.csv'], [], 'unknown currency'],
-			'start balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_start.csv'], [], 'does not match the daily closing report'],
+			'start balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_start.csv'], [], 'day opening of 02.01.2025 09:00:00'],
+			'opening does not match previous closing' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_next_opening.csv'], [], 'day opening of 03.01.2025 09:00:00'],
 			'closing balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_closing.csv'], [], 'day closing of 03.01.2025 18:00:00'],
 			'invalid amount' => [['Kassenbuch_invalid_amount.csv'], [], 'invalid values'],
+			'empty store name' => [['Kassenbuch_empty_store.csv'], [], 'store name or ID'],
+			'store name too long' => [['Kassenbuch_long_store.csv'], [], 'store name or ID'],
+			'balance does not match previous balance' => [['Kassenbuch_balance_mismatch.csv'], [], 'entry of 02.01.2025 11:00:00 does not match the previous cash balance'],
+			'negative balance' => [['Kassenbuch_negative_balance.csv'], [], 'negative after the entry of 02.01.2025 11:00:00'],
 		];
 	}
 

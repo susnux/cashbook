@@ -37,7 +37,7 @@ const period = computed<Period>({
 	set: (value) => router.replace({ query: { ...route.query, ...periodToQuery(value) } }),
 })
 
-const { entries, loading, failed, reload } = useCashbookEntries(cashbook, period)
+const { entries, loading, failed, errorMessage, reload } = useCashbookEntries(cashbook, period)
 
 const exportUrl = computed(() => router.resolve({
 	name: 'cashbook-export',
@@ -133,7 +133,8 @@ watchEffect(() => {
 		<NcEmptyContent
 			v-else-if="failed"
 			:class="$style.emptyContent"
-			:name="t('cashbook', 'Could not load the entries')">
+			:name="t('cashbook', 'Could not load the entries')"
+			:description="errorMessage">
 			<template #icon>
 				<NcIconSvgWrapper :path="mdiAlertCircleOutline" />
 			</template>

@@ -31,6 +31,7 @@ use OCP\AppFramework\OCS\OCSBadRequestException;
 use OCP\AppFramework\OCS\OCSForbiddenException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\AppFramework\OCSController;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -43,6 +44,9 @@ use Psr\Log\LoggerInterface;
  */
 final class ApiController extends OCSController {
 
+	/** Maximum number of entries loaded by `getCashbookEntriesPrint()`, limits the memory used by a request */
+	public const int MAX_PRINT_ENTRIES = 20_000;
+
 	public function __construct(
 		IRequest $request,
 		protected ContainerInterface $container,
@@ -50,6 +54,7 @@ final class ApiController extends OCSController {
 		protected CashbookMapper $cashbookMapper,
 		protected EntryMapper $entryMapper,
 		protected CashbookService $cashbookService,
+		protected IL10N $l10n,
 		protected ?string $userId,
 	) {
 		parent::__construct(Application::APP_ID, $request);
@@ -138,7 +143,7 @@ final class ApiController extends OCSController {
 	 * @param string $begin Start of the date range (ISO 8601 date time, inclusive)
 	 * @param string $end End of the date range (ISO 8601 date time, exclusive)
 	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
-	 * @throws OCSBadRequestException Invalid date passed
+	 * @throws OCSBadRequestException Invalid date passed or the range contains too many entries
 	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
 	 *
 	 * 200: Entries returned
@@ -163,7 +168,11 @@ final class ApiController extends OCSController {
 			throw new OCSNotFoundException();
 		}
 
-		$entries = $this->entryMapper->getEntriesByDate($cashbook, $dateBegin, $dateEnd);
+		$entries = $this->entryMapper->getEntriesByDate($cashbook, $dateBegin, $dateEnd, self::MAX_PRINT_ENTRIES + 1);
+		if (count($entries) > self::MAX_PRINT_ENTRIES) {
+			throw new OCSBadRequestException($this->l10n->t('The period contains more than %s entries. Choose a shorter period.', [self::MAX_PRINT_ENTRIES]));
+		}
+
 		/** @var list<Entry> $collapsedEntries */
 		$collapsedEntries = [];
 		foreach ($entries as $entry) {
@@ -310,15 +319,10 @@ final class ApiController extends OCSController {
 		ImportFormat $import,
 		?string $timezone = null,
 	): DataResponse {
-		/** @var array{name: list<string>, tmp_name: list<string>, ...}|null $files Uploaded as `files[]`, null if no file was uploaded */
-		$files = $this->request->getUploadedFile('files');
-		if ($files === null) {
-			throw new OCSBadRequestException('No files provided');
-		}
-
 		/** @var IImportService $importer */
 		$importer = $this->container->get($import->getImportService());
 		try {
+			$files = $this->getUploadedFiles('files');
 			$cashbook = $importer->import($files, $timezone === null ? [] : ['timezone' => $timezone]);
 			$this->logger->debug('Successfully imported cashbook {name} ({id})', ['name' => $cashbook->getName(), 'id' => $cashbook->getId()]);
 			return new DataResponse(['id' => $cashbook->getId()]);
@@ -330,4 +334,41 @@ final class ApiController extends OCSController {
 		}
 	}
 
+	/**
+	 * Get the successfully uploaded files of a multi-file field (`files[]`), a single file field is accepted as well.
+	 *
+	 * @return array{name: list<string>, tmp_name: list<string>}
+	 * @throws InvalidArgumentException If no file was uploaded
+	 * @throws InvalidInputException If an upload failed
+	 */
+	private function getUploadedFiles(string $field): array {
+		$upload = $this->request->getUploadedFile($field);
+		if (!is_array($upload) || !isset($upload['name'], $upload['tmp_name'], $upload['error'])) {
+			throw new InvalidArgumentException('No files provided');
+		}
+
+		$names = array_values((array)$upload['name']);
+		$tmpNames = array_values((array)$upload['tmp_name']);
+		$errors = array_values((array)$upload['error']);
+		if ($names === [] || count($names) !== count($tmpNames) || count($names) !== count($errors)) {
+			throw new InvalidArgumentException('No files provided');
+		}
+
+		foreach ($errors as $error) {
+			if ($error === UPLOAD_ERR_NO_FILE) {
+				throw new InvalidArgumentException('No files provided');
+			}
+			if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
+				throw new InvalidInputException('The uploaded file is too large.', $this->l10n->t('The uploaded file is too large.'));
+			}
+			if ($error !== UPLOAD_ERR_OK) {
+				throw new InvalidInputException('The upload of the files failed.', $this->l10n->t('The upload of the files failed.'));
+			}
+		}
+
+		return [
+			'name' => array_map(strval(...), $names),
+			'tmp_name' => array_map(strval(...), $tmpNames),
+		];
+	}
 }

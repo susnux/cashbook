@@ -22,6 +22,7 @@ use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
+use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\Db\TTransactional;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
@@ -46,11 +47,15 @@ final class SumupPosProGermany implements IImportService {
 	protected Iterator $cashbookIterator;
 	/** @psalm-suppress PropertyNotSetInConstructor Set in import() before it is used */
 	protected Cashbook $cashbook;
+	/** The cash balance after the last imported entry, null before the first entry */
+	protected ?Money $balance = null;
 	protected \DateTimeZone $timezone;
 
 	protected const string CASHBOOK_FILE_PREFIX = 'Kassenbuch_';
 	protected const string CSV_ENCLOSURE = '"';
 	protected const string CSV_DELIMITER = ';';
+	/** Maximum number of rows of an imported CSV file, all rows are imported in a single transaction */
+	public const int MAX_ROWS = 100_000;
 
 	protected const array CSV_HEADER_MAPPING = [
 		'Geschäft' => 'store',
@@ -83,6 +88,7 @@ final class SumupPosProGermany implements IImportService {
 		protected IDBConnection $db,
 		protected CashbookMapper $cashbookMapper,
 		protected EntryMapper $entryMapper,
+		protected CashbookService $cashbookService,
 	) {
 		$this->timezone = $timeZoneFactory->getTimeZone();
 	}
@@ -119,6 +125,8 @@ final class SumupPosProGermany implements IImportService {
 		try {
 			$this->cashbookIterator = $this->readCsv($cashbookCsvFile, self::CSV_HEADER_MAPPING);
 			$this->reportIterator = $reportCsvFile === '' ? null : $this->readCsv($reportCsvFile, self::CSV_REPORT_HEADER_MAPPING);
+		} catch (InvalidInputException $error) {
+			throw $error;
 		} catch (Exception $error) {
 			throw new InvalidInputException('The selected files are not valid CSV files.', $this->l10n->t('The selected files are not valid CSV files.'), previous: $error);
 		}
@@ -145,25 +153,11 @@ final class SumupPosProGermany implements IImportService {
 	}
 
 	/**
-	 * Skip the cashbook entries before the first day of the report and create the cashbook from the first entry.
+	 * Create the cashbook from the first entry of the cashbook export.
 	 *
-	 * @throws InvalidInputException If the cashbook does not match the report
+	 * @throws InvalidInputException If the currency, store name or store ID is invalid
 	 */
 	protected function prepareCashbook(): void {
-		$report = null;
-		if ($this->reportIterator !== null) {
-			$report = $this->currentRecord($this->reportIterator);
-			$reportDate = $this->parseDateTime($report['opening']);
-
-			while ($this->cashbookIterator->valid()) {
-				$entry = $this->currentRecord($this->cashbookIterator);
-				if ($this->parseDateTime($entry['datetime']) >= $reportDate) {
-					break;
-				}
-				$this->cashbookIterator->next();
-			}
-		}
-
 		$entry = $this->currentRecord($this->cashbookIterator);
 		$currency = $entry['currency'];
 		try {
@@ -172,19 +166,18 @@ final class SumupPosProGermany implements IImportService {
 			throw new InvalidInputException('The cashbook export uses an unknown currency.', $this->l10n->t('The cashbook export uses an unknown currency.'));
 		}
 
-		$this->cashbook = new Cashbook();
-		$this->cashbook->setOwner($this->getUserId());
-		$this->cashbook->setCurrency($currency);
-		$this->cashbook->setName($entry['store']);
-		$this->cashbook->setAccount($entry['storeId']);
-
-		// The balance before the first entry is needed to compare it with the report
-		$initialBalance = $this->parseMoney($entry['total'])->minus($this->parseRecordAmount($entry));
-		if ($report !== null && !$initialBalance->isEqualTo($this->parseMoney($report['balanceStart']))) {
-			throw new InvalidInputException('The cash balance of the cashbook export does not match the daily closing report.', $this->l10n->t('The cash balance of the cashbook export does not match the daily closing report.'));
+		try {
+			$this->cashbook = $this->cashbookService->build($this->getUserId(), $entry['store'], $currency, $entry['storeId']);
+		} catch (InvalidInputException|InvalidArgumentException $error) {
+			throw new InvalidInputException('The store name or ID of the cashbook export is invalid.', $this->l10n->t('The store name or ID of the cashbook export is invalid.'), previous: $error);
 		}
 	}
 
+	/**
+	 * Import the days of the report including the cashbook entries before and within each day.
+	 *
+	 * @throws InvalidInputException If the balance of a day opening or closing does not match the cashbook export
+	 */
 	protected function iterateReport(): void {
 		if ($this->reportIterator === null) {
 			return;
@@ -198,7 +191,17 @@ final class SumupPosProGermany implements IImportService {
 			$closing = $this->parseDateTime($record['closing']);
 			$closingBalance = $this->parseMoney($record['balanceEnd']);
 
-			$startEntry = Entry::create(
+			// Entries before the day, e.g. before the first day of the report or between two days
+			$this->iterateCashbook($opening);
+			if ($this->balance !== null && !$this->balance->isEqualTo($openingBalance)) {
+				$this->logBalanceMismatch($record['opening'], $this->balance, $openingBalance);
+				throw new InvalidInputException(
+					sprintf('The cash balance at the day opening of %s does not match the cashbook export.', $record['opening']),
+					$this->l10n->t('The cash balance at the day opening of %s does not match the cashbook export.', [$record['opening']]),
+				);
+			}
+
+			$this->entryMapper->insert(Entry::create(
 				$this->cashbook,
 				$this->getUserId(),
 				$opening,
@@ -206,26 +209,19 @@ final class SumupPosProGermany implements IImportService {
 				EntryReason::DayOpening,
 				Money::of('0', $this->cashbook->getCurrency()),
 				$openingBalance,
-			);
+			));
+			$this->balance = $openingBalance;
 
-			$this->entryMapper->insert($startEntry);
-
-			$lastEntry = $this->iterateCashbook($closing);
-			if (($lastEntry === null && !$closingBalance->isEqualTo($openingBalance))
-				|| ($lastEntry !== null && !$lastEntry->getBalance()->isEqualTo($closingBalance))) {
-				$this->logger->debug('Mismatch between closing balance and cashbook balance', [
-					'opening' => $opening->format('Y-m-d H:i:s'),
-					'closingBalance' => (string)$closingBalance,
-					'lastEntryBalance' => $lastEntry !== null ? (string)$lastEntry->getBalance() : 'null',
-					'openingBalance' => (string)$openingBalance,
-				]);
+			$this->iterateCashbook($closing);
+			if ($this->balance?->isEqualTo($closingBalance) !== true) {
+				$this->logBalanceMismatch($record['closing'], $this->balance, $closingBalance);
 				throw new InvalidInputException(
 					sprintf('The cash balance at the day closing of %s does not match the cashbook export.', $record['closing']),
 					$this->l10n->t('The cash balance at the day closing of %s does not match the cashbook export.', [$record['closing']]),
 				);
 			}
 
-			$endEntry = Entry::create(
+			$this->entryMapper->insert(Entry::create(
 				$this->cashbook,
 				$this->getUserId(),
 				$closing,
@@ -234,8 +230,7 @@ final class SumupPosProGermany implements IImportService {
 				Money::of('0', $this->cashbook->getCurrency()),
 				$closingBalance,
 				reference: $record['znumber'],
-			);
-			$this->entryMapper->insert($endEntry);
+			));
 
 			$reportIterator->next();
 		}
@@ -244,11 +239,12 @@ final class SumupPosProGermany implements IImportService {
 	/**
 	 * Import the cashbook entries until the given limit is reached.
 	 *
+	 * Every entry is checked against the balance of the previous entry, the balance before the first entry is not known.
+	 *
 	 * @param ?\DateTimeImmutable $limit Stop before the first entry at or after this date (null to import all remaining entries)
-	 * @return ?Entry The last imported entry
+	 * @throws InvalidInputException If the balance of an entry does not match or is negative
 	 */
-	protected function iterateCashbook(?\DateTimeImmutable $limit = null): ?Entry {
-		$entry = null;
+	protected function iterateCashbook(?\DateTimeImmutable $limit = null): void {
 		while ($this->cashbookIterator->valid()) {
 			$record = $this->currentRecord($this->cashbookIterator);
 			$datetime = $this->parseDateTime($record['datetime']);
@@ -257,21 +253,48 @@ final class SumupPosProGermany implements IImportService {
 				break;
 			}
 
-			$entry = Entry::create(
+			$amount = $this->parseRecordAmount($record);
+			$balance = $this->parseMoney($record['total']);
+			if ($this->balance !== null && !$this->balance->plus($amount)->isEqualTo($balance)) {
+				$this->logBalanceMismatch($record['datetime'], $this->balance->plus($amount), $balance);
+				throw new InvalidInputException(
+					sprintf('The cash balance of the entry of %s does not match the previous cash balance.', $record['datetime']),
+					$this->l10n->t('The cash balance of the entry of %s does not match the previous cash balance.', [$record['datetime']]),
+				);
+			}
+			if ($balance->isNegative()) {
+				throw new InvalidInputException(
+					sprintf('The cash balance is negative after the entry of %s.', $record['datetime']),
+					$this->l10n->t('The cash balance is negative after the entry of %s.', [$record['datetime']]),
+				);
+			}
+
+			$this->entryMapper->insert(Entry::create(
 				$this->cashbook,
 				$this->getUserId(),
 				$datetime,
 				$record['text'],
 				$this->mapReason($record['reason']),
-				$this->parseRecordAmount($record),
-				$this->parseMoney($record['total']),
+				$amount,
+				$balance,
 				$this->parseTax($record['tax']),
-			);
-			$this->entryMapper->insert($entry);
+			));
+			$this->balance = $balance;
 
 			$this->cashbookIterator->next();
 		}
-		return $entry;
+	}
+
+	/**
+	 * @param ?Money $calculated The balance calculated from the imported entries
+	 * @param Money $exported The balance stated by the export
+	 */
+	private function logBalanceMismatch(string $date, ?Money $calculated, Money $exported): void {
+		$this->logger->debug('Mismatch of the cash balance in the cashbook export', [
+			'date' => $date,
+			'calculated' => $calculated === null ? 'unknown' : (string)$calculated,
+			'exported' => (string)$exported,
+		]);
 	}
 
 	/**
@@ -279,12 +302,20 @@ final class SumupPosProGermany implements IImportService {
 	 *
 	 * @param array<string, string> $headerMapping
 	 * @return Iterator<array-key, CsvRecord>
+	 * @throws InvalidInputException If the file has more than `MAX_ROWS` rows
 	 */
 	protected function readCsv(string $path, array $headerMapping): Iterator {
 		$csv = Reader::from($path, 'r');
 		$csv->setHeaderOffset(0);
 		$csv->setDelimiter(self::CSV_DELIMITER);
 		$csv->setEnclosure(self::CSV_ENCLOSURE);
+
+		if (count($csv) > self::MAX_ROWS) {
+			throw new InvalidInputException(
+				sprintf('The selected files contain more than %d rows.', self::MAX_ROWS),
+				$this->l10n->t('The selected files contain more than %s rows. Export a shorter period.', [self::MAX_ROWS]),
+			);
+		}
 
 		$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csv->getHeader());
 		/** @var Iterator<array-key, CsvRecord> $records */

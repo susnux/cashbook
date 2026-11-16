@@ -115,6 +115,20 @@ final class EntryMapperTest extends TestCase {
 		$this->assertSame(['first', 'middle', 'last'], $this->texts($entries));
 	}
 
+	public function testGetEntriesByDateWithLimit(): void {
+		$this->insertEntry('2025-02-03 10:00', null, 'c');
+		$this->insertEntry('2025-02-01 10:00', null, 'a');
+		$this->insertEntry('2025-02-02 10:00', null, 'b');
+
+		$entries = $this->entryMapper->getEntriesByDate(
+			$this->cashbook,
+			new \DateTimeImmutable('2025-02-01 00:00', new \DateTimeZone('UTC')),
+			new \DateTimeImmutable('2025-03-01 00:00', new \DateTimeZone('UTC')),
+			2,
+		);
+		$this->assertSame(['a', 'b'], $this->texts($entries));
+	}
+
 	public static function dataGetEntriesByDateWithDays(): array {
 		return [
 			'extends to the whole first and last day' => [
