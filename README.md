@@ -58,3 +58,29 @@ NEXTCLOUD_URL=http://nextcloud.local NEXTCLOUD_ADMIN_USER=admin NEXTCLOUD_ADMIN_
 ```
 
 `NEXTCLOUD_URL` defaults to `http://localhost:8080`, the credentials default to `admin` / `admin`.
+
+### Translations
+
+The app is translated manually, see the
+[developer documentation](https://docs.nextcloud.com/server/stable/developer_manual/app_development/translation.html#manual-translation).
+This requires gettext and the translation tool from [nextcloud/docker-ci](https://github.com/nextcloud/docker-ci/tree/master/translations/translationtool).
+Run all commands from the app folder:
+
+1. Extract the strings into the template `translationfiles/templates/cashbook.pot`:
+   ```sh
+   php /path/to/translationtool.phar create-pot-files
+   ```
+2. Merge the new strings into the translation of a language, e.g. German:
+   ```sh
+   msgmerge --update --backup=none translationfiles/de/cashbook.po translationfiles/templates/cashbook.pot
+   ```
+   To add a new language, create `translationfiles/<lang>/cashbook.po` with `msginit` instead.
+3. Translate the strings in the `.po` file, e.g. with [Poedit](https://poedit.net).
+   Review entries marked as fuzzy and remove obsolete entries.
+   `msgfmt --check -o /dev/null translationfiles/de/cashbook.po` reports format errors.
+4. Generate the `l10n/<lang>.js` and `l10n/<lang>.json` files used by Nextcloud:
+   ```sh
+   php /path/to/translationtool.phar convert-po-files
+   ```
+
+Commit the template, the `.po` files and the generated `l10n` files.

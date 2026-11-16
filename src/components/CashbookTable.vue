@@ -12,15 +12,20 @@ import { computed } from 'vue'
 import NcDateTime from '@nextcloud/vue/components/NcDateTime'
 import CashbookEntry from './CashbookEntry.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
-import { formatCurrency } from '../utils/formatter.ts'
+import { formatCurrency, formatTaxRate } from '../utils/formatter.ts'
+import { calculateTotals } from '../utils/totals.ts'
 
 const props = defineProps<{
 	cashbook: ICashbook
 	entries: ICashbookEntry[]
 }>()
 
+/**
+ * A day of the cashbook: either the entries between a day opening and its closing,
+ * or the entries of a calendar day that are not within an opened day
+ */
 interface Section {
-	/** The day opening entry if the section is a day */
+	/** The day opening entry if the section is an opened day */
 	start?: ICashbookEntry
 	/** The day closing entry if the day is closed */
 	end?: ICashbookEntry
@@ -35,14 +40,29 @@ const sections = computed(() => {
 			list.push({ start: entry, entries: [] })
 		} else if (entry.reason === EntryReason.DayClosing && current?.start && !current.end) {
 			current.end = entry
-		} else if (current && !current.end) {
+		} else if (current?.start && !current.end) {
+			current.entries.push(entry)
+		} else if (current && !current.start && isSameDay(current.entries[0]!.date, entry.date)) {
 			current.entries.push(entry)
 		} else {
 			list.push({ entries: [entry] })
 		}
 	}
-	return list
+	return list.map((section) => ({
+		...section,
+		totals: calculateTotals(section.entries),
+	}))
 })
+
+/**
+ * Check if two dates are on the same local calendar day
+ *
+ * @param a - The first date
+ * @param b - The second date
+ */
+function isSameDay(a: Date, b: Date): boolean {
+	return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
 </script>
 
 <template>
@@ -74,8 +94,20 @@ const sections = computed(() => {
 			</tr>
 		</thead>
 		<tbody v-for="(section, index) of sections" :key="section.start ? section.start.id : `section-${index}`">
-			<tr v-if="section.start">
-				<th colspan="8">
+			<tr v-if="!section.start">
+				<th :class="$style.sectionHeader" colspan="8">
+					<div :class="$style.dayHeader">
+						<div>
+							<span :class="$style.textBold">
+								{{ t('cashbook', 'Date:') }}
+							</span>
+							<NcDateTime :relativeTime="false" :timestamp="section.entries[0]!.date" :format="{ dateStyle: 'medium' }" />
+						</div>
+					</div>
+				</th>
+			</tr>
+			<tr v-else>
+				<th :class="$style.sectionHeader" colspan="8">
 					<div :class="$style.dayHeader">
 						<div>
 							<span :class="$style.textBold">
@@ -120,6 +152,37 @@ const sections = computed(() => {
 				:class="{ [$style.stripedRow]: entryIndex % 2 === 1 }"
 				:cashbook="cashbook"
 				:modelValue="entry" />
+			<tr v-if="section.entries.length > 0" :class="$style.totalRow">
+				<td />
+				<th colspan="4" scope="row">
+					{{ t('cashbook', 'Total of the day') }}
+				</th>
+				<td :class="$style.amount">
+					{{ formatCurrency(section.totals.income, cashbook.currency) }}
+				</td>
+				<td :class="[$style.amount, $style.credit]">
+					{{ formatCurrency(section.totals.expenses, cashbook.currency) }}
+				</td>
+				<td />
+			</tr>
+			<template v-for="tax of section.totals.taxes" :key="tax.rate ?? 'none'">
+				<tr v-if="tax.rate !== null" :class="$style.taxRow">
+					<td />
+					<th colspan="3" scope="row">
+						{{ t('cashbook', 'Included tax') }}
+					</th>
+					<td :class="$style.amount">
+						{{ formatTaxRate(tax.rate) }}
+					</td>
+					<td :class="$style.amount">
+						{{ formatCurrency(tax.income.tax!, cashbook.currency) }}
+					</td>
+					<td :class="[$style.amount, $style.credit]">
+						{{ formatCurrency(tax.expenses.tax!, cashbook.currency) }}
+					</td>
+					<td />
+				</tr>
+			</template>
 		</tbody>
 	</table>
 </template>
@@ -181,6 +244,28 @@ const sections = computed(() => {
 	td:nth-child(7) {
 		color: var(--color-error-text);
 	}
+
+	.totalRow > * {
+		font-weight: bold;
+		border-top: 1px solid var(--color-border-maxcontrast);
+	}
+
+	.totalRow th,
+	.taxRow th {
+		text-align: end;
+	}
+
+	.taxRow {
+		height: auto;
+	}
+
+	.amount {
+		text-align: end;
+	}
+
+	.credit {
+		color: var(--color-error-text);
+	}
 }
 
 @media print {
@@ -219,12 +304,12 @@ const sections = computed(() => {
 			}
 		}
 
-		tbody th {
+		.sectionHeader {
 			font-size: 8pt;
 		}
 
 		tbody:not(:first-of-type) {
-			th[colspan] {
+			.sectionHeader {
 				border-top: 1px solid var(--color-border-maxcontrast);
 				padding-inline: 6mm 2mm;
 			}

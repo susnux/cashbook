@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import type { Period } from '../utils/period.ts'
 
-import { mdiAlertCircleOutline, mdiCashRemove, mdiRefresh } from '@mdi/js'
+import { mdiAlertCircleOutline, mdiCashRemove, mdiFileExportOutline, mdiPrinterOutline, mdiRefresh } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
 import { computed, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -14,6 +14,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import CashbookSummary from '../components/CashbookSummary.vue'
 import CashbookTable from '../components/CashbookTable.vue'
 import PeriodSelector from '../components/PeriodSelector.vue'
 import { useCashbookEntries } from '../composables/useCashbookEntries.ts'
@@ -22,6 +23,8 @@ import { periodFromQuery, periodToQuery } from '../utils/period.ts'
 
 const props = defineProps<{
 	cashbookId: number
+	/** Show the printable export page instead of the app view */
+	isExport?: boolean
 }>()
 
 const route = useRoute()
@@ -35,6 +38,19 @@ const period = computed<Period>({
 })
 
 const { entries, loading, failed, reload } = useCashbookEntries(cashbook, period)
+
+const exportUrl = computed(() => router.resolve({
+	name: 'cashbook-export',
+	params: { cashbook: props.cashbookId },
+	query: periodToQuery(period.value),
+}).href)
+
+/**
+ * Open the print dialog of the browser
+ */
+function print() {
+	window.print()
+}
 
 watchEffect(() => {
 	if (store.loaded && !cashbook.value) {
@@ -72,10 +88,37 @@ watchEffect(() => {
 
 	<div v-else>
 		<div :class="$style.header">
-			<h2 :class="$style.heading">
-				{{ cashbook.name }}
-			</h2>
-			<PeriodSelector v-model="period" />
+			<div>
+				<h2 :class="$style.heading">
+					{{ cashbook.name }}
+				</h2>
+				<p v-if="isExport && cashbook.account">
+					{{ t('cashbook', 'Account: {account}', { account: cashbook.account }) }}
+				</p>
+			</div>
+			<div :class="$style.headerActions">
+				<PeriodSelector v-model="period" />
+				<NcButton
+					v-if="isExport"
+					:class="$style.noPrint"
+					variant="primary"
+					@click="print">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiPrinterOutline" />
+					</template>
+					{{ t('cashbook', 'Print') }}
+				</NcButton>
+				<NcButton
+					v-else
+					:class="$style.noPrint"
+					:href="exportUrl"
+					target="_blank">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiFileExportOutline" />
+					</template>
+					{{ t('cashbook', 'Export') }}
+				</NcButton>
+			</div>
 		</div>
 
 		<NcEmptyContent
@@ -114,7 +157,10 @@ watchEffect(() => {
 			</template>
 		</NcEmptyContent>
 
-		<CashbookTable v-else :cashbook :entries />
+		<template v-else>
+			<CashbookTable :cashbook :entries />
+			<CashbookSummary :cashbook :entries />
+		</template>
 	</div>
 </template>
 
@@ -140,7 +186,18 @@ watchEffect(() => {
 	font-size: calc(var(--default-clickable-area) / 1.5);
 }
 
+.headerActions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: calc(2 * var(--default-grid-baseline));
+}
+
 @media print {
+	.noPrint {
+		display: none !important;
+	}
+
 	@page{
 		size: a4;
 		margin-inline: 19mm 6mm;

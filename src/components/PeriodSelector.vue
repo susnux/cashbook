@@ -129,6 +129,7 @@ const customEnd = computed({
 }
 
 .typeSelect {
+	margin-block: 0 !important;
 	min-width: 20ch;
 }
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { mount } from '@vue/test-utils'
@@ -18,13 +19,23 @@ const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'al
  * @param id - The entry id
  * @param reason - The reason of the entry
  * @param amount - Optional debit (positive) or credit (negative) amount
+ * @param tax - The tax rate
  */
-function entry(id: number, reason: EntryReason | null, amount?: number): ICashbookEntry {
-	const base = { id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, tax: null }
+function entry(id: number, reason: EntryReason | null, amount?: number, tax: number | null = null): ICashbookEntry {
+	const base = { id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, tax }
 	if (amount === undefined) {
 		return base
 	}
-	return amount < 0 ? { ...base, credit: String(-amount) } : { ...base, debit: String(amount) }
+	return amount < 0 ? { ...base, credit: (-amount).toFixed(2) } : { ...base, debit: amount.toFixed(2) }
+}
+
+/**
+ * Get the rows of the entries, without the day headers and totals
+ *
+ * @param wrapper - The table or one of its sections
+ */
+function entryRows(wrapper: VueWrapper | DOMWrapper<Element>) {
+	return wrapper.findAll('tbody tr').filter((row) => !row.find('th').exists())
 }
 
 describe('CashbookTable', () => {
@@ -46,25 +57,42 @@ describe('CashbookTable', () => {
 
 		const sections = wrapper.findAll('tbody')
 		expect(sections).toHaveLength(4)
-		expect(sections.map((section) => section.findAll('td:first-child').map((cell) => cell.text()))).toEqual([
+		expect(sections.map((section) => entryRows(section).map((row) => row.get('td').text()))).toEqual([
 			['1'],
 			['3'],
 			['5'],
 			['7'],
 		])
+		expect(sections[0]!.text()).toContain('Date:')
 		expect(sections[1]!.text()).toContain('Closed:')
 		expect(sections[3]!.text()).not.toContain('Closed:')
 		expect(sections[3]!.text()).toContain('Transfer from bank')
 	})
 
+	it('groups entries outside of days by calendar day', () => {
+		const first = { ...entry(1, EntryReason.IncomeSales, 1), date: new Date(2025, 0, 2, 23, 59) }
+		const second = { ...entry(2, EntryReason.IncomeSales, 2), date: new Date(2025, 0, 3, 0, 1) }
+		const third = { ...entry(3, EntryReason.IncomeSales, 3), date: new Date(2025, 0, 3, 12, 0) }
+		const wrapper = mount(CashbookTable, { props: { cashbook, entries: [first, second, third] } })
+
+		const sections = wrapper.findAll('tbody')
+		expect(sections.map((section) => entryRows(section).map((row) => row.get('td').text()))).toEqual([
+			['1'],
+			['2', '3'],
+		])
+	})
+
 	it('spans the day header over all columns', () => {
 		const wrapper = mount(CashbookTable, {
-			props: { cashbook, entries: [entry(1, EntryReason.DayOpening), entry(2, EntryReason.IncomeSales, 1)] },
+			props: { cashbook, entries: [entry(1, EntryReason.DayOpening), entry(2, EntryReason.IncomeSales, 1, 0.19)] },
 		})
 
 		const columns = wrapper.findAll('thead th').length
 		expect(wrapper.get('tbody th').attributes('colspan')).toBe(String(columns))
-		expect(wrapper.get('tbody tr:last-child').findAll('td')).toHaveLength(columns)
+		for (const row of wrapper.findAll('tbody tr').slice(1)) {
+			const cells = row.findAll('td, th').reduce((sum, cell) => sum + Number(cell.attributes('colspan') ?? 1), 0)
+			expect(cells).toBe(columns)
+		}
 	})
 
 	it('stripes every second entry of a section', () => {
@@ -80,8 +108,7 @@ describe('CashbookTable', () => {
 			},
 		})
 
-		const rows = wrapper.findAll('tbody tr').slice(1)
-		expect(rows.map((row) => row.classes().length > 0)).toEqual([false, true, false])
+		expect(entryRows(wrapper).map((row) => row.classes().length > 0)).toEqual([false, true, false])
 	})
 
 	it('shows debit and credit in their columns', () => {
@@ -89,9 +116,35 @@ describe('CashbookTable', () => {
 			props: { cashbook, entries: [entry(1, EntryReason.IncomeSales, 12.5), entry(2, null, -3)] },
 		})
 
-		const [income, expense] = wrapper.findAll('tbody tr').map((row) => row.findAll('td').map((cell) => cell.text()))
+		const [income, expense] = entryRows(wrapper).map((row) => row.findAll('td').map((cell) => cell.text()))
 		expect(income!.slice(5, 7)).toEqual(['€12.50', ''])
 		expect(expense!.slice(5, 7)).toEqual(['', '€3.00'])
 		expect(expense![2]).toBe('')
+	})
+
+	it('shows the totals and included taxes of each day', () => {
+		const wrapper = mount(CashbookTable, {
+			props: {
+				cashbook,
+				entries: [
+					entry(1, EntryReason.DayOpening),
+					entry(2, EntryReason.IncomeSales, 10, 0.19),
+					entry(3, EntryReason.IncomeSales, 20, 0.19),
+					entry(4, EntryReason.ExpenseMisc, -5),
+					entry(5, EntryReason.IncomeSales, 10, 0.07),
+					entry(6, EntryReason.DayClosing),
+					entry(7, EntryReason.DayOpening),
+				],
+			},
+		})
+
+		const [day, emptyDay] = wrapper.findAll('tbody')
+		const totals = day!.findAll('tr').slice(-3).map((row) => row.findAll('td, th').map((cell) => cell.text()))
+		expect(totals).toEqual([
+			['', 'Total of the day', '€40.00', '€5.00', ''],
+			['', 'Included tax', '19%', '€4.79', '€0.00', ''],
+			['', 'Included tax', '7%', '€0.65', '€0.00', ''],
+		])
+		expect(emptyDay!.text()).not.toContain('Total of the day')
 	})
 })
