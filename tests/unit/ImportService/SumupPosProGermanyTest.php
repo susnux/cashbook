@@ -150,6 +150,8 @@ final class SumupPosProGermanyTest extends TestCase {
 			$this->getEntries($cashbook),
 		);
 		$this->assertSame([
+			// Entry before the first day of the report
+			[EntryReason::IncomeSales, '10.00', '100.00'],
 			[EntryReason::DayOpening, '0.00', '100.00'],
 			[EntryReason::IncomeSales, '20.00', '120.00'],
 			[EntryReason::ExpenseMisc, '-5.00', '115.00'],
@@ -200,11 +202,14 @@ final class SumupPosProGermanyTest extends TestCase {
 		return [
 			'no cashbook file' => [['Tagesabschluss_report.csv'], [], 'No cashbook export'],
 			'unknown currency' => [['Kassenbuch_unknown_currency.csv'], [], 'unknown currency'],
-			'start balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_start.csv'], [], 'does not match the daily closing report'],
+			'start balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_start.csv'], [], 'day opening of 02.01.2025 09:00:00'],
+			'opening does not match previous closing' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_next_opening.csv'], [], 'day opening of 03.01.2025 09:00:00'],
 			'closing balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_closing.csv'], [], 'day closing of 03.01.2025 18:00:00'],
 			'invalid amount' => [['Kassenbuch_invalid_amount.csv'], [], 'invalid values'],
 			'empty store name' => [['Kassenbuch_empty_store.csv'], [], 'store name or ID'],
 			'store name too long' => [['Kassenbuch_long_store.csv'], [], 'store name or ID'],
+			'balance does not match previous balance' => [['Kassenbuch_balance_mismatch.csv'], [], 'entry of 02.01.2025 11:00:00 does not match the previous cash balance'],
+			'negative balance' => [['Kassenbuch_negative_balance.csv'], [], 'negative after the entry of 02.01.2025 11:00:00'],
 		];
 	}
 
