@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import type { ICashbook } from '../models/Cashbook.ts'
 
-import { mdiImport, mdiTrashCan } from '@mdi/js'
+import { mdiImport, mdiPencil, mdiTrashCan } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
 import { spawnDialog } from '@nextcloud/vue/functions/dialog'
 import { useRoute, useRouter } from 'vue-router'
@@ -57,6 +57,18 @@ async function createNew() {
 }
 
 /**
+ * Show the dialog to edit the given cashbook and update it in the store
+ *
+ * @param cashbook - The cashbook to edit
+ */
+async function onEditCashbook(cashbook: ICashbook) {
+	const updated = await spawnDialog(NewCashbookDialog, { cashbook })
+	if (updated) {
+		store.cashbooks = store.cashbooks.map((item) => item.id === updated.id ? updated : item)
+	}
+}
+
+/**
  * Ask for confirmation, then delete the given cashbook and remove it from the store
  *
  * @param cashbook - The cashbook to delete
@@ -89,7 +101,13 @@ async function onDeleteCashbook(cashbook: ICashbook) {
 				:name="cashbook.name"
 				:to="{ name: 'cashbook', params: { cashbook: String(cashbook.id) } }">
 				<template #actions>
-					<NcActionButton @click="onDeleteCashbook(cashbook)">
+					<NcActionButton closeAfterClick @click="onEditCashbook(cashbook)">
+						<template #icon>
+							<NcIconSvgWrapper :path="mdiPencil" :size="20" />
+						</template>
+						{{ t('cashbook', 'Edit') }}
+					</NcActionButton>
+					<NcActionButton closeAfterClick @click="onDeleteCashbook(cashbook)">
 						<template #icon>
 							<NcIconSvgWrapper :path="mdiTrashCan" :size="20" />
 						</template>

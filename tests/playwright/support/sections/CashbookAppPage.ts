@@ -40,6 +40,10 @@ export class CashbookAppPage {
 		return this.page.getByRole('dialog', { name: 'New cashbook' })
 	}
 
+	editCashbookDialog(): Locator {
+		return this.page.getByRole('dialog', { name: 'Edit cashbook' })
+	}
+
 	deleteCashbookDialog(): Locator {
 		return this.page.getByRole('dialog', { name: 'Delete cashbook' })
 	}
@@ -70,12 +74,52 @@ export class CashbookAppPage {
 	}
 
 	/**
+	 * Run an action from the actions menu of a cashbook navigation entry
+	 *
+	 * @param name - Name of the cashbook
+	 * @param action - Name of the action
+	 */
+	async runCashbookAction(name: string, action: string): Promise<void> {
+		await this.cashbookNavigationItem(name).getByRole('button', { name: 'Actions' }).click()
+		await this.page.getByRole('menuitem', { name: action }).click()
+	}
+
+	/**
+	 * Open the "Edit cashbook" dialog of a cashbook
+	 *
+	 * @param name - Name of the cashbook to edit
+	 */
+	async openEditCashbookDialog(name: string): Promise<Locator> {
+		await this.runCashbookAction(name, 'Edit')
+		const dialog = this.editCashbookDialog()
+		await dialog.waitFor()
+		return dialog
+	}
+
+	/**
+	 * Change name and account of a cashbook through the "Edit cashbook" dialog
+	 *
+	 * @param name - Current name of the cashbook
+	 * @param options - The new values to enter into the dialog
+	 */
+	async editCashbook(name: string, options: NewCashbookOptions): Promise<void> {
+		const dialog = await this.openEditCashbookDialog(name)
+		await dialog.getByRole('textbox', { name: 'Cashbook name' }).fill(options.name)
+		await dialog.getByRole('textbox', { name: 'Account' }).fill(options.account ?? '')
+
+		const updated = this.page.waitForResponse((response) => response.request().method() === 'PUT'
+			&& response.url().includes('/apps/cashbook/api/v1/cashbooks/'))
+		await dialog.getByRole('button', { name: 'Save' }).click()
+		await updated
+	}
+
+	/**
 	 * Delete a cashbook using the action of its navigation entry
 	 *
 	 * @param name - Name of the cashbook to delete
 	 */
 	async deleteCashbook(name: string): Promise<void> {
-		await this.cashbookNavigationItem(name).getByRole('button', { name: 'Delete' }).click()
+		await this.runCashbookAction(name, 'Delete')
 
 		const dialog = this.deleteCashbookDialog()
 		const deleted = this.page.waitForResponse((response) => response.request().method() === 'DELETE'

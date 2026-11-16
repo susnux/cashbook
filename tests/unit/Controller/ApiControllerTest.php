@@ -230,6 +230,47 @@ final class ApiControllerTest extends TestCase {
 		$this->createController()->createCashbook('Shop', 'Euro');
 	}
 
+	public function testUpdateCashbook(): void {
+		$cashbook = $this->createCashbook('alice', 'Shop');
+
+		$response = $this->createController()->updateCashbook($cashbook->getId(), 'Market', '1200');
+		$this->assertSame([
+			'id' => $cashbook->getId(),
+			'account' => '1200',
+			'currency' => 'EUR',
+			'name' => 'Market',
+			'owner' => 'alice',
+		], $response->getData());
+
+		$stored = $this->cashbookMapper->getCashbook($cashbook->getId());
+		$this->assertSame('Market', $stored->getName());
+		$this->assertSame('1200', $stored->getAccount());
+	}
+
+	public function testUpdateCashbookEmptyName(): void {
+		$cashbook = $this->createCashbook('alice');
+
+		$this->expectException(OCSBadRequestException::class);
+		$this->expectExceptionMessage('The name of the cashbook must not be empty.');
+		$this->createController()->updateCashbook($cashbook->getId(), ' ');
+	}
+
+	public function testUpdateCashbookNotFound(): void {
+		$this->expectException(OCSNotFoundException::class);
+		$this->createController()->updateCashbook(PHP_INT_MAX, 'Market');
+	}
+
+	public function testUpdateCashbookOfOtherUser(): void {
+		$cashbook = $this->createCashbook('bob', 'Shop');
+
+		try {
+			$this->createController()->updateCashbook($cashbook->getId(), 'Market');
+			$this->fail('Updating a foreign cashbook should fail');
+		} catch (OCSNotFoundException) {
+		}
+		$this->assertSame('Shop', $this->cashbookMapper->getCashbook($cashbook->getId())->getName());
+	}
+
 	public function testDeleteCashbook(): void {
 		$cashbook = $this->cashbookMapper->insert($this->newCashbook('alice'));
 

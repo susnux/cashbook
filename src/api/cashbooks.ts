@@ -146,6 +146,27 @@ export async function createCashbook(cashbook: ICashbookData): Promise<ICashbook
 }
 
 /**
+ * Change the name and account of a cashbook, the currency can not be changed
+ *
+ * @param id - The id of the cashbook to update
+ * @param cashbook - The new name and account
+ * @return The updated cashbook
+ */
+export async function updateCashbook(id: number, cashbook: Pick<ICashbookData, 'name' | 'account'>): Promise<ICashbook> {
+	const { name, account } = cashbook
+	const { data } = await axios.put<OCSResponse<ICashbook>>(
+		generateApiRoute(API_ENDPOINT.Cashbook, `/${id}`),
+		{ name, account },
+	)
+
+	if (data.ocs.meta.status !== 'ok') {
+		throw new Error(data.ocs.meta.message, { cause: data.ocs })
+	}
+
+	return data.ocs.data
+}
+
+/**
  * Import a cashbook from a SumUp POS Pro (German) export.
  *
  * @param files - The cashbook CSV (`Kassenbuch_*.csv`) and optionally the daily closing report CSV
