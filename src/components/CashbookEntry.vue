@@ -9,7 +9,7 @@ import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { mdiEye, mdiInformation, mdiPencil, mdiTrashCan } from '@mdi/js'
 import { getCanonicalLocale } from '@nextcloud/l10n'
-import { useFormatTime } from '@nextcloud/vue'
+import { useFormatTime } from '@nextcloud/vue/composables/useFormatDateTime'
 import { computed } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActionLink from '@nextcloud/vue/components/NcActionLink'
