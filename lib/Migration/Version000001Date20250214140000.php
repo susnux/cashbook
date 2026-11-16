@@ -37,9 +37,6 @@ final class Version000001Date20250214140000 extends SimpleMigrationStep {
 			$changedSchema = $schema;
 		}
 
-		if ($schema->hasTable('cashbook_cashbook_entries')) {
-			$schema->dropTable('cashbook_cashbook_entries');
-		}
 		if (!$schema->hasTable('cashbook_cashbook_entries')) {
 			$this->createCashbookEntriesTable($schema);
 			$changedSchema = $schema;
@@ -116,11 +113,6 @@ final class Version000001Date20250214140000 extends SimpleMigrationStep {
 			'notnull' => false,
 		]);
 
-		$table->setPrimaryKey(['id'], 'cashbook_entry_index');
-		/*$table->addForeignKeyConstraint(
-			'cashbook_cashbooks',
-			['cashbook_id'],
-			['id'],
-		);*/
+		$table->setPrimaryKey(['id']);
 	}
 }
