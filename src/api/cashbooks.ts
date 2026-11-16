@@ -101,6 +101,7 @@ export async function fetchEntries(cashbook: ICashbook, { offset, limit }: Fetch
 type FetchEntryByDateOption = {
 	begin: Date
 	end: Date
+	signal?: AbortSignal
 }
 
 /**
@@ -108,11 +109,15 @@ type FetchEntryByDateOption = {
  *
  * @param cashbook - The cashbook to fetch the entries for
  * @param options - The date range to fetch
- * @param options.begin - Start of the date range
- * @param options.end - End of the date range
+ * @param options.begin - Start of the date range (inclusive)
+ * @param options.end - End of the date range (exclusive)
+ * @param options.signal - Signal to abort the request
  */
-export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end }: FetchEntryByDateOption): Promise<ICashbookEntry[]> {
-	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries/print?begin=${begin.toISOString()}&end=${end.toISOString()}`))
+export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end, signal }: FetchEntryByDateOption): Promise<ICashbookEntry[]> {
+	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(
+		generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries/print`),
+		{ params: { begin: begin.toISOString(), end: end.toISOString() }, signal },
+	)
 	if (data.ocs.meta.status !== 'ok') {
 		throw new Error(data.ocs.meta.message, { cause: data.ocs })
 	}

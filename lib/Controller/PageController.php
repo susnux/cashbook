@@ -17,7 +17,6 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\TemplateResponse;
-use OCP\AppFramework\Services\IInitialState;
 use OCP\IRequest;
 use OCP\IURLGenerator;
 use OCP\Util;
@@ -31,7 +30,6 @@ final class PageController extends Controller {
 		string $appName,
 		IRequest $request,
 		protected ?string $userId,
-		protected IInitialState $initialState,
 		protected IURLGenerator $urlGenerator,
 		protected CashbookMapper $cashbookMapper,
 	) {
@@ -48,23 +46,30 @@ final class PageController extends Controller {
 		return new TemplateResponse($this->appName, 'main');
 	}
 
+	/**
+	 * Page shown by the frontend when a cashbook does not exist
+	 */
+	#[NoAdminRequired()]
+	#[NoCSRFRequired()]
+	#[FrontpageRoute(verb: 'GET', url: '/not-found')]
+	public function notFound(): TemplateResponse {
+		return $this->index();
+	}
+
 	#[NoAdminRequired()]
 	#[NoCSRFRequired()]
 	#[FrontpageRoute(verb: 'GET', url: '/{cashbookId}', requirements: ['cashbookId' => '\d+'])]
 	public function showCashbook(int $cashbookId): TemplateResponse|RedirectResponse {
 		try {
 			$cashbook = $this->cashbookMapper->getCashbook($cashbookId);
-			if ($cashbook->getOwner() !== $this->userId) {
-				throw new DoesNotExistException('');
+			if ($cashbook->getOwner() === $this->userId) {
+				return $this->index();
 			}
-
-			$this->initialState->provideInitialState('cashbook', $cashbook);
-			return $this->index();
 		} catch (DoesNotExistException) {
-			// Cashbook does not exist so redirect to index below
+			// Cashbook does not exist so redirect below
 		}
 		return new RedirectResponse(
-			$this->urlGenerator->linkToRouteAbsolute('cashbook.page.index')
+			$this->urlGenerator->linkToRouteAbsolute('cashbook.page.notFound')
 		);
 	}
 

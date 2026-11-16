@@ -10,7 +10,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import EmptyView from './views/EmptyView.vue'
 
 const CashbookView = () => import('./views/CashbookView.vue')
-const CashbookExportView = () => import('./views/ExportView.vue')
 
 const baseUrl = generateUrl('/apps/cashbook')
 
@@ -34,18 +33,9 @@ export const routes = [
 		props: (route: RouteLocationNormalized) => ({ cashbookId: Number.parseInt(normalizeParam('cashbook', route.params)) }),
 	},
 	{
-		path: '/:cashbook(\\d+)/:entry(\\d+)',
-		name: 'cashbook-entry',
-		component: CashbookView,
-		props: (route: RouteLocationNormalized) => ({
-			cashbookId: Number.parseInt(normalizeParam('cashbook', route.params)),
-			entryId: Number.parseInt(normalizeParam('entry', route.params)),
-		}),
-	},
-	{
 		path: '/:cashbook(\\d+)/export',
 		name: 'cashbook-export',
-		component: CashbookExportView,
+		component: CashbookView,
 		props: (route: RouteLocationNormalized) => ({
 			cashbookId: Number.parseInt(normalizeParam('cashbook', route.params)),
 		}),

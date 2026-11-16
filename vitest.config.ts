@@ -11,6 +11,7 @@ export default defineConfig({
 	test: {
 		environment: 'happy-dom',
 		include: ['src/**/*.spec.ts'],
+		setupFiles: ['src/test-setup.ts'],
 		server: {
 			deps: {
 				// Needed to process the CSS imports of the components
