@@ -65,16 +65,13 @@
                         "format": "int64"
                     },
                     "balance": {
-                        "type": "number",
-                        "format": "double"
+                        "type": "string"
                     },
                     "debit": {
-                        "type": "number",
-                        "format": "double"
+                        "type": "string"
                     },
                     "credit": {
-                        "type": "number",
-                        "format": "double"
+                        "type": "string"
                     },
                     "text": {
                         "type": "string"
@@ -817,7 +814,7 @@
             "get": {
                 "operationId": "api-get-cashbook-entries-print",
                 "summary": "Get all entries of a cashbook within a date range, prepared for printing",
-                "description": "Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry.",
+                "description": "Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry. If the range starts or ends within an open day, the whole day is included.",
                 "tags": [
                     "api"
                 ],
@@ -843,7 +840,7 @@
                     {
                         "name": "begin",
                         "in": "query",
-                        "description": "Start of the date range (ISO 8601 date time)",
+                        "description": "Start of the date range (ISO 8601 date time, inclusive)",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -852,7 +849,7 @@
                     {
                         "name": "end",
                         "in": "query",
-                        "description": "End of the date range (ISO 8601 date time)",
+                        "description": "End of the date range (ISO 8601 date time, exclusive)",
                         "required": true,
                         "schema": {
                             "type": "string"

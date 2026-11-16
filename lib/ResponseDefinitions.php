@@ -20,11 +20,14 @@ namespace OCA\Cashbook;
  *
  * @psalm-type CashbookEntryReason = 'day-opening'|'day-closing'|'correction'|'income-bank'|'income-sales'|'income-misc'|'expense-bank'|'expense-goods'|'expense-salary'|'expense-tips'|'expense-change'|'expense-refund'|'expense-misc'
  *
+ * Amounts of money are decimal strings (e.g. `"12.50"`) to keep their precision,
+ * `debit` is set for income and `credit` for expenses, both are omitted for entries without an amount.
+ *
  * @psalm-type CashbookEntry = array{
  *     id: int,
- *     balance: float,
- *     debit?: float,
- *     credit?: float,
+ *     balance: string,
+ *     debit?: string,
+ *     credit?: string,
  *     text: string,
  *     date: string,
  *     reason: ?CashbookEntryReason,

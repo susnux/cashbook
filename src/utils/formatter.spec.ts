@@ -16,4 +16,7 @@ describe('formatCurrency', () => {
 	it('formats negative amounts in accounting style', () => {
 		expect(formatCurrency(-12, 'USD')).toBe('($12.00)')
 	})
+	it('formats decimal strings without losing precision', () => {
+		expect(formatCurrency('9007199254740993.10', 'EUR')).toBe('€9,007,199,254,740,993.10')
+	})
 })

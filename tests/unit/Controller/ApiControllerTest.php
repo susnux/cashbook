@@ -9,15 +9,20 @@ declare(strict_types=1);
 
 namespace OCA\Cashbook\Tests\Unit\Controller;
 
+use Brick\Math\BigRational;
+use Brick\Money\Money;
 use OCA\Cashbook\Controller\ApiController;
 use OCA\Cashbook\Db\Cashbook;
 use OCA\Cashbook\Db\CashbookMapper;
+use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
+use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\IImportService;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
 use OCP\AppFramework\OCS\OCSBadRequestException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
+use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\Server;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -41,6 +46,10 @@ final class ApiControllerTest extends TestCase {
 
 	#[\Override]
 	protected function tearDown(): void {
+		$qb = Server::get(IDBConnection::class)->getQueryBuilder();
+		$qb->delete('cashbook_cashbook_entries')
+			->where($qb->expr()->eq('user_id', $qb->createNamedParameter('alice')))
+			->executeStatement();
 		foreach ($this->cashbooks as $cashbook) {
 			$this->cashbookMapper->delete($cashbook);
 		}
@@ -188,5 +197,43 @@ final class ApiControllerTest extends TestCase {
 		$this->expectException(OCSBadRequestException::class);
 		$this->expectExceptionMessage('Translated message');
 		$this->createController('alice', $request, $container)->importCashbook('sumup-pos-pro-de');
+	}
+
+	public function testGetCashbookEntriesPrintCollapsesSales(): void {
+		$cashbook = $this->createCashbook('alice');
+		$entries = [
+			[null, '10.00', '19/100'],
+			['', '5.00', '19/100'],
+			[null, '1.00', '7/100'],
+			['Voucher', '2.00', '7/100'],
+			[null, '-3.00', null],
+		];
+		$balance = Money::of('100', 'EUR');
+		foreach ($entries as $index => [$text, $amount, $tax]) {
+			$balance = $balance->plus($amount);
+			$entry = Entry::create(
+				$cashbook,
+				'alice',
+				new \DateTimeImmutable('2025-01-02 10:0' . $index, new \DateTimeZone('UTC')),
+				'',
+				$tax === null ? EntryReason::ExpenseMisc : EntryReason::IncomeSales,
+				Money::of($amount, 'EUR'),
+				$balance,
+				$tax === null ? null : BigRational::of($tax),
+			);
+			$entry->setText($text);
+			$this->entryMapper->insert($entry);
+		}
+
+		$response = $this->createController()->getCashbookEntriesPrint($cashbook->getId(), '2025-01-02T00:00:00Z', '2025-01-03T00:00:00Z');
+		$this->assertEquals([
+			['debit' => '15.00', 'balance' => '115.00', 'text' => ''],
+			['debit' => '1.00', 'balance' => '116.00', 'text' => ''],
+			['debit' => '2.00', 'balance' => '118.00', 'text' => 'Voucher'],
+			['credit' => '3.00', 'balance' => '115.00', 'text' => ''],
+		], array_map(
+			static fn (array $entry): array => array_intersect_key($entry, ['debit' => true, 'credit' => true, 'balance' => true, 'text' => true]),
+			$response->getData(),
+		));
 	}
 }

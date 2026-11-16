@@ -145,10 +145,11 @@ final class ApiController extends OCSController {
 	 * Get all entries of a cashbook within a date range, prepared for printing
 	 *
 	 * Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry.
+	 * If the range starts or ends within an open day, the whole day is included.
 	 *
 	 * @param int $id The id of the cashbook
-	 * @param string $begin Start of the date range (ISO 8601 date time)
-	 * @param string $end End of the date range (ISO 8601 date time)
+	 * @param string $begin Start of the date range (ISO 8601 date time, inclusive)
+	 * @param string $end End of the date range (ISO 8601 date time, exclusive)
 	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
 	 * @throws OCSBadRequestException Invalid date passed
 	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
@@ -184,8 +185,8 @@ final class ApiController extends OCSController {
 				|| $entry->getReason() !== EntryReason::IncomeSales
 				|| $last->getReason() !== $entry->getReason()
 				|| $last->getTaxRaw() !== $entry->getTaxRaw()
-				|| $last->getText() !== ''
-				|| $entry->getText() !== '') {
+				|| ($last->getText() ?? '') !== ''
+				|| ($entry->getText() ?? '') !== '') {
 				$collapsedEntries[] = $entry;
 				continue;
 			}

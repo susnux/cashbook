@@ -4,7 +4,7 @@
  */
 
 import type { OCSResponse } from '@nextcloud/typings/ocs'
-import type { ICashbook } from '../models/Cashbook.ts'
+import type { ICashbook, ICashbookData } from '../models/Cashbook.ts'
 import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import axios from '@nextcloud/axios'
@@ -60,13 +60,12 @@ export async function fetchCashbook(id: number): Promise<ICashbook> {
 	return data.ocs.data
 }
 
-type RawCashbookEntry = Omit<ICashbookEntry, 'date' | 'referenceDate'> & {
+type RawCashbookEntry = Omit<ICashbookEntry, 'date'> & {
 	date: string
-	referenceDate?: string
 }
 
 /**
- * Convert the ISO date strings of an entry returned by the API into Date objects
+ * Convert the ISO date string of an entry returned by the API into a Date object
  *
  * @param entry - The raw entry as returned by the API
  */
@@ -74,8 +73,7 @@ function parseEntry(entry: RawCashbookEntry): ICashbookEntry {
 	return {
 		...entry,
 		date: new Date(entry.date),
-		referenceDate: entry.referenceDate ? new Date(entry.referenceDate) : undefined,
-	} as ICashbookEntry
+	}
 }
 
 type FetchEntryOption = {
@@ -128,13 +126,11 @@ export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end }: Fe
  * @param cashbook - The cashbook to create
  * @return The newly created cashbook
  */
-export async function createCashbook(cashbook: Omit<ICashbook, 'id'>): Promise<ICashbook> {
-	const postData = { ...cashbook }
-	delete (postData as Partial<ICashbook>).id
-
+export async function createCashbook(cashbook: ICashbookData): Promise<ICashbook> {
+	const { name, account, currency } = cashbook
 	const { data } = await axios.post<OCSResponse<ICashbook>>(
 		generateApiRoute(API_ENDPOINT.Cashbook),
-		postData,
+		{ name, account, currency },
 	)
 
 	if (data.ocs.meta.status !== 'ok') {

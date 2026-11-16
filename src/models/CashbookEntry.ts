@@ -44,13 +44,14 @@ export const EntryReasonReadable: Record<EntryReason, string> = Object.freeze({
 interface BaseEntry {
 	id: number
 	date: Date
-	balance: number
+	/** The balance after this entry as decimal string */
+	balance: string
 	text: string
-	reference?: EntryReason
-	referenceDate?: Date
-	tax?: number
+	reference: string | null
+	/** The tax rate (e.g. `0.19` for 19%) */
+	tax: number | null
 
-	reason: EntryReason
+	reason: EntryReason | null
 
 	/** Entry that amends this entry */
 	amendment?: number
@@ -59,11 +60,13 @@ interface BaseEntry {
 }
 
 interface DebitEntry extends BaseEntry {
-	debit: number
+	/** The income as decimal string */
+	debit: string
 }
 
 interface CreditEntry extends BaseEntry {
-	credit: number
+	/** The expense as decimal string */
+	credit: string
 }
 
-export type ICashbookEntry = DebitEntry | CreditEntry
+export type ICashbookEntry = DebitEntry | CreditEntry | BaseEntry

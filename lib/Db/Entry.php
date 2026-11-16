@@ -30,8 +30,8 @@ use RuntimeException;
  * @method void setDatetime(\DateTimeImmutable $datetime)
  * @method string getUserId()
  * @method void setUserId(string $userId)
- * @method string getText()
- * @method void setText(string $text)
+ * @method ?string getText()
+ * @method void setText(?string $text)
  * @method string getAmountRaw()
  * @method void setAmountRaw(string $amountRaw)
  * @method string getBalanceRaw()
@@ -107,7 +107,7 @@ final class Entry extends Entity implements JsonSerializable {
 
 	/**
 	 * The posting text
-	 * @var string
+	 * @var ?string
 	 */
 	protected $text;
 
@@ -218,8 +218,8 @@ final class Entry extends Entity implements JsonSerializable {
 	public function jsonSerialize(): array {
 		$data = [
 			'id' => $this->getId(),
-			'balance' => (float)$this->getBalanceRaw(),
-			'text' => $this->getText(),
+			'balance' => (string)$this->getBalance()->getAmount(),
+			'text' => $this->getText() ?? '',
 			'date' => $this->getDatetime()->format(DATE_ATOM),
 			'reason' => $this->getReason(),
 			'reference' => $this->getReference(),
@@ -227,10 +227,10 @@ final class Entry extends Entity implements JsonSerializable {
 		];
 
 		$amount = $this->getAmount();
-		$absoluteAmount = (float)(string)$amount->abs()->getAmount();
+		$absoluteAmount = (string)$amount->abs()->getAmount();
 		if ($amount->isPositive()) {
 			$data['debit'] = $absoluteAmount;
-		} else {
+		} elseif ($amount->isNegative()) {
 			$data['credit'] = $absoluteAmount;
 		}
 		return $data;
