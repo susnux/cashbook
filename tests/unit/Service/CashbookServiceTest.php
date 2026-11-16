@@ -85,6 +85,17 @@ final class CashbookServiceTest extends TestCase {
 		$this->assertSame(self::USER_ID, $stored->getOwner());
 	}
 
+	public function testBuildDoesNotStore(): void {
+		$cashbook = $this->service->build(self::USER_ID, '  Shop ', 'usd', ' 1000 ');
+
+		$this->assertNull($cashbook->getId());
+		$this->assertSame('Shop', $cashbook->getName());
+		$this->assertSame('1000', $cashbook->getAccount());
+		$this->assertSame('USD', $cashbook->getCurrency());
+		$this->assertSame(self::USER_ID, $cashbook->getOwner());
+		$this->assertSame([], $this->cashbookMapper->getCashbooksByOwner(self::USER_ID));
+	}
+
 	public function testCreateWithEmptyName(): void {
 		try {
 			$this->service->create(self::USER_ID, ' ', 'EUR');

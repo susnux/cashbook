@@ -16,6 +16,7 @@ use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
+use OCA\Cashbook\Service\CashbookService;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -68,6 +69,7 @@ final class SumupPosProGermanyTest extends TestCase {
 			$this->db,
 			$this->cashbookMapper,
 			$this->entryMapper,
+			Server::get(CashbookService::class),
 		);
 	}
 
@@ -179,6 +181,8 @@ final class SumupPosProGermanyTest extends TestCase {
 			'start balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_start.csv'], [], 'does not match the daily closing report'],
 			'closing balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_closing.csv'], [], 'day closing of 03.01.2025 18:00:00'],
 			'invalid amount' => [['Kassenbuch_invalid_amount.csv'], [], 'invalid values'],
+			'empty store name' => [['Kassenbuch_empty_store.csv'], [], 'store name or ID'],
+			'store name too long' => [['Kassenbuch_long_store.csv'], [], 'store name or ID'],
 		];
 	}
 

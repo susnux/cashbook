@@ -22,6 +22,7 @@ use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
+use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\Db\TTransactional;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
@@ -83,6 +84,7 @@ final class SumupPosProGermany implements IImportService {
 		protected IDBConnection $db,
 		protected CashbookMapper $cashbookMapper,
 		protected EntryMapper $entryMapper,
+		protected CashbookService $cashbookService,
 	) {
 		$this->timezone = $timeZoneFactory->getTimeZone();
 	}
@@ -172,11 +174,11 @@ final class SumupPosProGermany implements IImportService {
 			throw new InvalidInputException('The cashbook export uses an unknown currency.', $this->l10n->t('The cashbook export uses an unknown currency.'));
 		}
 
-		$this->cashbook = new Cashbook();
-		$this->cashbook->setOwner($this->getUserId());
-		$this->cashbook->setCurrency($currency);
-		$this->cashbook->setName($entry['store']);
-		$this->cashbook->setAccount($entry['storeId']);
+		try {
+			$this->cashbook = $this->cashbookService->build($this->getUserId(), $entry['store'], $currency, $entry['storeId']);
+		} catch (InvalidInputException|InvalidArgumentException $error) {
+			throw new InvalidInputException('The store name or ID of the cashbook export is invalid.', $this->l10n->t('The store name or ID of the cashbook export is invalid.'), previous: $error);
+		}
 
 		// The balance before the first entry is needed to compare it with the report
 		$initialBalance = $this->parseMoney($entry['total'])->minus($this->parseRecordAmount($entry));
