@@ -10,23 +10,23 @@ declare(strict_types=1);
 namespace OCA\Cashbook\Db;
 
 /**
- * @psalm-suppress UnusedClass Only its constants are used
+ * The reason (category) of a cashbook entry
  */
-final class EntryReason {
-	public const string DayOpening = 'day-opening';
-	public const string DayClosing = 'day-closing';
+enum EntryReason: string {
+	case DayOpening = 'day-opening';
+	case DayClosing = 'day-closing';
 
-	public const string Correction = 'correction';
+	case Correction = 'correction';
 
-	public const string IncomeBankTransfer = 'income-bank';
-	public const string IncomeSales = 'income-sales';
-	public const string IncomeMisc = 'income-misc';
+	case IncomeBankTransfer = 'income-bank';
+	case IncomeSales = 'income-sales';
+	case IncomeMisc = 'income-misc';
 
-	public const string ExpenseBankTransfer = 'expense-bank';
-	public const string ExpenseGoods = 'expense-goods';
-	public const string ExpenseSalary = 'expense-salary';
-	public const string ExpenseTips = 'expense-tips';
-	public const string ExpenseChange = 'expense-change';
-	public const string ExpenseRefund = 'expense-refund';
-	public const string ExpenseMisc = 'expense-misc';
+	case ExpenseBankTransfer = 'expense-bank';
+	case ExpenseGoods = 'expense-goods';
+	case ExpenseSalary = 'expense-salary';
+	case ExpenseTips = 'expense-tips';
+	case ExpenseChange = 'expense-change';
+	case ExpenseRefund = 'expense-refund';
+	case ExpenseMisc = 'expense-misc';
 }

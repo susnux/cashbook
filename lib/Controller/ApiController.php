@@ -19,7 +19,7 @@ use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\IImportService;
-use OCA\Cashbook\ImportService\SumupPosProGermany;
+use OCA\Cashbook\ImportService\ImportFormat;
 use OCA\Cashbook\ResponseDefinitions;
 use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -42,15 +42,6 @@ use Psr\Log\LoggerInterface;
  * @psalm-api Loaded by the router
  */
 final class ApiController extends OCSController {
-
-	/**
-	 * Available import services by their public identifier
-	 *
-	 * @var array<string, class-string<IImportService>>
-	 */
-	private const array IMPORTERS = [
-		'sumup-pos-pro-de' => SumupPosProGermany::class,
-	];
 
 	public function __construct(
 		IRequest $request,
@@ -122,12 +113,6 @@ final class ApiController extends OCSController {
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries')]
 	public function getCashbookEntries(int $id, int $offset = 0, int $limit = 20): DataResponse {
-		// The documented ranges are not enforced by the framework, so check them here
-		/** @psalm-suppress DocblockTypeContradiction */
-		if ($offset < 0 || $limit < 1 || $limit > 50) {
-			throw new OCSBadRequestException('Invalid offset or limit');
-		}
-
 		try {
 			$cashbook = $this->cashbookMapper->getCashbook($id);
 		} catch (DoesNotExistException) {
@@ -272,7 +257,7 @@ final class ApiController extends OCSController {
 	 *
 	 * The files need to be uploaded as `files[]` form data.
 	 *
-	 * @param 'sumup-pos-pro-de' $import The import format to use
+	 * @param ImportFormat $import The import format to use
 	 * @param ?string $timezone The timezone of the dates in the uploaded files (defaults to the timezone of the user)
 	 * @return DataResponse<Http::STATUS_OK, array{id: int}, array{}>
 	 * @throws OCSBadRequestException No files uploaded, unsupported import format or invalid files
@@ -282,7 +267,7 @@ final class ApiController extends OCSController {
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/import')]
 	public function importCashbook(
-		string $import,
+		ImportFormat $import,
 		?string $timezone = null,
 	): DataResponse {
 		/** @var array{name: list<string>, tmp_name: list<string>, ...}|null $files Uploaded as `files[]`, null if no file was uploaded */
@@ -291,13 +276,8 @@ final class ApiController extends OCSController {
 			throw new OCSBadRequestException('No files provided');
 		}
 
-		/** @psalm-suppress DocblockTypeContradiction The documented values are not enforced by the framework */
-		if (!isset(self::IMPORTERS[$import])) {
-			throw new OCSBadRequestException('Unsupported import format');
-		}
-
 		/** @var IImportService $importer */
-		$importer = $this->container->get(self::IMPORTERS[$import]);
+		$importer = $this->container->get($import->getImportService());
 		try {
 			$cashbook = $importer->import($files, $timezone === null ? [] : ['timezone' => $timezone]);
 			$this->logger->debug('Successfully imported cashbook {name} ({id})', ['name' => $cashbook->getName(), 'id' => $cashbook->getId()]);

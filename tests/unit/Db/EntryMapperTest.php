@@ -53,10 +53,7 @@ final class EntryMapperTest extends TestCase {
 		parent::tearDown();
 	}
 
-	/**
-	 * @param EntryReason::*|null $reason
-	 */
-	private function insertEntry(string $datetime, ?string $reason, string $text): void {
+	private function insertEntry(string $datetime, ?EntryReason $reason, string $text): void {
 		$this->entryMapper->insert(Entry::create(
 			$this->cashbook,
 			self::USER_ID,
