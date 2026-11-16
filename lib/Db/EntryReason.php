@@ -29,4 +29,12 @@ enum EntryReason: string {
 	case ExpenseChange = 'expense-change';
 	case ExpenseRefund = 'expense-refund';
 	case ExpenseMisc = 'expense-misc';
+
+	public function isIncome(): bool {
+		return str_starts_with($this->value, 'income-');
+	}
+
+	public function isExpense(): bool {
+		return str_starts_with($this->value, 'expense-');
+	}
 }

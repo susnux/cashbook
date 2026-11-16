@@ -41,6 +41,8 @@ use RuntimeException;
  * @method void setReasonRaw(?string $reasonRaw)
  * @method ?string getReference()
  * @method void setReference(?string $reference)
+ * @method ?\DateTimeImmutable getReferenceDate()
+ * @method void setReferenceDate(?\DateTimeImmutable $referenceDate)
  */
 final class Entry extends Entity implements JsonSerializable {
 
@@ -99,8 +101,8 @@ final class Entry extends Entity implements JsonSerializable {
 	protected $reference;
 
 	/**
-	 * The posting reference date
-	 * @var \DateTimeImmutable
+	 * The date of the receipt the posting reference refers to
+	 * @var ?\DateTimeImmutable
 	 */
 	protected $referenceDate;
 
@@ -134,6 +136,7 @@ final class Entry extends Entity implements JsonSerializable {
 		Money $balance,
 		?BigRational $tax = null,
 		?string $reference = null,
+		?\DateTimeImmutable $referenceDate = null,
 	): self {
 		$entry = new self($cashbook);
 		$entry->setUserId($userId);
@@ -144,6 +147,7 @@ final class Entry extends Entity implements JsonSerializable {
 		$entry->setTax($tax);
 		$entry->setReason($reason);
 		$entry->setReference($reference);
+		$entry->setReferenceDate($referenceDate);
 		return $entry;
 	}
 
@@ -248,6 +252,7 @@ final class Entry extends Entity implements JsonSerializable {
 			'date' => $this->getDatetime()->format(DATE_ATOM),
 			'reason' => $this->getReason()?->value,
 			'reference' => $this->getReference(),
+			'referenceDate' => $this->getReferenceDate()?->format('Y-m-d'),
 			'tax' => $this->getTax()?->toFloat(),
 		];
 

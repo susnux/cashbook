@@ -1,0 +1,151 @@
+/*!
+ * SPDX-FileCopyrightText: 2026 Ferdinand Thiessen <opensource@fthiessen.de>
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import NcDateTimePickerNative from '@nextcloud/vue/components/NcDateTimePickerNative'
+import NcRadioGroup from '@nextcloud/vue/components/NcRadioGroup'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
+import NcTextField from '@nextcloud/vue/components/NcTextField'
+import NewEntryDialog from './NewEntryDialog.vue'
+import { EntryReason } from '../models/CashbookEntry.ts'
+
+const { addEntry } = vi.hoisted(() => ({ addEntry: vi.fn() }))
+vi.mock('../api/cashbooks.ts', () => ({ addEntry }))
+
+const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
+
+/**
+ * Mount the dialog for the test cashbook
+ */
+async function mountDialog() {
+	const wrapper = mount(NewEntryDialog, { attachTo: document.body, props: { cashbook } })
+	await flushPromises()
+	return wrapper
+}
+
+/**
+ * Get a text field of the dialog by its label
+ *
+ * @param wrapper - The mounted dialog
+ * @param label - The label of the text field
+ */
+function textField(wrapper: Awaited<ReturnType<typeof mountDialog>>, label: string) {
+	return wrapper.findAllComponents(NcTextField).find((field) => field.props('label') === label)!
+}
+
+/**
+ * Click a dialog button and wait for the dialog to close
+ *
+ * @param label - The label of the button
+ */
+async function clickButton(label: string) {
+	const button = [...document.querySelectorAll('button')].find((element) => element.textContent?.trim() === label)!
+	button.click()
+	await flushPromises()
+	vi.runAllTimers()
+	await flushPromises()
+}
+
+describe('NewEntryDialog', () => {
+	beforeEach(() => {
+		vi.useFakeTimers()
+		addEntry.mockReset()
+		// happy-dom validates the step of number inputs with floating point arithmetic, e.g. 5 % 0.01 !== 0
+		vi.spyOn(HTMLFormElement.prototype, 'reportValidity').mockReturnValue(true)
+	})
+
+	afterEach(() => {
+		vi.restoreAllMocks()
+		vi.useRealTimers()
+		document.body.innerHTML = ''
+	})
+
+	it('offers the income reasons by default', async () => {
+		const wrapper = await mountDialog()
+
+		const select = wrapper.findComponent(NcSelect)
+		expect(select.props('options').map(({ label }: { label: string }) => label)).toEqual(['Sales', 'Transfer from bank', 'Miscellaneous income'])
+		expect(select.props('modelValue')).toEqual({ value: EntryReason.IncomeSales, label: 'Sales' })
+	})
+
+	it('switches to the expense reasons', async () => {
+		const wrapper = await mountDialog()
+
+		await wrapper.findComponent(NcRadioGroup).vm.$emit('update:modelValue', 'expense')
+
+		const select = wrapper.findComponent(NcSelect)
+		expect(select.props('options')).toHaveLength(7)
+		expect(select.props('modelValue')).toEqual({ value: EntryReason.ExpenseGoods, label: 'Purchases' })
+	})
+
+	it('uses the minor unit of the currency for the amount', async () => {
+		const wrapper = await mountDialog()
+
+		const amount = textField(wrapper, 'Amount (EUR)')
+		expect(amount.attributes('step') ?? amount.find('input').attributes('step')).toBe('0.01')
+	})
+
+	it('adds the entry with all values and emits it', async () => {
+		const entry = { id: 3, date: new Date(), balance: '88.10', credit: '11.90' }
+		addEntry.mockResolvedValue(entry)
+		const wrapper = await mountDialog()
+
+		await wrapper.findComponent(NcRadioGroup).vm.$emit('update:modelValue', 'expense')
+		await wrapper.findComponent(NcSelect).vm.$emit('update:modelValue', { value: EntryReason.ExpenseRefund, label: 'Refund' })
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '11.90')
+		await textField(wrapper, 'Tax rate (%)').vm.$emit('update:modelValue', '19')
+		await textField(wrapper, 'Text').vm.$emit('update:modelValue', 'Returned goods')
+		await textField(wrapper, 'Receipt number').vm.$emit('update:modelValue', 'R-7')
+		await wrapper.findComponent(NcDateTimePickerNative).vm.$emit('update:modelValue', new Date(2025, 0, 31))
+
+		await clickButton('Add entry')
+
+		expect(addEntry).toHaveBeenCalledWith(cashbook, {
+			reason: EntryReason.ExpenseRefund,
+			amount: '11.90',
+			text: 'Returned goods',
+			tax: 0.19,
+			reference: 'R-7',
+			referenceDate: '2025-01-31',
+		})
+		expect(wrapper.emitted('close')).toEqual([[entry]])
+	})
+
+	it('sends no tax rate and receipt date if they are empty', async () => {
+		addEntry.mockResolvedValue({ id: 1 })
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '5')
+		await clickButton('Add entry')
+
+		expect(addEntry).toHaveBeenCalledWith(cashbook, expect.objectContaining({ reason: EntryReason.IncomeSales, tax: null, referenceDate: null }))
+		expect(wrapper.emitted('close')).toEqual([[{ id: 1 }]])
+	})
+
+	it('does not send an invalid form', async () => {
+		vi.mocked(HTMLFormElement.prototype.reportValidity).mockReturnValue(false)
+		const wrapper = await mountDialog()
+
+		await clickButton('Add entry')
+
+		expect(addEntry).not.toHaveBeenCalled()
+		expect(wrapper.emitted('close')).toBeUndefined()
+	})
+
+	it('shows the error and stays open if adding fails', async () => {
+		addEntry.mockRejectedValue(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'The expense exceeds the cash balance.' } } } },
+		}))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '5')
+		await clickButton('Add entry')
+
+		expect(document.body.textContent).toContain('The expense exceeds the cash balance.')
+		expect(wrapper.emitted('close')).toBeUndefined()
+	})
+})

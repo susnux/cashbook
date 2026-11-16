@@ -47,9 +47,17 @@ final class EntryTest extends TestCase {
 			'date' => '2025-01-02T10:00:00+00:00',
 			'reason' => 'income-sales',
 			'reference' => 'R-1',
+			'referenceDate' => null,
 			'tax' => 0.19,
 			'debit' => '0.10',
 		], $this->createEntry('0.1', '9007199254740993.1')->jsonSerialize());
+	}
+
+	public function testJsonSerializeReferenceDate(): void {
+		$entry = $this->createEntry('1', '1');
+		$entry->setReferenceDate(new \DateTimeImmutable('2025-01-01', new \DateTimeZone('UTC')));
+		$this->assertSame('2025-01-01', $entry->jsonSerialize()['referenceDate']);
+		$this->assertArrayHasKey('referenceDate', $entry->getUpdatedFields());
 	}
 
 	public static function dataAmountSides(): array {

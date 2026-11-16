@@ -10,6 +10,7 @@ Keep the cashbook of your shop or association in Nextcloud.
 ## Features
 
 - Create cashbooks in any currency
+- Add income and expenses with reason, text, tax rate, receipt number and receipt date
 - Browse the entries of a cashbook by month, quarter, year or a custom date range,
   grouped by day when the cash register was opened and closed
 - Print the cashbook of a period

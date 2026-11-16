@@ -9,8 +9,10 @@ import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { useFormatTime } from '@nextcloud/vue/composables/useFormatDateTime'
 import { computed } from 'vue'
+import NcDateTime from '@nextcloud/vue/components/NcDateTime'
 import { EntryReasonReadable } from '../models/CashbookEntry.ts'
 import { formatCurrency, formatTaxRate } from '../utils/formatter.ts'
+import { parseDay } from '../utils/period.ts'
 
 const props = defineProps<{
 	cashbook: ICashbook
@@ -18,6 +20,7 @@ const props = defineProps<{
 }>()
 
 const formattedTime = useFormatTime(() => props.modelValue.date, { format: { dateStyle: 'medium', timeStyle: 'short' } })
+const receiptDate = computed(() => parseDay(props.modelValue.referenceDate))
 const formattedTax = computed(() => props.modelValue.tax === null ? '' : formatTaxRate(props.modelValue.tax))
 const formattedReason = computed(() => props.modelValue.reason ? EntryReasonReadable[props.modelValue.reason] : '')
 </script>
@@ -34,6 +37,15 @@ const formattedReason = computed(() => props.modelValue.reason ? EntryReasonRead
 		<td>
 			<div :class="$style.wrappedText" v-text="modelValue.text" />
 		</td>
+		<td>
+			<div :class="$style.wrappedText" v-text="modelValue.reference" />
+			<NcDateTime
+				v-if="receiptDate"
+				:class="$style.receiptDate"
+				:relativeTime="false"
+				:timestamp="receiptDate"
+				:format="{ dateStyle: 'medium' }" />
+		</td>
 		<td>{{ formattedTax }}</td>
 		<td>{{ 'debit' in modelValue ? formatCurrency(modelValue.debit, cashbook.currency) : '' }}</td>
 		<td>{{ 'credit' in modelValue ? formatCurrency(modelValue.credit, cashbook.currency) : '' }}</td>
@@ -46,6 +58,10 @@ const formattedReason = computed(() => props.modelValue.reason ? EntryReasonRead
 <style module>
 .wrappedText {
 	text-wrap: wrap;
+}
+
+.receiptDate {
+	color: var(--color-text-maxcontrast);
 }
 
 .balanceColumn {

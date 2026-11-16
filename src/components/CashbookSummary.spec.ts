@@ -12,7 +12,7 @@ import { EntryReason } from '../models/CashbookEntry.ts'
 
 const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
 
-const base = { reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), text: '', reference: null }
+const base = { reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), text: '', reference: null, referenceDate: null }
 const entries: ICashbookEntry[] = [
 	{ ...base, id: 1, reason: EntryReason.DayOpening, balance: '100.00', tax: null },
 	{ ...base, id: 2, balance: '130.00', debit: '30.00', tax: 0.19 },

@@ -41,13 +41,34 @@ export const EntryReasonReadable: Record<EntryReason, string> = Object.freeze({
 	[EntryReason.ExpenseTips]: t('cashbook', 'Tips'),
 })
 
+/** Reasons of income entries that can be added manually */
+export const IncomeReasons: readonly EntryReason[] = Object.freeze([
+	EntryReason.IncomeSales,
+	EntryReason.IncomeBankTransfer,
+	EntryReason.IncomeMisc,
+])
+
+/** Reasons of expense entries that can be added manually */
+export const ExpenseReasons: readonly EntryReason[] = Object.freeze([
+	EntryReason.ExpenseGoods,
+	EntryReason.ExpenseBankTransfer,
+	EntryReason.ExpenseSalary,
+	EntryReason.ExpenseTips,
+	EntryReason.ExpenseChange,
+	EntryReason.ExpenseRefund,
+	EntryReason.ExpenseMisc,
+])
+
 interface BaseEntry {
 	id: number
 	date: Date
 	/** The balance after this entry as decimal string */
 	balance: string
 	text: string
+	/** The receipt number */
 	reference: string | null
+	/** The date of the receipt (`YYYY-MM-DD`) */
+	referenceDate: string | null
 	/** The tax rate (e.g. `0.19` for 19%) */
 	tax: number | null
 

@@ -100,6 +100,18 @@ final class EntryMapperTest extends TestCase {
 		$this->assertSame(['b2', 'c'], $this->texts($this->entryMapper->getEntries($this->cashbook, 2, 2)));
 	}
 
+	public function testGetLastEntry(): void {
+		$this->assertNull($this->entryMapper->getLastEntry($this->cashbook));
+
+		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'c');
+		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'c2');
+		$this->insertEntry('2025-01-01 10:00', EntryReason::IncomeSales, 'a');
+
+		$last = $this->entryMapper->getLastEntry($this->cashbook);
+		$this->assertSame('c2', $last?->getText());
+		$this->assertSame($this->cashbook, $last->getCashbook());
+	}
+
 	public function testGetEntriesByDateWithoutDays(): void {
 		$this->insertEntry('2025-01-31 23:59', null, 'before');
 		$this->insertEntry('2025-02-01 00:00', null, 'first');
