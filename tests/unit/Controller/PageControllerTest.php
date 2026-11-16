@@ -30,13 +30,13 @@ final class PageControllerTest extends TestCase {
 	}
 
 	private function createController(): PageController {
-		$urlGenerator = $this->createMock(IURLGenerator::class);
+		$urlGenerator = $this->createStub(IURLGenerator::class);
 		$urlGenerator->method('linkToRouteAbsolute')
 			->willReturnCallback(static fn (string $route): string => 'https://cloud.example.com/' . $route);
 
 		return new PageController(
 			'cashbook',
-			$this->createMock(IRequest::class),
+			$this->createStub(IRequest::class),
 			self::USER_ID,
 			$urlGenerator,
 			Server::get(CashbookMapper::class),

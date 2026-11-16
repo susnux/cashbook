@@ -31,6 +31,6 @@ final class Version000002Date20261116000000Test extends TestCase {
 		$schema = new SchemaWrapper(Server::get(Connection::class));
 		$migration = new Version000002Date20261116000000();
 
-		$this->assertNull($migration->changeSchema($this->createMock(IOutput::class), static fn () => $schema, []));
+		$this->assertNull($migration->changeSchema($this->createStub(IOutput::class), static fn () => $schema, []));
 	}
 }
