@@ -20,6 +20,7 @@ use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\IImportService;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
+use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\OCS\OCSBadRequestException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\IDBConnection;
@@ -64,17 +65,22 @@ final class ApiControllerTest extends TestCase {
 			$this->createMock(LoggerInterface::class),
 			$this->cashbookMapper,
 			$this->entryMapper,
+			Server::get(CashbookService::class),
 			$userId,
 		);
 	}
 
-	private function createCashbook(string $owner, string $name = 'Cashbook'): Cashbook {
+	private function newCashbook(string $owner, string $name = 'Cashbook'): Cashbook {
 		$cashbook = new Cashbook();
 		$cashbook->setName($name);
 		$cashbook->setAccount('1000');
 		$cashbook->setCurrency('EUR');
 		$cashbook->setOwner($owner);
-		$cashbook = $this->cashbookMapper->insert($cashbook);
+		return $cashbook;
+	}
+
+	private function createCashbook(string $owner, string $name = 'Cashbook'): Cashbook {
+		$cashbook = $this->cashbookMapper->insert($this->newCashbook($owner, $name));
 		$this->cashbooks[] = $cashbook;
 		return $cashbook;
 	}
@@ -235,5 +241,49 @@ final class ApiControllerTest extends TestCase {
 			static fn (array $entry): array => array_intersect_key($entry, ['debit' => true, 'credit' => true, 'balance' => true, 'text' => true]),
 			$response->getData(),
 		));
+	}
+
+	public function testCreateCashbook(): void {
+		$response = $this->createController()->createCashbook('Shop', 'EUR', '1000');
+		$data = $response->getData();
+		$this->cashbooks[] = $this->cashbookMapper->getCashbook($data['id']);
+
+		$this->assertSame('Shop', $data['name']);
+		$this->assertSame('alice', $data['owner']);
+	}
+
+	public function testCreateCashbookEmptyName(): void {
+		$this->expectException(OCSBadRequestException::class);
+		$this->expectExceptionMessage('The name of the cashbook must not be empty.');
+		$this->createController()->createCashbook(' ', 'EUR');
+	}
+
+	public function testCreateCashbookInvalid(): void {
+		$this->expectException(OCSBadRequestException::class);
+		$this->expectExceptionMessage('Unknown currency');
+		$this->createController()->createCashbook('Shop', 'Euro');
+	}
+
+	public function testDeleteCashbook(): void {
+		$cashbook = $this->cashbookMapper->insert($this->newCashbook('alice'));
+
+		$this->createController()->deleteCashbook($cashbook->getId());
+		$this->assertSame([], $this->cashbookMapper->getCashbooksByOwner('alice'));
+	}
+
+	public function testDeleteCashbookNotFound(): void {
+		$this->expectException(OCSNotFoundException::class);
+		$this->createController()->deleteCashbook(PHP_INT_MAX);
+	}
+
+	public function testDeleteCashbookOfOtherUser(): void {
+		$cashbook = $this->createCashbook('bob');
+
+		try {
+			$this->createController()->deleteCashbook($cashbook->getId());
+			$this->fail('Deleting a foreign cashbook should fail');
+		} catch (OCSNotFoundException) {
+		}
+		$this->assertSame($cashbook->getId(), $this->cashbookMapper->getCashbook($cashbook->getId())->getId());
 	}
 }

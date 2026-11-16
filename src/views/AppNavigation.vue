@@ -4,14 +4,12 @@
 -->
 
 <script setup lang="ts">
-import type { Component } from 'vue'
 import type { ICashbook } from '../models/Cashbook.ts'
 
 import { mdiImport, mdiTrashCan } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
-import { spawnDialog as spawnNcDialog } from '@nextcloud/vue/functions/dialog'
-import { createVNode, getCurrentInstance, render, toRaw } from 'vue'
-import { useRouter } from 'vue-router'
+import { spawnDialog } from '@nextcloud/vue/functions/dialog'
+import { useRoute, useRouter } from 'vue-router'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcAppNavigationCaption from '@nextcloud/vue/components/NcAppNavigationCaption'
@@ -19,76 +17,60 @@ import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
 import NcAppNavigationList from '@nextcloud/vue/components/NcAppNavigationList'
 import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
+import DeleteCashbookDialog from '../components/DeleteCashbookDialog.vue'
 import ImportCashbookDialog from '../components/ImportCashbookDialog.vue'
 import NewCashbookDialog from '../components/NewCashbookDialog.vue'
-import { deleteCashbook } from '../api/cashbooks.ts'
 import { useCashbookStore } from '../store/cashbookStore.ts'
 
 const store = useCashbookStore()
+const route = useRoute()
 const router = useRouter()
 
 /**
+ * Add a new cashbook to the store and open it
  *
+ * @param cashbook - The new cashbook
+ */
+function openNewCashbook(cashbook: ICashbook) {
+	store.cashbooks.push(cashbook)
+	router.push({ name: 'cashbook', params: { cashbook: String(cashbook.id) } })
+}
+
+/**
+ * Show the import dialog and open the imported cashbook
  */
 async function importCashbook() {
-	const cashbook = await spawnNcDialog(ImportCashbookDialog)
+	const cashbook = await spawnDialog(ImportCashbookDialog)
 	if (cashbook) {
-		store.cashbooks.push(cashbook)
-		router.push({ name: 'cashbook', params: { cashbook: String(cashbook.id) } })
+		openNewCashbook(cashbook)
 	}
 }
 
 /**
- * Delete the given cashbook and remove it from the store
+ * Show the dialog to create a new cashbook and open the created cashbook
+ */
+async function createNew() {
+	const cashbook = await spawnDialog(NewCashbookDialog)
+	if (cashbook) {
+		openNewCashbook(cashbook)
+	}
+}
+
+/**
+ * Ask for confirmation, then delete the given cashbook and remove it from the store
  *
  * @param cashbook - The cashbook to delete
  */
 async function onDeleteCashbook(cashbook: ICashbook) {
-	await deleteCashbook(cashbook)
-	store.cashbooks = store.cashbooks.filter(({ id }) => id !== cashbook.id)
-}
-
-/**
- *
- */
-async function createNew() {
-	spawnDialog<[ICashbook]>(NewCashbookDialog)
-}
-
-// TODO: Replace with function from nc-vue when released
-/**
- * Mount a dialog component and destroy it again once it is closed
- *
- * @param dialog - The dialog component to show
- * @param props - Props to pass to the dialog component
- * @param onClose - Callback invoked with the payload of the dialog's close event
- */
-function spawnDialog<P extends Array<unknown> = unknown[]>(
-	dialog: Component,
-	props?: unknown[],
-	onClose: (...rest: P) => void = () => {},
-): void {
-	const el = document.createElement('div')
-	const container: HTMLElement = document.body
-	container.appendChild(el)
-
-	const vueComponent = createVNode(dialog, {
-		...props,
-		onclose: (...rest: unknown[]) => {
-			onClose(...rest.map((v) => toRaw(v)) as P)
-			// destroy the component
-			render(null, el)
-			el.remove()
-		},
-	})
-
-	// If there is an instance use it to get access to registered components
-	const appContext = getCurrentInstance()?.appContext
-	if (appContext) {
-		vueComponent.appContext = { ...appContext }
+	const deleted = await spawnDialog(DeleteCashbookDialog, { cashbook })
+	if (!deleted) {
+		return
 	}
 
-	render(vueComponent, el)
+	store.cashbooks = store.cashbooks.filter(({ id }) => id !== cashbook.id)
+	if (route.params.cashbook === String(cashbook.id)) {
+		router.push({ name: 'root' })
+	}
 }
 </script>
 
@@ -110,7 +92,7 @@ function spawnDialog<P extends Array<unknown> = unknown[]>(
 						<template #icon>
 							<NcIconSvgWrapper :path="mdiTrashCan" :size="20" />
 						</template>
-						Delete
+						{{ t('cashbook', 'Delete') }}
 					</NcActionButton>
 				</template>
 			</NcAppNavigationItem>

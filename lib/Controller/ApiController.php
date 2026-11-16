@@ -21,6 +21,7 @@ use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\IImportService;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
 use OCA\Cashbook\ResponseDefinitions;
+use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -57,6 +58,7 @@ final class ApiController extends OCSController {
 		protected LoggerInterface $logger,
 		protected CashbookMapper $cashbookMapper,
 		protected EntryMapper $entryMapper,
+		protected CashbookService $cashbookService,
 		protected ?string $userId,
 	) {
 		parent::__construct(Application::APP_ID, $request);
@@ -206,11 +208,11 @@ final class ApiController extends OCSController {
 	}
 
 	/**
-	 * Delete a cashbook
+	 * Delete a cashbook including all of its entries
 	 *
 	 * @param int $id The id of the cashbook
 	 * @return DataResponse<Http::STATUS_OK, list<empty>, array{}>
-	 * @throws OCSForbiddenException Cashbook not found or not owned by the current user
+	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
 	 *
 	 * 200: Cashbook deleted
 	 */
@@ -220,25 +222,26 @@ final class ApiController extends OCSController {
 		try {
 			$cashbook = $this->cashbookMapper->getCashbook($id);
 		} catch (DoesNotExistException) {
-			throw new OCSForbiddenException();
+			throw new OCSNotFoundException();
 		}
 
 		// Only owner is allowed to delete the cashbook
 		if ($cashbook->getOwner() !== $this->userId) {
-			throw new OCSForbiddenException();
+			throw new OCSNotFoundException();
 		}
 
-		$this->cashbookMapper->delete($cashbook);
+		$this->cashbookService->delete($cashbook);
 		return new DataResponse([]);
 	}
 
 	/**
 	 * Create a new cashbook for the current user
 	 *
-	 * @param string $name The name of the cashbook
+	 * @param string $name The name of the cashbook (1 to 255 characters)
 	 * @param string $currency The currency of the cashbook (ISO 4217 code)
-	 * @param string $account The account the cashbook is kept for
+	 * @param string $account The account the cashbook is kept for (up to 255 characters)
 	 * @return DataResponse<Http::STATUS_OK, CashbookCashbook, array{}>
+	 * @throws OCSBadRequestException Invalid name, account or currency
 	 * @throws OCSForbiddenException No user is logged in
 	 *
 	 * 200: Cashbook created
@@ -254,12 +257,13 @@ final class ApiController extends OCSController {
 			throw new OCSForbiddenException();
 		}
 
-		$cashbook = new Cashbook();
-		$cashbook->setName($name);
-		$cashbook->setAccount($account);
-		$cashbook->setCurrency($currency);
-		$cashbook->setOwner($this->userId);
-		$cashbook = $this->cashbookMapper->insert($cashbook);
+		try {
+			$cashbook = $this->cashbookService->create($this->userId, $name, $currency, $account);
+		} catch (InvalidInputException $error) {
+			throw new OCSBadRequestException($error->getHint());
+		} catch (InvalidArgumentException $error) {
+			throw new OCSBadRequestException($error->getMessage());
+		}
 		return new DataResponse($cashbook->jsonSerialize());
 	}
 
