@@ -33,7 +33,7 @@ final class UserDeletedListenerTest extends TestCase {
 		$service->create('deleted-user', 'Shop', 'EUR');
 		$service->create('remaining-user', 'Shop', 'EUR');
 
-		$user = $this->createMock(IUser::class);
+		$user = $this->createStub(IUser::class);
 		$user->method('getUID')->willReturn('deleted-user');
 		Server::get(UserDeletedListener::class)->handle(new UserDeletedEvent($user));
 

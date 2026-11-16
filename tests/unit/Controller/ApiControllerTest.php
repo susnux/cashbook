@@ -60,9 +60,9 @@ final class ApiControllerTest extends TestCase {
 
 	private function createController(?string $userId = 'alice', ?IRequest $request = null, ?ContainerInterface $container = null): ApiController {
 		return new ApiController(
-			$request ?? $this->createMock(IRequest::class),
-			$container ?? $this->createMock(ContainerInterface::class),
-			$this->createMock(LoggerInterface::class),
+			$request ?? $this->createStub(IRequest::class),
+			$container ?? $this->createStub(ContainerInterface::class),
+			$this->createStub(LoggerInterface::class),
 			$this->cashbookMapper,
 			$this->entryMapper,
 			Server::get(CashbookService::class),
@@ -130,7 +130,10 @@ final class ApiControllerTest extends TestCase {
 	public function testImportCashbook(): void {
 		$files = ['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']];
 		$request = $this->createMock(IRequest::class);
-		$request->method('getUploadedFile')->with('files')->willReturn($files);
+		$request->expects($this->once())
+			->method('getUploadedFile')
+			->with('files')
+			->willReturn($files);
 
 		$cashbook = $this->createCashbook('alice');
 		$importer = $this->createMock(IImportService::class);
@@ -139,18 +142,21 @@ final class ApiControllerTest extends TestCase {
 			->with($files, ['timezone' => 'Europe/Berlin'])
 			->willReturn($cashbook);
 		$container = $this->createMock(ContainerInterface::class);
-		$container->method('get')->with(SumupPosProGermany::class)->willReturn($importer);
+		$container->expects($this->once())
+			->method('get')
+			->with(SumupPosProGermany::class)
+			->willReturn($importer);
 
 		$response = $this->createController('alice', $request, $container)->importCashbook(ImportFormat::SumupPosProGermany, 'Europe/Berlin');
 		$this->assertSame(['id' => $cashbook->getId()], $response->getData());
 	}
 
 	public function testImportCashbookInvalidOptions(): void {
-		$request = $this->createMock(IRequest::class);
+		$request = $this->createStub(IRequest::class);
 		$request->method('getUploadedFile')->willReturn(['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']]);
-		$importer = $this->createMock(IImportService::class);
+		$importer = $this->createStub(IImportService::class);
 		$importer->method('import')->willThrowException(new \InvalidArgumentException('Invalid timezone option passed.'));
-		$container = $this->createMock(ContainerInterface::class);
+		$container = $this->createStub(ContainerInterface::class);
 		$container->method('get')->willReturn($importer);
 
 		$this->expectException(OCSBadRequestException::class);
@@ -159,11 +165,11 @@ final class ApiControllerTest extends TestCase {
 	}
 
 	public function testImportCashbookInvalidFiles(): void {
-		$request = $this->createMock(IRequest::class);
+		$request = $this->createStub(IRequest::class);
 		$request->method('getUploadedFile')->willReturn(['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']]);
-		$importer = $this->createMock(IImportService::class);
+		$importer = $this->createStub(IImportService::class);
 		$importer->method('import')->willThrowException(new InvalidInputException('English message', 'Translated message'));
-		$container = $this->createMock(ContainerInterface::class);
+		$container = $this->createStub(ContainerInterface::class);
 		$container->method('get')->willReturn($importer);
 
 		$this->expectException(OCSBadRequestException::class);

@@ -55,15 +55,15 @@ final class SumupPosProGermanyTest extends TestCase {
 	}
 
 	private function createImporter(?LoggerInterface $logger = null): SumupPosProGermany {
-		$timezone = $this->createMock(IDateTimeZone::class);
+		$timezone = $this->createStub(IDateTimeZone::class);
 		$timezone->method('getTimeZone')->willReturn(new \DateTimeZone('Europe/Berlin'));
-		$l10n = $this->createMock(IL10N::class);
+		$l10n = $this->createStub(IL10N::class);
 		$l10n->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => 'translated: ' . vsprintf($text, $parameters));
 
 		return new SumupPosProGermany(
 			$timezone,
 			self::USER_ID,
-			$logger ?? $this->createMock(LoggerInterface::class),
+			$logger ?? $this->createStub(LoggerInterface::class),
 			$l10n,
 			$this->db,
 			$this->cashbookMapper,

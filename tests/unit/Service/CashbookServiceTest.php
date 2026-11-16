@@ -38,7 +38,7 @@ final class CashbookServiceTest extends TestCase {
 		$this->cashbookMapper = Server::get(CashbookMapper::class);
 		$this->entryMapper = Server::get(EntryMapper::class);
 
-		$l10n = $this->createMock(IL10N::class);
+		$l10n = $this->createStub(IL10N::class);
 		$l10n->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => 'translated: ' . vsprintf($text, $parameters));
 		$this->service = new CashbookService(
 			Server::get(IDBConnection::class),
