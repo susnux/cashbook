@@ -375,10 +375,8 @@ final class SumupPosProGermany implements IImportService {
 
 	/**
 	 * Mapping from string value of the CSV to the `EntryReason` enum.
-	 *
-	 * @psalm-return EntryReason::*|null
 	 */
-	protected function mapReason(string $reason): ?string {
+	protected function mapReason(string $reason): ?EntryReason {
 		$mapped = match($reason) {
 			'Einkauf von Material und Waren' => EntryReason::ExpenseGoods,
 			'Trinkgeldauszahlung' => EntryReason::ExpenseTips,

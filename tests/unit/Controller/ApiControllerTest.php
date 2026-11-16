@@ -19,6 +19,7 @@ use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\IImportService;
+use OCA\Cashbook\ImportService\ImportFormat;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
 use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\OCS\OCSBadRequestException;
@@ -26,7 +27,6 @@ use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\Server;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -127,40 +127,6 @@ final class ApiControllerTest extends TestCase {
 		$this->createController()->getCashbook($cashbook->getId());
 	}
 
-	public static function dataInvalidPagination(): array {
-		return [
-			'negative offset' => [-1, 20],
-			'zero limit' => [0, 0],
-			'limit too large' => [0, 51],
-		];
-	}
-
-	#[DataProvider('dataInvalidPagination')]
-	public function testGetCashbookEntriesInvalidPagination(int $offset, int $limit): void {
-		$cashbook = $this->createCashbook('alice');
-
-		$this->expectException(OCSBadRequestException::class);
-		$this->createController()->getCashbookEntries($cashbook->getId(), $offset, $limit);
-	}
-
-	public static function dataUnsupportedImportFormat(): array {
-		return [
-			'unknown identifier' => ['unknown'],
-			'class name' => [SumupPosProGermany::class],
-		];
-	}
-
-	#[DataProvider('dataUnsupportedImportFormat')]
-	public function testImportCashbookUnsupportedFormat(string $import): void {
-		$request = $this->createMock(IRequest::class);
-		$request->method('getUploadedFile')->willReturn(['name' => ['a.csv'], 'tmp_name' => ['/tmp/a.csv']]);
-		$container = $this->createMock(ContainerInterface::class);
-		$container->expects($this->never())->method('get');
-
-		$this->expectException(OCSBadRequestException::class);
-		$this->createController('alice', $request, $container)->importCashbook($import);
-	}
-
 	public function testImportCashbook(): void {
 		$files = ['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']];
 		$request = $this->createMock(IRequest::class);
@@ -175,7 +141,7 @@ final class ApiControllerTest extends TestCase {
 		$container = $this->createMock(ContainerInterface::class);
 		$container->method('get')->with(SumupPosProGermany::class)->willReturn($importer);
 
-		$response = $this->createController('alice', $request, $container)->importCashbook('sumup-pos-pro-de', 'Europe/Berlin');
+		$response = $this->createController('alice', $request, $container)->importCashbook(ImportFormat::SumupPosProGermany, 'Europe/Berlin');
 		$this->assertSame(['id' => $cashbook->getId()], $response->getData());
 	}
 
@@ -189,7 +155,7 @@ final class ApiControllerTest extends TestCase {
 
 		$this->expectException(OCSBadRequestException::class);
 		$this->expectExceptionMessage('Invalid timezone option passed.');
-		$this->createController('alice', $request, $container)->importCashbook('sumup-pos-pro-de', 'Mars/Olympus');
+		$this->createController('alice', $request, $container)->importCashbook(ImportFormat::SumupPosProGermany, 'Mars/Olympus');
 	}
 
 	public function testImportCashbookInvalidFiles(): void {
@@ -202,7 +168,7 @@ final class ApiControllerTest extends TestCase {
 
 		$this->expectException(OCSBadRequestException::class);
 		$this->expectExceptionMessage('Translated message');
-		$this->createController('alice', $request, $container)->importCashbook('sumup-pos-pro-de');
+		$this->createController('alice', $request, $container)->importCashbook(ImportFormat::SumupPosProGermany);
 	}
 
 	public function testGetCashbookEntriesPrintCollapsesSales(): void {

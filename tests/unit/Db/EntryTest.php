@@ -45,7 +45,7 @@ final class EntryTest extends TestCase {
 			'balance' => '9007199254740993.10',
 			'text' => 'Text',
 			'date' => '2025-01-02T10:00:00+00:00',
-			'reason' => EntryReason::IncomeSales,
+			'reason' => 'income-sales',
 			'reference' => 'R-1',
 			'tax' => 0.19,
 			'debit' => '0.10',
@@ -68,5 +68,23 @@ final class EntryTest extends TestCase {
 
 	public function testJsonSerializeWithoutText(): void {
 		$this->assertSame('', $this->createEntry('1', '1', null)->jsonSerialize()['text']);
+	}
+
+	public function testReasonIsStoredInReasonColumn(): void {
+		$entry = $this->createEntry('1', '1');
+		$this->assertSame('reason', $entry->propertyToColumn('reasonRaw'));
+		$this->assertSame('income-sales', $entry->getReasonRaw());
+		$this->assertArrayHasKey('reasonRaw', $entry->getUpdatedFields());
+
+		$entry = Entry::fromRow(['reason' => 'day-closing']);
+		$this->assertSame(EntryReason::DayClosing, $entry->getReason());
+	}
+
+	public function testReasonNull(): void {
+		$entry = $this->createEntry('1', '1');
+		$entry->setReason(null);
+		$this->assertNull($entry->getReason());
+		$this->assertNull($entry->getReasonRaw());
+		$this->assertNull($entry->jsonSerialize()['reason']);
 	}
 }

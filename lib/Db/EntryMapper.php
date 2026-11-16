@@ -100,7 +100,7 @@ final class EntryMapper extends QBMapper {
 	 */
 	private function findBoundary(
 		Cashbook $cashbook,
-		string $reason,
+		EntryReason $reason,
 		string $comparison,
 		\DateTimeImmutable $date,
 		string $order,
@@ -111,7 +111,7 @@ final class EntryMapper extends QBMapper {
 			->from($this->tableName)
 			->where(
 				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
-				$qb->expr()->eq('reason', $qb->createNamedParameter($reason)),
+				$qb->expr()->eq('reason', $qb->createNamedParameter($reason->value)),
 				$qb->expr()->$comparison('datetime', $qb->createNamedParameter($date, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)),
 			)
 			->orderBy('datetime', $order)

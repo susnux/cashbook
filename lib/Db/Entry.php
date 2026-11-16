@@ -19,7 +19,6 @@ use RuntimeException;
 
 /**
  * @psalm-import-type CashbookEntry from ResponseDefinitions
- * @psalm-import-type CashbookEntryReason from ResponseDefinitions
  *
  * @psalm-suppress PropertyNotSetInConstructor Properties are populated by the mapper
  * @psalm-suppress PossiblyUnusedProperty Properties are accessed through the magic getters and setters
@@ -38,8 +37,8 @@ use RuntimeException;
  * @method void setBalanceRaw(string $balanceRaw)
  * @method ?string getTaxRaw()
  * @method void setTaxRaw(?string $taxRaw)
- * @method EntryReason::*|null getReason()
- * @method void setReason(EntryReason::*|null $reason)
+ * @method ?string getReasonRaw()
+ * @method void setReasonRaw(?string $reasonRaw)
  * @method ?string getReference()
  * @method void setReference(?string $reference)
  */
@@ -112,9 +111,10 @@ final class Entry extends Entity implements JsonSerializable {
 	protected $text;
 
 	/**
-	 * @var ?CashbookEntryReason
+	 * The raw reason (value of the `EntryReason` enum), stored in the `reason` column
+	 * @var ?string
 	 */
-	protected $reason;
+	protected $reasonRaw;
 
 	public function __construct(
 		protected ?Cashbook $cashbook = null,
@@ -124,15 +124,12 @@ final class Entry extends Entity implements JsonSerializable {
 		$this->addType('referenceDate', Types::DATE_IMMUTABLE);
 	}
 
-	/**
-	 * @param EntryReason::*|null $reason
-	 */
 	public static function create(
 		Cashbook $cashbook,
 		string $userId,
 		\DateTimeImmutable $datetime,
 		string $text,
-		?string $reason,
+		?EntryReason $reason,
 		Money $amount,
 		Money $balance,
 		?BigRational $tax = null,
@@ -181,6 +178,18 @@ final class Entry extends Entity implements JsonSerializable {
 		return Money::of($this->amountRaw, $this->cashbook->getCurrency());
 	}
 
+	public function setReason(?EntryReason $reason): void {
+		$this->setReasonRaw($reason?->value);
+	}
+
+	/**
+	 * @throws \ValueError If the stored reason is not a valid `EntryReason`
+	 */
+	public function getReason(): ?EntryReason {
+		$raw = $this->getReasonRaw();
+		return $raw === null ? null : EntryReason::from($raw);
+	}
+
 	public function setBalance(Money $balance): void {
 		$this->setBalanceRaw((string)$balance->getAmount());
 	}
@@ -193,6 +202,22 @@ final class Entry extends Entity implements JsonSerializable {
 			throw new \RuntimeException('No currency available: Cashbook not set.');
 		}
 		return Money::of($this->balanceRaw, $this->cashbook->getCurrency());
+	}
+
+	#[\Override]
+	public function columnToProperty(string $columnName): string {
+		if ($columnName === 'reason') {
+			return 'reasonRaw';
+		}
+		return parent::columnToProperty($columnName);
+	}
+
+	#[\Override]
+	public function propertyToColumn(string $property): string {
+		if ($property === 'reasonRaw') {
+			return 'reason';
+		}
+		return parent::propertyToColumn($property);
 	}
 
 	#[\Override]
@@ -221,7 +246,7 @@ final class Entry extends Entity implements JsonSerializable {
 			'balance' => (string)$this->getBalance()->getAmount(),
 			'text' => $this->getText() ?? '',
 			'date' => $this->getDatetime()->format(DATE_ATOM),
-			'reason' => $this->getReason(),
+			'reason' => $this->getReason()?->value,
 			'reference' => $this->getReference(),
 			'tax' => $this->getTax()?->toFloat(),
 		];
