@@ -39,6 +39,20 @@ final class ApiControllerTest extends IntegrationTestCase {
 		);
 	}
 
+	public function testGetCashbookEntriesRejectsOutOfRangePagination(): void {
+		$alice = $this->createUser();
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+		$path = 'api/v1/cashbooks/' . $cashbook['id'] . '/entries';
+
+		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path . '?offset=0&limit=50')));
+		// The documented ranges are enforced by the framework, which responds without an OCS body
+		foreach (['offset=0&limit=51', 'offset=0&limit=0', 'offset=-1&limit=20'] as $query) {
+			$this->assertSame(400, $this->ocsRequest($alice, 'GET', $path . '?' . $query)->getStatusCode(), $query);
+		}
+	}
+
 	public function testCashbookOfOtherUserIsNotAccessible(): void {
 		$alice = $this->createUser();
 		$bob = $this->createUser();

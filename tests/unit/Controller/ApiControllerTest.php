@@ -127,6 +127,26 @@ final class ApiControllerTest extends TestCase {
 		$this->createController()->getCashbook($cashbook->getId());
 	}
 
+	public function testGetCashbookEntries(): void {
+		$cashbook = $this->createCashbook('alice');
+		$balance = Money::of('0', 'EUR');
+		for ($index = 0; $index < 3; $index++) {
+			$balance = $balance->plus('1.00');
+			$this->entryMapper->insert(Entry::create(
+				$cashbook,
+				'alice',
+				new \DateTimeImmutable('2025-01-02 10:0' . $index, new \DateTimeZone('UTC')),
+				'',
+				EntryReason::IncomeSales,
+				Money::of('1.00', 'EUR'),
+				$balance,
+			));
+		}
+
+		$response = $this->createController()->getCashbookEntries($cashbook->getId(), 1, 50);
+		$this->assertSame(['2.00', '3.00'], array_column($response->getData(), 'balance'));
+	}
+
 	public function testImportCashbook(): void {
 		$files = ['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']];
 		$request = $this->createMock(IRequest::class);
