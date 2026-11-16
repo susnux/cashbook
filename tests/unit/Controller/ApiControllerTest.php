@@ -25,8 +25,10 @@ use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\OCS\OCSBadRequestException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\IDBConnection;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\Server;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -66,8 +68,15 @@ final class ApiControllerTest extends TestCase {
 			$this->cashbookMapper,
 			$this->entryMapper,
 			Server::get(CashbookService::class),
+			$this->createL10N(),
 			$userId,
 		);
+	}
+
+	private function createL10N(): IL10N {
+		$l10n = $this->createStub(IL10N::class);
+		$l10n->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => 'translated: ' . vsprintf($text, $parameters));
+		return $l10n;
 	}
 
 	private function newCashbook(string $owner, string $name = 'Cashbook'): Cashbook {
@@ -148,7 +157,7 @@ final class ApiControllerTest extends TestCase {
 	}
 
 	public function testImportCashbook(): void {
-		$files = ['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']];
+		$files = ['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv'], 'error' => [UPLOAD_ERR_OK]];
 		$request = $this->createMock(IRequest::class);
 		$request->expects($this->once())
 			->method('getUploadedFile')
@@ -159,7 +168,7 @@ final class ApiControllerTest extends TestCase {
 		$importer = $this->createMock(IImportService::class);
 		$importer->expects($this->once())
 			->method('import')
-			->with($files, ['timezone' => 'Europe/Berlin'])
+			->with(['name' => $files['name'], 'tmp_name' => $files['tmp_name']], ['timezone' => 'Europe/Berlin'])
 			->willReturn($cashbook);
 		$container = $this->createMock(ContainerInterface::class);
 		$container->expects($this->once())
@@ -173,7 +182,7 @@ final class ApiControllerTest extends TestCase {
 
 	public function testImportCashbookInvalidOptions(): void {
 		$request = $this->createStub(IRequest::class);
-		$request->method('getUploadedFile')->willReturn(['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']]);
+		$request->method('getUploadedFile')->willReturn(['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv'], 'error' => [UPLOAD_ERR_OK]]);
 		$importer = $this->createStub(IImportService::class);
 		$importer->method('import')->willThrowException(new \InvalidArgumentException('Invalid timezone option passed.'));
 		$container = $this->createStub(ContainerInterface::class);
@@ -184,9 +193,57 @@ final class ApiControllerTest extends TestCase {
 		$this->createController('alice', $request, $container)->importCashbook(ImportFormat::SumupPosProGermany, 'Mars/Olympus');
 	}
 
+	public function testImportCashbookSingleFileField(): void {
+		$request = $this->createStub(IRequest::class);
+		$request->method('getUploadedFile')->willReturn(['name' => 'Kassenbuch_a.csv', 'tmp_name' => '/tmp/a.csv', 'error' => UPLOAD_ERR_OK]);
+		$cashbook = $this->createCashbook('alice');
+		$importer = $this->createMock(IImportService::class);
+		$importer->expects($this->once())
+			->method('import')
+			->with(['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']], [])
+			->willReturn($cashbook);
+		$container = $this->createStub(ContainerInterface::class);
+		$container->method('get')->willReturn($importer);
+
+		$response = $this->createController('alice', $request, $container)->importCashbook(ImportFormat::SumupPosProGermany);
+		$this->assertSame(['id' => $cashbook->getId()], $response->getData());
+	}
+
+	public static function dataImportCashbookFailedUpload(): array {
+		$files = static fn (int ...$errors): array => [
+			'name' => array_map(static fn (int $index): string => "file$index.csv", array_keys($errors)),
+			'tmp_name' => array_map(static fn (int $index): string => "/tmp/file$index.csv", array_keys($errors)),
+			'error' => $errors,
+		];
+		return [
+			'no upload' => [null, 'No files provided'],
+			'not an upload' => ['files', 'No files provided'],
+			'empty upload' => [$files(), 'No files provided'],
+			'no file selected' => [$files(UPLOAD_ERR_NO_FILE), 'No files provided'],
+			'file too large' => [$files(UPLOAD_ERR_OK, UPLOAD_ERR_INI_SIZE), 'translated: The uploaded file is too large.'],
+			'form size exceeded' => [$files(UPLOAD_ERR_FORM_SIZE), 'translated: The uploaded file is too large.'],
+			'partial upload' => [$files(UPLOAD_ERR_OK, UPLOAD_ERR_PARTIAL), 'translated: The upload of the files failed.'],
+			'mismatching fields' => [['name' => ['a.csv', 'b.csv'], 'tmp_name' => ['/tmp/a.csv'], 'error' => [UPLOAD_ERR_OK, UPLOAD_ERR_OK]], 'No files provided'],
+		];
+	}
+
+	#[DataProvider('dataImportCashbookFailedUpload')]
+	public function testImportCashbookFailedUpload(mixed $upload, string $message): void {
+		$request = $this->createStub(IRequest::class);
+		$request->method('getUploadedFile')->willReturn($upload);
+		$importer = $this->createMock(IImportService::class);
+		$importer->expects($this->never())->method('import');
+		$container = $this->createStub(ContainerInterface::class);
+		$container->method('get')->willReturn($importer);
+
+		$this->expectException(OCSBadRequestException::class);
+		$this->expectExceptionMessage($message);
+		$this->createController('alice', $request, $container)->importCashbook(ImportFormat::SumupPosProGermany);
+	}
+
 	public function testImportCashbookInvalidFiles(): void {
 		$request = $this->createStub(IRequest::class);
-		$request->method('getUploadedFile')->willReturn(['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv']]);
+		$request->method('getUploadedFile')->willReturn(['name' => ['Kassenbuch_a.csv'], 'tmp_name' => ['/tmp/a.csv'], 'error' => [UPLOAD_ERR_OK]]);
 		$importer = $this->createStub(IImportService::class);
 		$importer->method('import')->willThrowException(new InvalidInputException('English message', 'Translated message'));
 		$container = $this->createStub(ContainerInterface::class);
