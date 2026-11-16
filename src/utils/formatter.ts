@@ -1,16 +1,16 @@
 import { getCanonicalLocale } from '@nextcloud/l10n'
 
 /**
- * Format a number as a currency amount using the user's locale
+ * Format an amount of money using the user's locale
  *
- * @param number - The amount to format
+ * @param amount - The amount to format, decimal strings are formatted without losing precision
  * @param currency - The ISO 4217 currency code (e.g. `EUR`)
  */
-export function formatCurrency(number: number, currency: string): string {
-	return number.toLocaleString(getCanonicalLocale(), {
+export function formatCurrency(amount: number | string, currency: string): string {
+	return new Intl.NumberFormat(getCanonicalLocale(), {
 		style: 'currency',
 		currencyDisplay: 'narrowSymbol',
 		currencySign: 'accounting',
 		currency,
-	})
+	}).format(amount as number | Intl.StringNumericLiteral)
 }

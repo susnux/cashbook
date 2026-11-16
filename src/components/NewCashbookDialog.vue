@@ -4,7 +4,7 @@
 -->
 
 <script setup lang="ts">
-import type { ICashbook } from '../models/Cashbook.ts'
+import type { ICashbookData } from '../models/Cashbook.ts'
 
 import { t } from '@nextcloud/l10n'
 import { ref, watch } from 'vue'
@@ -15,14 +15,14 @@ import { createCashbook } from '../api/cashbooks.ts'
 import { useCashbookStore } from '../store/cashbookStore.ts'
 
 const props = defineProps<{
-	cashbook?: Omit<ICashbook, 'id'>
+	cashbook?: ICashbookData
 }>()
 
 const emit = defineEmits<{
-	(e: 'close', payload?: Omit<ICashbook, 'id'>): void
+	(e: 'close', payload?: ICashbookData): void
 }>()
 
-const newCashbook = ref<Omit<ICashbook, 'id'>>({
+const newCashbook = ref<ICashbookData>({
 	currency: 'EUR',
 	name: '',
 	account: '',
