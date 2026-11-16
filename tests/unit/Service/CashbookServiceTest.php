@@ -111,6 +111,47 @@ final class CashbookServiceTest extends TestCase {
 		$this->service->create(self::USER_ID, $name, $currency, $account);
 	}
 
+	public function testUpdate(): void {
+		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR', '1000');
+
+		$this->service->update($cashbook, ' Market ', ' 1200 ');
+
+		$stored = $this->cashbookMapper->getCashbook($cashbook->getId());
+		$this->assertSame('Market', $stored->getName());
+		$this->assertSame('1200', $stored->getAccount());
+		$this->assertSame('EUR', $stored->getCurrency());
+		$this->assertSame(self::USER_ID, $stored->getOwner());
+	}
+
+	public function testUpdateWithEmptyName(): void {
+		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR');
+
+		try {
+			$this->service->update($cashbook, ' ');
+			$this->fail('Updating the cashbook should have failed');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The name of the cashbook must not be empty.', $error->getMessage());
+			$this->assertSame('translated: The name of the cashbook must not be empty.', $error->getHint());
+		}
+		$this->assertSame('Shop', $this->cashbookMapper->getCashbook($cashbook->getId())->getName());
+	}
+
+	public static function dataUpdateInvalid(): array {
+		return [
+			'name too long' => [str_repeat('ä', 256), '', 'The name of the cashbook must not be longer than 255 characters.'],
+			'account too long' => ['Shop', str_repeat('a', 256), 'The account must not be longer than 255 characters.'],
+		];
+	}
+
+	#[DataProvider('dataUpdateInvalid')]
+	public function testUpdateInvalid(string $name, string $account, string $message): void {
+		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR');
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage($message);
+		$this->service->update($cashbook, $name, $account);
+	}
+
 	public function testDeleteRemovesEntries(): void {
 		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR');
 		$other = $this->service->create(self::USER_ID, 'Other', 'EUR');

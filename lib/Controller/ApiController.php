@@ -253,6 +253,46 @@ final class ApiController extends OCSController {
 	}
 
 	/**
+	 * Change the name and account of a cashbook
+	 *
+	 * The currency can not be changed.
+	 *
+	 * @param int $id The id of the cashbook
+	 * @param string $name The new name of the cashbook (1 to 255 characters)
+	 * @param string $account The new account the cashbook is kept for (up to 255 characters)
+	 * @return DataResponse<Http::STATUS_OK, CashbookCashbook, array{}>
+	 * @throws OCSBadRequestException Invalid name or account
+	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
+	 *
+	 * 200: Cashbook updated
+	 */
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/cashbooks/{id}')]
+	public function updateCashbook(
+		int $id,
+		string $name,
+		string $account = '',
+	): DataResponse {
+		try {
+			$cashbook = $this->cashbookMapper->getCashbook($id);
+		} catch (DoesNotExistException) {
+			throw new OCSNotFoundException();
+		}
+		if ($cashbook->getOwner() !== $this->userId) {
+			throw new OCSNotFoundException();
+		}
+
+		try {
+			$cashbook = $this->cashbookService->update($cashbook, $name, $account);
+		} catch (InvalidInputException $error) {
+			throw new OCSBadRequestException($error->getHint());
+		} catch (InvalidArgumentException $error) {
+			throw new OCSBadRequestException($error->getMessage());
+		}
+		return new DataResponse($cashbook->jsonSerialize());
+	}
+
+	/**
 	 * Import a cashbook from uploaded files
 	 *
 	 * The files need to be uploaded as `files[]` form data.
