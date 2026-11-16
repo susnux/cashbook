@@ -17,7 +17,9 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
+use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\IImportService;
+use OCA\Cashbook\ImportService\SumupPosProGermany;
 use OCA\Cashbook\ResponseDefinitions;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
@@ -29,6 +31,7 @@ use OCP\AppFramework\OCS\OCSForbiddenException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\AppFramework\OCSController;
 use OCP\IRequest;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -39,8 +42,18 @@ use Psr\Log\LoggerInterface;
  */
 final class ApiController extends OCSController {
 
+	/**
+	 * Available import services by their public identifier
+	 *
+	 * @var array<string, class-string<IImportService>>
+	 */
+	private const array IMPORTERS = [
+		'sumup-pos-pro-de' => SumupPosProGermany::class,
+	];
+
 	public function __construct(
 		IRequest $request,
+		protected ContainerInterface $container,
 		protected LoggerInterface $logger,
 		protected CashbookMapper $cashbookMapper,
 		protected EntryMapper $entryMapper,
@@ -254,7 +267,8 @@ final class ApiController extends OCSController {
 	 *
 	 * The files need to be uploaded as `files[]` form data.
 	 *
-	 * @param string $import The class name of the import service to use
+	 * @param 'sumup-pos-pro-de' $import The import format to use
+	 * @param ?string $timezone The timezone of the dates in the uploaded files (defaults to the timezone of the user)
 	 * @return DataResponse<Http::STATUS_OK, array{id: int}, array{}>
 	 * @throws OCSBadRequestException No files uploaded, unsupported import format or invalid files
 	 *
@@ -264,6 +278,7 @@ final class ApiController extends OCSController {
 	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/import')]
 	public function importCashbook(
 		string $import,
+		?string $timezone = null,
 	): DataResponse {
 		/** @var array{name: list<string>, tmp_name: list<string>, ...}|null $files Uploaded as `files[]`, null if no file was uploaded */
 		$files = $this->request->getUploadedFile('files');
@@ -271,24 +286,22 @@ final class ApiController extends OCSController {
 			throw new OCSBadRequestException('No files provided');
 		}
 
-		// Now check if the format is valid and exists as an importer
-		if (!class_exists($import)) {
-			throw new OCSBadRequestException('Unsupported import format');
-		}
-		$implementedInterfaces = class_implements($import);
-		if ($implementedInterfaces === false || !in_array(IImportService::class, $implementedInterfaces)) {
+		/** @psalm-suppress DocblockTypeContradiction The documented values are not enforced by the framework */
+		if (!isset(self::IMPORTERS[$import])) {
 			throw new OCSBadRequestException('Unsupported import format');
 		}
 
 		/** @var IImportService $importer */
-		$importer = \OCP\Server::get($import);
+		$importer = $this->container->get(self::IMPORTERS[$import]);
 		try {
-			$cashbook = $importer->import($files);
+			$cashbook = $importer->import($files, $timezone === null ? [] : ['timezone' => $timezone]);
 			$this->logger->debug('Successfully imported cashbook {name} ({id})', ['name' => $cashbook->getName(), 'id' => $cashbook->getId()]);
 			return new DataResponse(['id' => $cashbook->getId()]);
-		} catch (InvalidArgumentException $error) {
+		} catch (InvalidInputException $error) {
 			$this->logger->debug('Failed to import cashbook', ['exception' => $error]);
-			throw new OCSBadRequestException('Invalid file format');
+			throw new OCSBadRequestException($error->getHint());
+		} catch (InvalidArgumentException $error) {
+			throw new OCSBadRequestException($error->getMessage());
 		}
 	}
 

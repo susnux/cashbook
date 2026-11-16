@@ -148,11 +148,13 @@ export async function createCashbook(cashbook: Omit<ICashbook, 'id'>): Promise<I
  * Import a cashbook from a SumUp POS Pro (German) export.
  *
  * @param files - The cashbook CSV (`Kassenbuch_*.csv`) and optionally the daily closing report CSV
+ * @param timezone - The timezone of the dates in the export (IANA timezone ID)
  * @return The newly created cashbook
  */
-export async function importSumupCashbook(files: File[]): Promise<ICashbook> {
+export async function importSumupCashbook(files: File[], timezone: string): Promise<ICashbook> {
 	const formData = new FormData()
-	formData.append('import', 'OCA\\Cashbook\\ImportService\\SumupPosProGermany')
+	formData.append('import', 'sumup-pos-pro-de')
+	formData.append('timezone', timezone)
 	for (const file of files) {
 		formData.append('files[]', file)
 	}

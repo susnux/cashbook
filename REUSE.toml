@@ -16,3 +16,9 @@ path = [".nvmrc", "tsconfig.json", ".github/renovate.json"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "Ferdinand Thiessen <opensource@fthiessen.de>"
 SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["tests/fixtures/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Ferdinand Thiessen <opensource@fthiessen.de>"
+SPDX-License-Identifier = "CC0-1.0"
