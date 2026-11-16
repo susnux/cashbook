@@ -67,10 +67,11 @@ async function onDeleteCashbook(cashbook: ICashbook) {
 		return
 	}
 
-	store.cashbooks = store.cashbooks.filter(({ id }) => id !== cashbook.id)
+	// leave the cashbook view first, otherwise it redirects to "not found" once the cashbook is gone
 	if (route.params.cashbook === String(cashbook.id)) {
-		router.push({ name: 'root' })
+		await router.push({ name: 'root' })
 	}
+	store.cashbooks = store.cashbooks.filter(({ id }) => id !== cashbook.id)
 }
 </script>
 
