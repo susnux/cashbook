@@ -13,11 +13,13 @@ import logger from '../utils/logger.ts'
 export const useCashbookStore = defineStore('cashbook', () => {
 	const cashbooks = ref<ICashbook[]>([])
 	const loaded = ref(false)
+	const failed = ref(false)
 
 	/**
-	 *
+	 * Load the cashbooks of the current user
 	 */
-	async function init() {
+	async function load() {
+		failed.value = false
 		try {
 			const apiResult = await fetchCashbooks()
 			cashbooks.value = apiResult
@@ -25,13 +27,16 @@ export const useCashbookStore = defineStore('cashbook', () => {
 			logger.debug('Successfully loaded cashbooks', { cashbooks: apiResult })
 		} catch (error) {
 			logger.error('Failed to fetch cashbooks', { error })
+			failed.value = true
 		}
 	}
 
-	init()
+	load()
 
 	return {
 		cashbooks,
 		loaded,
+		failed,
+		load,
 	}
 })
