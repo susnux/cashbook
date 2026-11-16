@@ -4,22 +4,26 @@
 -->
 
 <script setup lang="ts">
-import type { ICashbookData } from '../models/Cashbook.ts'
+import type { ICashbook, ICashbookData } from '../models/Cashbook.ts'
+import type { CurrencyOption } from '../utils/currencies.ts'
 
 import { t } from '@nextcloud/l10n'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
+import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { createCashbook } from '../api/cashbooks.ts'
-import { useCashbookStore } from '../store/cashbookStore.ts'
+import { getCurrencyOptions } from '../utils/currencies.ts'
+import { getOcsErrorMessage } from '../utils/errors.ts'
+import logger from '../utils/logger.ts'
 
 const props = defineProps<{
 	cashbook?: ICashbookData
 }>()
 
 const emit = defineEmits<{
-	(e: 'close', payload?: ICashbookData): void
+	(e: 'close', cashbook?: ICashbook): void
 }>()
 
 const newCashbook = ref<ICashbookData>({
@@ -34,63 +38,84 @@ watch(() => props.cashbook, () => {
 	}
 }, { immediate: true })
 
-const allCurrencies = [
-	{
-		label: 'Euro',
-		value: 'EUR',
+const currencyOptions = getCurrencyOptions()
+const selectedCurrency = computed({
+	get: () => currencyOptions.find(({ value }) => value === newCashbook.value.currency),
+	set: (option: CurrencyOption | null | undefined) => {
+		if (option) {
+			newCashbook.value.currency = option.value
+		}
 	},
-	{
-		label: 'US Dollar',
-		value: 'USD',
-	},
-]
+})
 
-const buttons: InstanceType<typeof NcDialog>['buttons'] = [
+const created = ref<ICashbook>()
+const error = ref('')
+const loading = ref(false)
+
+const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'tertiary',
 		label: t('cashbook', 'Cancel'),
-		callback: async () => {
-			emit('close')
-		},
 	},
 	{
 		type: 'submit',
 		variant: 'primary',
 		label: t('cashbook', 'Create cashbook'),
-		callback: async () => {
-			await onCreateCashbook()
-			emit('close')
-		},
+		disabled: loading.value,
+		callback: onCreateCashbook,
 	},
-]
-
-const store = useCashbookStore()
+])
 
 /**
- *
+ * Create the cashbook, keep the dialog open on failure.
  */
 async function onCreateCashbook() {
-	const cb = await createCashbook(newCashbook.value)
-	store.cashbooks.push(cb)
+	error.value = ''
+	loading.value = true
+	try {
+		created.value = await createCashbook(newCashbook.value)
+	} catch (e) {
+		logger.error('Failed to create cashbook', { error: e })
+		error.value = getOcsErrorMessage(e) ?? t('cashbook', 'Could not create the cashbook.')
+		return false
+	} finally {
+		loading.value = false
+	}
 }
-const open = ref(true)
+
+/**
+ * @param open - The new open state of the dialog
+ */
+function onUpdateOpen(open: boolean) {
+	if (!open) {
+		emit('close', created.value)
+	}
+}
 </script>
 
 <template>
 	<NcDialog
-		v-model:open="open"
 		isForm
 		:buttons="buttons"
-		:name="t('cashbook', 'New cashbook')">
-		<NcTextField v-model="newCashbook.name" required :label="t('cashbook', 'Cashbook name')" />
-		<NcTextField v-model="newCashbook.account" :label="t('cashbook', 'Account')" />
+		:name="t('cashbook', 'New cashbook')"
+		@update:open="onUpdateOpen">
+		<NcTextField
+			v-model="newCashbook.name"
+			required
+			:maxlength="255"
+			:label="t('cashbook', 'Cashbook name')" />
+		<NcTextField
+			v-model="newCashbook.account"
+			:maxlength="255"
+			:label="t('cashbook', 'Account')" />
 		<NcSelect
-			v-model="newCashbook.currency"
+			v-model="selectedCurrency"
 			:class="$style.currencySelect"
 			:clearable="false"
 			:inputLabel="t('cashbook', 'Currency')"
-			:options="allCurrencies"
+			:options="currencyOptions"
 			required />
+		<NcNoteCard v-if="error" type="error" :text="error" />
 	</NcDialog>
 </template>
 

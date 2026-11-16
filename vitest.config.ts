@@ -11,5 +11,11 @@ export default defineConfig({
 	test: {
 		environment: 'happy-dom',
 		include: ['src/**/*.spec.ts'],
+		server: {
+			deps: {
+				// Needed to process the CSS imports of the components
+				inline: [/@nextcloud\/vue/],
+			},
+		},
 	},
 })

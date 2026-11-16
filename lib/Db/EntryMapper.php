@@ -79,6 +79,18 @@ final class EntryMapper extends QBMapper {
 	}
 
 	/**
+	 * Delete all entries of a cashbook.
+	 */
+	public function deleteByCashbook(Cashbook $cashbook): void {
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete($this->tableName)
+			->where(
+				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+			)
+			->executeStatement();
+	}
+
+	/**
 	 * Find the date of the nearest day opening or closing entry relative to the given date.
 	 *
 	 * @param EntryReason::DayOpening|EntryReason::DayClosing $reason

@@ -261,7 +261,7 @@
                                 "properties": {
                                     "name": {
                                         "type": "string",
-                                        "description": "The name of the cashbook"
+                                        "description": "The name of the cashbook (1 to 255 characters)"
                                     },
                                     "currency": {
                                         "type": "string",
@@ -270,7 +270,7 @@
                                     "account": {
                                         "type": "string",
                                         "default": "",
-                                        "description": "The account the cashbook is kept for"
+                                        "description": "The account the cashbook is kept for (up to 255 characters)"
                                     }
                                 }
                             }
@@ -313,6 +313,34 @@
                                                 "data": {
                                                     "$ref": "#/components/schemas/Cashbook"
                                                 }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid name, account or currency",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {}
                                             }
                                         }
                                     }
@@ -507,7 +535,7 @@
             },
             "delete": {
                 "operationId": "api-delete-cashbook",
-                "summary": "Delete a cashbook",
+                "summary": "Delete a cashbook including all of its entries",
                 "tags": [
                     "api"
                 ],
@@ -570,7 +598,7 @@
                             }
                         }
                     },
-                    "403": {
+                    "404": {
                         "description": "Cashbook not found or not owned by the current user",
                         "content": {
                             "application/json": {
