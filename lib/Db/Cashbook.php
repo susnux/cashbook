@@ -9,9 +9,12 @@ declare(strict_types=1);
 
 namespace OCA\Cashbook\Db;
 
+use OCA\Cashbook\ResponseDefinitions;
 use OCP\AppFramework\Db\Entity;
 
 /**
+ * @psalm-import-type CashbookCashbook from ResponseDefinitions
+ *
  * @method string getName()
  * @method void setName(string $value)
  * @method string getAccount()
@@ -54,6 +57,9 @@ class Cashbook extends Entity implements \JsonSerializable {
 		$this->addType('owner', 'string');
 	}
 
+	/**
+	 * @return CashbookCashbook
+	 */
 	public function jsonSerialize(): array {
 		return [
 			'id' => $this->id,

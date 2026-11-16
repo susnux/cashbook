@@ -18,6 +18,7 @@ use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\ImportService\IImportService;
+use OCA\Cashbook\ResponseDefinitions;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -32,6 +33,9 @@ use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
 /**
+ * @psalm-import-type CashbookCashbook from ResponseDefinitions
+ * @psalm-import-type CashbookEntry from ResponseDefinitions
+ *
  * @psalm-suppress UnusedClass
  */
 class ApiController extends OCSController {
@@ -49,11 +53,11 @@ class ApiController extends OCSController {
 	}
 
 	/**
-	 * An example API endpoint
+	 * Get all cashbooks of the current user
 	 *
-	 * @return DataResponse<Http::STATUS_OK, list<Cashbook>, array{}>
+	 * @return DataResponse<Http::STATUS_OK, list<CashbookCashbook>, array{}>
 	 *
-	 * 200: Data returned
+	 * 200: List of cashbooks returned
 	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks')]
@@ -64,10 +68,19 @@ class ApiController extends OCSController {
 
 		$cashbooks = $this->cashbookMapper->getCashbooksByOwner($this->userId);
 		return new DataResponse(
-			$cashbooks
+			array_map(static fn (Cashbook $cashbook): array => $cashbook->jsonSerialize(), $cashbooks)
 		);
 	}
 
+	/**
+	 * Get a single cashbook
+	 *
+	 * @param int $id The id of the cashbook
+	 * @return DataResponse<Http::STATUS_OK, CashbookCashbook, array{}>
+	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
+	 *
+	 * 200: Cashbook returned
+	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}')]
 	public function getCashbook(int $id): DataResponse {
@@ -79,14 +92,28 @@ class ApiController extends OCSController {
 		if ($this->userId !== $cashbook->getOwner()) {
 			throw new OCSNotFoundException();
 		}
-		return new DataResponse($cashbook);
+		return new DataResponse($cashbook->jsonSerialize());
 	}
 
+	/**
+	 * Get a paginated list of entries of a cashbook
+	 *
+	 * @param int $id The id of the cashbook
+	 * @param int<0, max> $offset Number of entries to skip
+	 * @param int<1, 50> $limit Maximum number of entries to return
+	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
+	 * @throws OCSBadRequestException The offset or limit is out of range
+	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
+	 *
+	 * 200: Entries returned
+	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries')]
 	public function getCashbookEntries(int $id, int $offset = 0, int $limit = 20): DataResponse {
-		if ($limit > 50) {
-			throw new OCSBadRequestException('Maximum limit exceeded');
+		// The documented ranges are not enforced by the framework, so check them here
+		/** @psalm-suppress DocblockTypeContradiction */
+		if ($offset < 0 || $limit < 1 || $limit > 50) {
+			throw new OCSBadRequestException('Invalid offset or limit');
 		}
 
 		try {
@@ -99,9 +126,25 @@ class ApiController extends OCSController {
 		}
 
 		$entries = $this->entryMapper->getEntries($cashbook, $offset, $limit);
-		return new DataResponse($entries);
+		return new DataResponse(
+			array_values(array_map(static fn (Entry $entry): array => $entry->jsonSerialize(), $entries))
+		);
 	}
 
+	/**
+	 * Get all entries of a cashbook within a date range, prepared for printing
+	 *
+	 * Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry.
+	 *
+	 * @param int $id The id of the cashbook
+	 * @param string $begin Start of the date range (ISO 8601 date time)
+	 * @param string $end End of the date range (ISO 8601 date time)
+	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
+	 * @throws OCSBadRequestException Invalid date passed
+	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
+	 *
+	 * 200: Entries returned
+	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries/print')]
 	public function getCashbookEntriesPrint(int $id, string $begin, string $end): DataResponse {
@@ -123,7 +166,7 @@ class ApiController extends OCSController {
 		}
 
 		$entries = $this->entryMapper->getEntriesByDate($cashbook, $dateBegin, $dateEnd);
-		/** @var Entry[] */
+		/** @var list<Entry> $collapsedEntries */
 		$collapsedEntries = [];
 		foreach ($entries as $entry) {
 			$last = end($collapsedEntries);
@@ -146,15 +189,19 @@ class ApiController extends OCSController {
 			$last->setDatetime($entry->getDatetime());
 		}
 
-		return new DataResponse($collapsedEntries);
+		return new DataResponse(
+			array_map(static fn (Entry $entry): array => $entry->jsonSerialize(), $collapsedEntries)
+		);
 	}
 
 	/**
-	 * An example API endpoint
+	 * Delete a cashbook
 	 *
-	 * @return DataResponse<Http::STATUS_OK, list<Cashbook>, array{}>
+	 * @param int $id The id of the cashbook
+	 * @return DataResponse<Http::STATUS_OK, list<empty>, array{}>
+	 * @throws OCSForbiddenException Cashbook not found or not owned by the current user
 	 *
-	 * 200: Data returned
+	 * 200: Cashbook deleted
 	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'DELETE', url: '/api/v1/cashbooks/{id}')]
@@ -175,34 +222,46 @@ class ApiController extends OCSController {
 	}
 
 	/**
-	 * An example API endpoint
+	 * Create a new cashbook for the current user
 	 *
-	 * @return DataResponse<Http::STATUS_OK, list<Cashbook>, array{}>
+	 * @param string $name The name of the cashbook
+	 * @param string $currency The currency of the cashbook (ISO 4217 code)
+	 * @param string $account The account the cashbook is kept for
+	 * @return DataResponse<Http::STATUS_OK, CashbookCashbook, array{}>
+	 * @throws OCSForbiddenException No user is logged in
 	 *
-	 * 200: Data returned
+	 * 200: Cashbook created
 	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks')]
 	public function createCashbook(
 		string $name,
 		string $currency,
-		?string $importFormat = null,
+		string $account = '',
 	): DataResponse {
-		$qb = $this->db->getQueryBuilder();
-		$qb->insert('cashbook_cashbooks')
-			->setValue('name', $qb->createNamedParameter($name))
-			->setValue('currency', $qb->createNamedParameter($currency))
-			->setValue('owner', $qb->createNamedParameter($this->userId))
-			->executeStatement();
-		return new DataResponse();
+		if ($this->userId === null) {
+			throw new OCSForbiddenException();
+		}
+
+		$cashbook = new Cashbook();
+		$cashbook->setName($name);
+		$cashbook->setAccount($account);
+		$cashbook->setCurrency($currency);
+		$cashbook->setOwner($this->userId);
+		$cashbook = $this->cashbookMapper->insert($cashbook);
+		return new DataResponse($cashbook->jsonSerialize());
 	}
 
 	/**
-	 * An example API endpoint
+	 * Import a cashbook from uploaded files
 	 *
-	 * @return DataResponse<Http::STATUS_OK, list<Cashbook>, array{}>
+	 * The files need to be uploaded as `files[]` form data.
 	 *
-	 * 200: Data returned
+	 * @param string $import The class name of the import service to use
+	 * @return DataResponse<Http::STATUS_OK, array{id: int}, array{}>
+	 * @throws OCSBadRequestException No files uploaded, unsupported import format or invalid files
+	 *
+	 * 200: Cashbook imported
 	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/import')]

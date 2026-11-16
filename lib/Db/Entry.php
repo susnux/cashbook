@@ -12,11 +12,15 @@ namespace OCA\Cashbook\Db;
 use Brick\Math\BigRational;
 use Brick\Money\Money;
 use JsonSerializable;
+use OCA\Cashbook\ResponseDefinitions;
 use OCP\AppFramework\Db\Entity;
 use OCP\DB\Types;
 use RuntimeException;
 
 /**
+ * @psalm-import-type CashbookEntry from ResponseDefinitions
+ * @psalm-import-type CashbookEntryReason from ResponseDefinitions
+ *
  * @method int getCashbook()
  * @method \DateTimeImmutable getDatetime()
  * @method int getCashbookId()
@@ -24,6 +28,9 @@ use RuntimeException;
  * @method string getText()
  * @method string getAmountRaw()
  * @method string getBalanceRaw()
+ * @method ?string getTaxRaw()
+ * @method CashbookEntryReason getReason()
+ * @method ?string getReference()
  */
 class Entry extends Entity implements JsonSerializable {
 
@@ -188,23 +195,27 @@ class Entry extends Entity implements JsonSerializable {
 		return parent::getUpdatedFields();
 	}
 
+	/**
+	 * @return CashbookEntry
+	 */
 	public function jsonSerialize(): array {
-		$key = $this->getAmount()->isPositive() ? 'debit' : 'credit';
-		$amount = (string)$this->getAmount()->abs()->getAmount();
-
-		$tax = $this->getTax();
-		if ($tax !== null) {
-			$tax = $tax->toFloat();
-		}
-		return [
+		$data = [
 			'id' => $this->getId(),
 			'balance' => (float)$this->getBalanceRaw(),
-			$key => (float)$amount,
 			'text' => $this->getText(),
 			'date' => $this->getDatetime()->format(DATE_ATOM),
 			'reason' => $this->getReason(),
 			'reference' => $this->getReference(),
-			'tax' => $tax,
+			'tax' => $this->getTax()?->toFloat(),
 		];
+
+		$amount = $this->getAmount();
+		$absoluteAmount = (float)(string)$amount->abs()->getAmount();
+		if ($amount->isPositive()) {
+			$data['debit'] = $absoluteAmount;
+		} else {
+			$data['credit'] = $absoluteAmount;
+		}
+		return $data;
 	}
 }
