@@ -6,8 +6,9 @@
 <script setup lang="ts">
 import type { Period } from '../utils/period.ts'
 
-import { mdiAlertCircleOutline, mdiCashRemove, mdiFileExportOutline, mdiPrinterOutline, mdiRefresh } from '@mdi/js'
+import { mdiAlertCircleOutline, mdiCashRemove, mdiFileExportOutline, mdiPlus, mdiPrinterOutline, mdiRefresh } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
+import { spawnDialog } from '@nextcloud/vue/functions/dialog'
 import { computed, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NcButton from '@nextcloud/vue/components/NcButton'
@@ -16,10 +17,11 @@ import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import CashbookSummary from '../components/CashbookSummary.vue'
 import CashbookTable from '../components/CashbookTable.vue'
+import NewEntryDialog from '../components/NewEntryDialog.vue'
 import PeriodSelector from '../components/PeriodSelector.vue'
 import { useCashbookEntries } from '../composables/useCashbookEntries.ts'
 import { useCashbookStore } from '../store/cashbookStore.ts'
-import { periodFromQuery, periodToQuery } from '../utils/period.ts'
+import { getPeriod, periodFromQuery, periodToQuery } from '../utils/period.ts'
 
 const props = defineProps<{
 	cashbookId: number
@@ -44,6 +46,22 @@ const exportUrl = computed(() => router.resolve({
 	params: { cashbook: props.cashbookId },
 	query: periodToQuery(period.value),
 }).href)
+
+/**
+ * Show the dialog to add an entry, then show the period containing the added entry
+ */
+async function onAddEntry() {
+	const entry = await spawnDialog(NewEntryDialog, { cashbook: cashbook.value! })
+	if (!entry) {
+		return
+	}
+
+	if (entry.date >= period.value.begin && entry.date < period.value.end) {
+		reload()
+	} else {
+		period.value = getPeriod(period.value.type, entry.date)
+	}
+}
 
 /**
  * Open the print dialog of the browser
@@ -108,16 +126,26 @@ watchEffect(() => {
 					</template>
 					{{ t('cashbook', 'Print') }}
 				</NcButton>
-				<NcButton
-					v-else
-					:class="$style.noPrint"
-					:href="exportUrl"
-					target="_blank">
-					<template #icon>
-						<NcIconSvgWrapper :path="mdiFileExportOutline" />
-					</template>
-					{{ t('cashbook', 'Export') }}
-				</NcButton>
+				<template v-else>
+					<NcButton
+						:class="$style.noPrint"
+						:href="exportUrl"
+						target="_blank">
+						<template #icon>
+							<NcIconSvgWrapper :path="mdiFileExportOutline" />
+						</template>
+						{{ t('cashbook', 'Export') }}
+					</NcButton>
+					<NcButton
+						:class="$style.noPrint"
+						variant="primary"
+						@click="onAddEntry">
+						<template #icon>
+							<NcIconSvgWrapper :path="mdiPlus" />
+						</template>
+						{{ t('cashbook', 'Add entry') }}
+					</NcButton>
+				</template>
 			</div>
 		</div>
 

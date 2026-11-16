@@ -83,6 +83,22 @@ final class EntryMapper extends QBMapper {
 	}
 
 	/**
+	 * Get the chronologically last entry of a cashbook, null if it has no entries.
+	 */
+	public function getLastEntry(Cashbook $cashbook): ?Entry {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('*')
+			->from($this->tableName)
+			->where(
+				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+			)
+			->orderBy('datetime', 'DESC')
+			->addOrderBy('id', 'DESC')
+			->setMaxResults(1);
+		return $this->findCashbookEntities($cashbook, $qb)[0] ?? null;
+	}
+
+	/**
 	 * Delete all entries of a cashbook.
 	 */
 	public function deleteByCashbook(Cashbook $cashbook): void {

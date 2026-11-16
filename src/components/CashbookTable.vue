@@ -80,6 +80,9 @@ function isSameDay(a: Date, b: Date): boolean {
 					<span>{{ t('cashbook', 'Text') }}</span>
 				</th>
 				<th>
+					<span>{{ t('cashbook', 'Receipt') /* TRANSLATORS: The number and date of the receipt of an entry */ }}</span>
+				</th>
+				<th>
 					<span>{{ t('cashbook', 'Tax') /* TRANSLATORS: A short form for sales tax */ }}</span>
 				</th>
 				<th>
@@ -95,7 +98,7 @@ function isSameDay(a: Date, b: Date): boolean {
 		</thead>
 		<tbody v-for="(section, index) of sections" :key="section.start ? section.start.id : `section-${index}`">
 			<tr v-if="!section.start">
-				<th :class="$style.sectionHeader" colspan="8">
+				<th :class="$style.sectionHeader" colspan="9">
 					<div :class="$style.dayHeader">
 						<div>
 							<span :class="$style.textBold">
@@ -107,7 +110,7 @@ function isSameDay(a: Date, b: Date): boolean {
 				</th>
 			</tr>
 			<tr v-else>
-				<th :class="$style.sectionHeader" colspan="8">
+				<th :class="$style.sectionHeader" colspan="9">
 					<div :class="$style.dayHeader">
 						<div>
 							<span :class="$style.textBold">
@@ -154,7 +157,7 @@ function isSameDay(a: Date, b: Date): boolean {
 				:modelValue="entry" />
 			<tr v-if="section.entries.length > 0" :class="$style.totalRow">
 				<td />
-				<th colspan="4" scope="row">
+				<th colspan="5" scope="row">
 					{{ t('cashbook', 'Total of the day') }}
 				</th>
 				<td :class="$style.amount">
@@ -168,7 +171,7 @@ function isSameDay(a: Date, b: Date): boolean {
 			<template v-for="tax of section.totals.taxes" :key="tax.rate ?? 'none'">
 				<tr v-if="tax.rate !== null" :class="$style.taxRow">
 					<td />
-					<th colspan="3" scope="row">
+					<th colspan="4" scope="row">
 						{{ t('cashbook', 'Included tax') }}
 					</th>
 					<td :class="$style.amount">
@@ -232,16 +235,16 @@ function isSameDay(a: Date, b: Date): boolean {
 
 		/* Serial, tax, debit, credit and balance are numeric */
 		&:nth-child(1),
-		&:nth-child(5),
 		&:nth-child(6),
 		&:nth-child(7),
-		&:nth-child(8) {
+		&:nth-child(8),
+		&:nth-child(9) {
 			text-align: end;
 		}
 	}
 
 	/* Credit should be negative */
-	td:nth-child(7) {
+	td:nth-child(8) {
 		color: var(--color-error-text);
 	}
 
@@ -281,26 +284,27 @@ function isSameDay(a: Date, b: Date): boolean {
 		thead th {
 			font-size: 12pt;
 
+			/* The text gets the remaining width */
 			&:nth-of-type(2) {
-				width: 25mm;
+				width: 22mm;
 			}
 			&:nth-of-type(3) {
 				width: 25mm;
 			}
-			&:nth-of-type(4) {
-				width: 25mm;
-			}
 			&:nth-of-type(5) {
-				width: 25mm;
+				width: 22mm;
 			}
 			&:nth-of-type(6) {
-				width: 25mm;
+				width: 14mm;
 			}
 			&:nth-of-type(7) {
-				width: 25mm;
+				width: 22mm;
 			}
 			&:nth-of-type(8) {
-				width: 25mm;
+				width: 22mm;
+			}
+			&:nth-of-type(9) {
+				width: 24mm;
 			}
 		}
 

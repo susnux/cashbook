@@ -22,7 +22,7 @@ const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'al
  * @param tax - The tax rate
  */
 function entry(id: number, reason: EntryReason | null, amount?: number, tax: number | null = null): ICashbookEntry {
-	const base = { id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, tax }
+	const base = { id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, referenceDate: null, tax }
 	if (amount === undefined) {
 		return base
 	}
@@ -117,9 +117,19 @@ describe('CashbookTable', () => {
 		})
 
 		const [income, expense] = entryRows(wrapper).map((row) => row.findAll('td').map((cell) => cell.text()))
-		expect(income!.slice(5, 7)).toEqual(['€12.50', ''])
-		expect(expense!.slice(5, 7)).toEqual(['', '€3.00'])
+		expect(income!.slice(6, 8)).toEqual(['€12.50', ''])
+		expect(expense!.slice(6, 8)).toEqual(['', '€3.00'])
 		expect(expense![2]).toBe('')
+	})
+
+	it('shows the receipt number and date', () => {
+		const withReceipt = { ...entry(1, EntryReason.ExpenseGoods, -3), reference: 'R-1', referenceDate: '2025-01-01' }
+		const wrapper = mount(CashbookTable, {
+			props: { cashbook, entries: [withReceipt, entry(2, EntryReason.IncomeSales, 1)] },
+		})
+
+		const receipts = entryRows(wrapper).map((row) => row.findAll('td')[4]!.text())
+		expect(receipts).toEqual(['R-1Jan 1, 2025', ''])
 	})
 
 	it('shows the totals and included taxes of each day', () => {

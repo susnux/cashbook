@@ -22,6 +22,7 @@ namespace OCA\Cashbook;
  *
  * Amounts of money are decimal strings (e.g. `"12.50"`) to keep their precision,
  * `debit` is set for income and `credit` for expenses, both are omitted for entries without an amount.
+ * `referenceDate` is the date of the receipt (`YYYY-MM-DD`).
  *
  * @psalm-type CashbookEntry = array{
  *     id: int,
@@ -32,6 +33,7 @@ namespace OCA\Cashbook;
  *     date: string,
  *     reason: ?CashbookEntryReason,
  *     reference: ?string,
+ *     referenceDate: ?string,
  *     tax: ?float,
  * }
  *

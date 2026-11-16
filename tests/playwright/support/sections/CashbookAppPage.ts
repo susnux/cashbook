@@ -3,11 +3,24 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import type { Locator, Page } from '@playwright/test'
+import type { Locator, Page, Response } from '@playwright/test'
 
 export interface NewCashbookOptions {
 	name: string
 	account?: string
+}
+
+export interface NewEntryOptions {
+	type: 'Income' | 'Expense'
+	/** The readable name of the reason, the first reason of the type is used if not set */
+	reason?: string
+	amount: string
+	/** The tax rate in percent */
+	tax?: string
+	text?: string
+	reference?: string
+	/** The receipt date as `YYYY-MM-DD` */
+	receiptDate?: string
 }
 
 /**
@@ -48,6 +61,27 @@ export class CashbookAppPage {
 		return this.page.getByRole('dialog', { name: 'Delete cashbook' })
 	}
 
+	newEntryDialog(): Locator {
+		return this.page.getByRole('dialog', { name: 'New entry' })
+	}
+
+	addEntryButton(): Locator {
+		return this.page.getByRole('main').getByRole('button', { name: 'Add entry' })
+	}
+
+	entriesTable(): Locator {
+		return this.page.getByRole('main').getByRole('table').first()
+	}
+
+	/**
+	 * Get the table row of the entry with the given text
+	 *
+	 * @param text - The text of the entry
+	 */
+	entryRow(text: string): Locator {
+		return this.entriesTable().getByRole('row').filter({ has: this.page.getByRole('cell', { name: text, exact: true }) })
+	}
+
 	async open(): Promise<void> {
 		await this.page.goto('apps/cashbook/')
 		await this.navigation().getByRole('button', { name: 'New cashbook' }).waitFor()
@@ -71,6 +105,59 @@ export class CashbookAppPage {
 			&& response.url().includes('/apps/cashbook/api/v1/cashbooks'))
 		await dialog.getByRole('button', { name: 'Create cashbook' }).click()
 		await created
+	}
+
+	/**
+	 * Open the "New entry" dialog of the current cashbook and fill it in
+	 *
+	 * @param options - The values to enter into the dialog
+	 */
+	async fillNewEntryDialog({ type, reason, amount, tax, text, reference, receiptDate }: NewEntryOptions): Promise<Locator> {
+		await this.addEntryButton().click()
+		const dialog = this.newEntryDialog()
+		await dialog.waitFor()
+
+		// the radio input is hidden, the visible button is its label
+		await dialog.getByText(type, { exact: true }).click()
+		if (reason) {
+			await dialog.getByRole('combobox', { name: 'Reason' }).click()
+			await this.page.getByRole('option', { name: reason, exact: true }).click()
+		}
+		await dialog.getByRole('spinbutton', { name: /^Amount/ }).fill(amount)
+		if (tax) {
+			await dialog.getByRole('spinbutton', { name: 'Tax rate (%)' }).fill(tax)
+		}
+		if (text) {
+			await dialog.getByRole('textbox', { name: 'Text' }).fill(text)
+		}
+		if (reference) {
+			await dialog.getByRole('textbox', { name: 'Receipt number' }).fill(reference)
+		}
+		if (receiptDate) {
+			await dialog.getByLabel('Receipt date', { exact: true }).fill(receiptDate)
+		}
+		return dialog
+	}
+
+	/**
+	 * Submit the "New entry" dialog and wait for the response of the server
+	 */
+	async submitNewEntryDialog(): Promise<Response> {
+		const added = this.page.waitForResponse((response) => response.request().method() === 'POST'
+			&& /\/apps\/cashbook\/api\/v1\/cashbooks\/\d+\/entries/.test(response.url()))
+		await this.newEntryDialog().getByRole('button', { name: 'Add entry' }).click()
+		return await added
+	}
+
+	/**
+	 * Add an entry to the current cashbook through the "New entry" dialog
+	 *
+	 * @param options - The values to enter into the dialog
+	 */
+	async addEntry(options: NewEntryOptions): Promise<void> {
+		await this.fillNewEntryDialog(options)
+		await this.submitNewEntryDialog()
+		await this.newEntryDialog().waitFor({ state: 'hidden' })
 	}
 
 	/**

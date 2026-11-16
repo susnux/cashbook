@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest'
-import { getCurrencyOptions } from './currencies.ts'
+import { getCurrencyOptions, getCurrencyStep } from './currencies.ts'
 
 vi.mock('@nextcloud/l10n', () => ({ getCanonicalLocale: () => 'en-US' }))
 
@@ -23,5 +23,15 @@ describe('getCurrencyOptions', () => {
 	it('is sorted by label', () => {
 		const labels = getCurrencyOptions().map(({ label }) => label)
 		expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b, 'en-US')))
+	})
+})
+
+describe('getCurrencyStep', () => {
+	it.each([
+		['EUR', '0.01'],
+		['JPY', '1'],
+		['BHD', '0.001'],
+	])('uses the minor unit of %s', (currency, step) => {
+		expect(getCurrencyStep(currency)).toBe(step)
 	})
 })

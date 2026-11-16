@@ -22,6 +22,7 @@ use OCA\Cashbook\ImportService\IImportService;
 use OCA\Cashbook\ImportService\ImportFormat;
 use OCA\Cashbook\ResponseDefinitions;
 use OCA\Cashbook\Service\CashbookService;
+use OCA\Cashbook\Service\EntryService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -54,6 +55,7 @@ final class ApiController extends OCSController {
 		protected CashbookMapper $cashbookMapper,
 		protected EntryMapper $entryMapper,
 		protected CashbookService $cashbookService,
+		protected EntryService $entryService,
 		protected IL10N $l10n,
 		protected ?string $userId,
 	) {
@@ -131,6 +133,55 @@ final class ApiController extends OCSController {
 		return new DataResponse(
 			array_map(static fn (Entry $entry): array => $entry->jsonSerialize(), $entries)
 		);
+	}
+
+	/**
+	 * Add an income or expense entry to a cashbook
+	 *
+	 * The entry is booked after the last entry of the cashbook at the current time.
+	 * Entries can not be changed afterwards, mistakes need to be corrected with a new entry.
+	 *
+	 * @param int $id The id of the cashbook
+	 * @param EntryReason $reason The reason of the entry, only income and expense reasons are allowed
+	 * @param string $amount The positive amount as decimal string (e.g. `"12.50"`), expenses are subtracted from the balance
+	 * @param string $text The posting text (up to 1000 characters)
+	 * @param ?float $tax The tax rate included in the amount (e.g. `0.19` for 19%)
+	 * @param ?string $reference The receipt number (up to 127 characters)
+	 * @param ?string $referenceDate The date of the receipt (`YYYY-MM-DD`)
+	 * @return DataResponse<Http::STATUS_OK, CashbookEntry, array{}>
+	 * @throws OCSBadRequestException Invalid values or the expense exceeds the cash balance
+	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
+	 *
+	 * 200: Entry added
+	 */
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/{id}/entries')]
+	public function addCashbookEntry(
+		int $id,
+		EntryReason $reason,
+		string $amount,
+		string $text = '',
+		?float $tax = null,
+		?string $reference = null,
+		?string $referenceDate = null,
+	): DataResponse {
+		try {
+			$cashbook = $this->cashbookMapper->getCashbook($id);
+		} catch (DoesNotExistException) {
+			throw new OCSNotFoundException();
+		}
+		if ($this->userId === null || $this->userId !== $cashbook->getOwner()) {
+			throw new OCSNotFoundException();
+		}
+
+		try {
+			$entry = $this->entryService->add($cashbook, $this->userId, $reason, $amount, $text, $tax, $reference, $referenceDate);
+		} catch (InvalidInputException $error) {
+			throw new OCSBadRequestException($error->getHint());
+		} catch (InvalidArgumentException $error) {
+			throw new OCSBadRequestException($error->getMessage());
+		}
+		return new DataResponse($entry->jsonSerialize());
 	}
 
 	/**

@@ -5,7 +5,7 @@
 
 import type { OCSResponse } from '@nextcloud/typings/ocs'
 import type { ICashbook, ICashbookData } from '../models/Cashbook.ts'
-import type { ICashbookEntry } from '../models/CashbookEntry.ts'
+import type { EntryReason, ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import axios from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
@@ -123,6 +123,39 @@ export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end, sign
 	}
 
 	return data.ocs.data.map(parseEntry)
+}
+
+export interface NewEntryData {
+	/** An income or expense reason */
+	reason: EntryReason
+	/** The positive amount as decimal string, expenses are subtracted from the balance */
+	amount: string
+	text: string
+	/** The tax rate (e.g. `0.19` for 19%) */
+	tax: number | null
+	/** The receipt number */
+	reference: string
+	/** The date of the receipt (`YYYY-MM-DD`) */
+	referenceDate: string | null
+}
+
+/**
+ * Add an income or expense entry after the last entry of a cashbook
+ *
+ * @param cashbook - The cashbook to add the entry to
+ * @param entry - The entry to add
+ * @return The added entry
+ */
+export async function addEntry(cashbook: ICashbook, entry: NewEntryData): Promise<ICashbookEntry> {
+	const { data } = await axios.post<OCSResponse<RawCashbookEntry>>(
+		generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries`),
+		entry,
+	)
+	if (data.ocs.meta.status !== 'ok') {
+		throw new Error(data.ocs.meta.message, { cause: data.ocs })
+	}
+
+	return parseEntry(data.ocs.data)
 }
 
 /**

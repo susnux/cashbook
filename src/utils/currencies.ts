@@ -23,3 +23,13 @@ export function getCurrencyOptions(locale: string = getCanonicalLocale()): Curre
 		.map((code) => ({ value: code, label: `${names.of(code) ?? code} (${code})` }))
 		.sort((a, b) => a.label.localeCompare(b.label, locale))
 }
+
+/**
+ * Get the smallest amount of a currency as decimal string, e.g. `0.01` for EUR and `1` for JPY
+ *
+ * @param currency - The ISO 4217 currency code
+ */
+export function getCurrencyStep(currency: string): string {
+	const { maximumFractionDigits = 2 } = new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
+	return maximumFractionDigits === 0 ? '1' : `0.${'1'.padStart(maximumFractionDigits, '0')}`
+}

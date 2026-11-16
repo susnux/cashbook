@@ -57,6 +57,7 @@
                     "date",
                     "reason",
                     "reference",
+                    "referenceDate",
                     "tax"
                 ],
                 "properties": {
@@ -88,6 +89,10 @@
                         ]
                     },
                     "reference": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "referenceDate": {
                         "type": "string",
                         "nullable": true
                     },
@@ -931,6 +936,223 @@
                     },
                     "400": {
                         "description": "The offset or limit is out of range",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Cashbook not found or not owned by the current user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Current user is not logged in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api-add-cashbook-entry",
+                "summary": "Add an income or expense entry to a cashbook",
+                "description": "The entry is booked after the last entry of the cashbook at the current time. Entries can not be changed afterwards, mistakes need to be corrected with a new entry.",
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "bearer_auth": []
+                    },
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "reason",
+                                    "amount"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "enum": [
+                                            "day-opening",
+                                            "day-closing",
+                                            "correction",
+                                            "income-bank",
+                                            "income-sales",
+                                            "income-misc",
+                                            "expense-bank",
+                                            "expense-goods",
+                                            "expense-salary",
+                                            "expense-tips",
+                                            "expense-change",
+                                            "expense-refund",
+                                            "expense-misc"
+                                        ],
+                                        "description": "The reason of the entry, only income and expense reasons are allowed"
+                                    },
+                                    "amount": {
+                                        "type": "string",
+                                        "description": "The positive amount as decimal string (e.g. `\"12.50\"`), expenses are subtracted from the balance"
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "default": "",
+                                        "description": "The posting text (up to 1000 characters)"
+                                    },
+                                    "tax": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "nullable": true,
+                                        "default": null,
+                                        "description": "The tax rate included in the amount (e.g. `0.19` for 19%)"
+                                    },
+                                    "reference": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "default": null,
+                                        "description": "The receipt number (up to 127 characters)"
+                                    },
+                                    "referenceDate": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "default": null,
+                                        "description": "The date of the receipt (`YYYY-MM-DD`)"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the cashbook",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    {
+                        "name": "OCS-APIRequest",
+                        "in": "header",
+                        "description": "Required to be true for the API request to pass",
+                        "required": true,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Entry added",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {
+                                                    "$ref": "#/components/schemas/Entry"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid values or the expense exceeds the cash balance",
                         "content": {
                             "application/json": {
                                 "schema": {

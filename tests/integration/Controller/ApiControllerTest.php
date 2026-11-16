@@ -56,6 +56,78 @@ final class ApiControllerTest extends IntegrationTestCase {
 		}
 	}
 
+	public function testAddCashbookEntries(): void {
+		$alice = $this->createUser();
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+		$path = 'api/v1/cashbooks/' . $cashbook['id'] . '/entries';
+
+		$income = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', $path, [
+			RequestOptions::JSON => [
+				'reason' => 'income-bank',
+				'amount' => '100.00',
+				'text' => 'Cash float',
+				'reference' => 'B-1',
+				'referenceDate' => '2025-01-02',
+			],
+		]));
+		$this->assertSame('100.00', $income['debit']);
+		$this->assertSame('100.00', $income['balance']);
+		$this->assertSame('Cash float', $income['text']);
+		$this->assertSame('income-bank', $income['reason']);
+		$this->assertSame('B-1', $income['reference']);
+		$this->assertSame('2025-01-02', $income['referenceDate']);
+		$this->assertNull($income['tax']);
+
+		$expense = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', $path, [
+			RequestOptions::JSON => ['reason' => 'expense-goods', 'amount' => '11.90', 'tax' => 0.19],
+		]));
+		$this->assertSame('11.90', $expense['credit']);
+		$this->assertSame('88.10', $expense['balance']);
+		$this->assertSame(0.19, $expense['tax']);
+		$this->assertNull($expense['reference']);
+		$this->assertNull($expense['referenceDate']);
+
+		$this->assertSame([$income, $expense], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path)));
+	}
+
+	public static function dataAddCashbookEntryInvalid(): array {
+		return [
+			'exceeds balance' => [['reason' => 'expense-misc', 'amount' => '0.01'], 'The expense exceeds the cash balance.'],
+			'day opening' => [['reason' => 'day-opening', 'amount' => '1'], 'Only income and expense entries can be added.'],
+			'negative amount' => [['reason' => 'income-misc', 'amount' => '-1'], 'The amount must be a positive decimal number.'],
+			'invalid date' => [['reason' => 'income-misc', 'amount' => '1', 'referenceDate' => '2025-13-01'], 'The receipt date must be a valid date (YYYY-MM-DD).'],
+		];
+	}
+
+	#[DataProvider('dataAddCashbookEntryInvalid')]
+	public function testAddCashbookEntryInvalid(array $body, string $message): void {
+		$alice = $this->createUser();
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+		$path = 'api/v1/cashbooks/' . $cashbook['id'] . '/entries';
+
+		$response = $this->ocsRequest($alice, 'POST', $path, [RequestOptions::JSON => $body]);
+		$this->assertOcsResponse(400, $response);
+		$this->assertSame($message, json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
+		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path)));
+	}
+
+	public function testAddCashbookEntryUnknownReason(): void {
+		$alice = $this->createUser();
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+
+		// Unknown enum values are rejected by the framework, which responds without an OCS body
+		$response = $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries', [
+			RequestOptions::JSON => ['reason' => 'income-gift', 'amount' => '1'],
+		]);
+		$this->assertSame(400, $response->getStatusCode());
+	}
+
 	public static function dataImportCashbook(): array {
 		return [
 			'multi-file field' => ['files[]'],
@@ -105,6 +177,10 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$this->assertOcsResponse(404, $this->ocsRequest($bob, 'GET', 'api/v1/cashbooks/' . $cashbook['id']));
 		$this->assertOcsResponse(404, $this->ocsRequest($bob, 'GET', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries'));
 		$this->assertOcsResponse(404, $this->ocsRequest($bob, 'DELETE', 'api/v1/cashbooks/' . $cashbook['id']));
+		$this->assertOcsResponse(404, $this->ocsRequest($bob, 'POST', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries', [
+			RequestOptions::JSON => ['reason' => 'income-misc', 'amount' => '1'],
+		]));
+		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries')));
 
 		$this->assertSame(
 			$cashbook,

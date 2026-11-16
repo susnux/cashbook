@@ -36,6 +36,24 @@ final class CashbookMapper extends QBMapper {
 	}
 
 	/**
+	 * Lock the row of a cashbook until the end of the current transaction.
+	 *
+	 * Serializes concurrent changes of the cashbook, e.g. adding entries based on the current balance.
+	 * Needs to be the first statement of the transaction.
+	 */
+	public function lock(Cashbook $cashbook): void {
+		// A write instead of `SELECT … FOR UPDATE`, as SQLite only supports locking the whole database
+		// and fails a transaction that writes after reading outdated data instead of waiting for the lock.
+		$qb = $this->db->getQueryBuilder();
+		$qb->update($this->tableName)
+			->set('owner', 'owner')
+			->where(
+				$qb->expr()->eq('id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+			)
+			->executeStatement();
+	}
+
+	/**
 	 * @return list<Cashbook>
 	 */
 	public function getCashbooksByOwner(string $owner): array {

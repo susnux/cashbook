@@ -11,6 +11,7 @@
 	<description><![CDATA[Keep the cashbook of your shop or association in Nextcloud.
 
 - Create cashbooks in any currency
+- Add income and expenses with reason, text, tax rate, receipt number and receipt date
 - Browse the entries of a cashbook by month, quarter, year or a custom date range, grouped by business day
 - Print the cashbook of a period
 - Import cashbooks exported from the SumUp POS Pro (German version)

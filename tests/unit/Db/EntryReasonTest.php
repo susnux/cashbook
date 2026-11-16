@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Cashbook\Tests\Unit\Db;
 
 use OCA\Cashbook\Db\EntryReason;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class EntryReasonTest extends TestCase {
@@ -25,5 +26,18 @@ final class EntryReasonTest extends TestCase {
 			array_column(EntryReason::cases(), 'value'),
 			$openapi['components']['schemas']['EntryReason']['enum'],
 		);
+	}
+
+	public static function dataDirection(): array {
+		return array_map(
+			static fn (EntryReason $reason): array => [$reason, str_starts_with($reason->name, 'Income'), str_starts_with($reason->name, 'Expense')],
+			array_combine(array_column(EntryReason::cases(), 'value'), EntryReason::cases()),
+		);
+	}
+
+	#[DataProvider('dataDirection')]
+	public function testDirection(EntryReason $reason, bool $income, bool $expense): void {
+		$this->assertSame($income, $reason->isIncome());
+		$this->assertSame($expense, $reason->isExpense());
 	}
 }
