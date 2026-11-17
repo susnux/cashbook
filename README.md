@@ -24,6 +24,10 @@ Keep the cashbook of your shop or association in Nextcloud.
 
 The SumUp export does not contain timezone information, so the timezone of the export is selected when importing.
 
+## Legal requirements
+
+The requirements of German tax law (GoBD, AO) on a digital cashbook are listed in [docs/legal-requirements.md](docs/legal-requirements.md).
+
 ## Development
 
 The app requires a Nextcloud development setup, see the
