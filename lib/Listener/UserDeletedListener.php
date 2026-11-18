@@ -27,11 +27,11 @@ final class UserDeletedListener implements IEventListener {
 	) {
 	}
 
+	/**
+	 * @param UserDeletedEvent $event
+	 */
 	#[\Override]
 	public function handle(Event $event): void {
-		if (!$event instanceof UserDeletedEvent) {
-			return;
-		}
 		$this->cashbookService->deleteByOwner($event->getUser()->getUID());
 	}
 }
