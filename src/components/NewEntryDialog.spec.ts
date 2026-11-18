@@ -15,7 +15,7 @@ import { EntryReason } from '../models/CashbookEntry.ts'
 const { addEntry } = vi.hoisted(() => ({ addEntry: vi.fn() }))
 vi.mock('../api/cashbooks.ts', () => ({ addEntry }))
 
-const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
 
 /**
  * Mount the dialog for the test cashbook
@@ -89,7 +89,7 @@ describe('NewEntryDialog', () => {
 	})
 
 	it('adds the entry with all values and emits it', async () => {
-		const entry = { id: 3, date: new Date(), balance: '88.10', credit: '11.90' }
+		const entry = { id: '3', sequence: 3, date: new Date(), balance: '88.10', credit: '11.90' }
 		addEntry.mockResolvedValue(entry)
 		const wrapper = await mountDialog()
 

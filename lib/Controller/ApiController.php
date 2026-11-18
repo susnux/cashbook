@@ -85,15 +85,15 @@ final class ApiController extends OCSController {
 	/**
 	 * Get a single cashbook
 	 *
-	 * @param int $id The id of the cashbook
+	 * @param string $id The id of the cashbook
 	 * @return DataResponse<Http::STATUS_OK, CashbookCashbook, array{}>
 	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
 	 *
 	 * 200: Cashbook returned
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}')]
-	public function getCashbook(int $id): DataResponse {
+	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}', requirements: ['id' => '\d+'])]
+	public function getCashbook(string $id): DataResponse {
 		try {
 			$cashbook = $this->cashbookMapper->getCashbook($id);
 		} catch (DoesNotExistException) {
@@ -108,7 +108,7 @@ final class ApiController extends OCSController {
 	/**
 	 * Get a paginated list of entries of a cashbook
 	 *
-	 * @param int $id The id of the cashbook
+	 * @param string $id The id of the cashbook
 	 * @param int<0, max> $offset Number of entries to skip
 	 * @param int<1, 50> $limit Maximum number of entries to return
 	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
@@ -118,8 +118,8 @@ final class ApiController extends OCSController {
 	 * 200: Entries returned
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries')]
-	public function getCashbookEntries(int $id, int $offset = 0, int $limit = 20): DataResponse {
+	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries', requirements: ['id' => '\d+'])]
+	public function getCashbookEntries(string $id, int $offset = 0, int $limit = 20): DataResponse {
 		try {
 			$cashbook = $this->cashbookMapper->getCashbook($id);
 		} catch (DoesNotExistException) {
@@ -141,7 +141,7 @@ final class ApiController extends OCSController {
 	 * The entry is booked after the last entry of the cashbook at the current time.
 	 * Entries can not be changed afterwards, mistakes need to be corrected with a new entry.
 	 *
-	 * @param int $id The id of the cashbook
+	 * @param string $id The id of the cashbook
 	 * @param EntryReason $reason The reason of the entry, only income and expense reasons are allowed
 	 * @param string $amount The positive amount as decimal string (e.g. `"12.50"`), expenses are subtracted from the balance
 	 * @param string $text The posting text (up to 1000 characters)
@@ -155,9 +155,9 @@ final class ApiController extends OCSController {
 	 * 200: Entry added
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/{id}/entries')]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/{id}/entries', requirements: ['id' => '\d+'])]
 	public function addCashbookEntry(
-		int $id,
+		string $id,
 		EntryReason $reason,
 		string $amount,
 		string $text = '',
@@ -190,7 +190,7 @@ final class ApiController extends OCSController {
 	 * Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry.
 	 * If the range starts or ends within an open day, the whole day is included.
 	 *
-	 * @param int $id The id of the cashbook
+	 * @param string $id The id of the cashbook
 	 * @param string $begin Start of the date range (ISO 8601 date time, inclusive)
 	 * @param string $end End of the date range (ISO 8601 date time, exclusive)
 	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
@@ -200,8 +200,8 @@ final class ApiController extends OCSController {
 	 * 200: Entries returned
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries/print')]
-	public function getCashbookEntriesPrint(int $id, string $begin, string $end): DataResponse {
+	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries/print', requirements: ['id' => '\d+'])]
+	public function getCashbookEntriesPrint(string $id, string $begin, string $end): DataResponse {
 		try {
 			$utcTimezone = new \DateTimeZone('Utc');
 			$dateBegin = (new \DateTimeImmutable($begin))->setTimezone($utcTimezone);
@@ -255,15 +255,15 @@ final class ApiController extends OCSController {
 	/**
 	 * Delete a cashbook including all of its entries
 	 *
-	 * @param int $id The id of the cashbook
+	 * @param string $id The id of the cashbook
 	 * @return DataResponse<Http::STATUS_OK, list<empty>, array{}>
 	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
 	 *
 	 * 200: Cashbook deleted
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'DELETE', url: '/api/v1/cashbooks/{id}')]
-	public function deleteCashbook(int $id): DataResponse {
+	#[ApiRoute(verb: 'DELETE', url: '/api/v1/cashbooks/{id}', requirements: ['id' => '\d+'])]
+	public function deleteCashbook(string $id): DataResponse {
 		try {
 			$cashbook = $this->cashbookMapper->getCashbook($id);
 		} catch (DoesNotExistException) {
@@ -317,7 +317,7 @@ final class ApiController extends OCSController {
 	 *
 	 * The currency can not be changed.
 	 *
-	 * @param int $id The id of the cashbook
+	 * @param string $id The id of the cashbook
 	 * @param string $name The new name of the cashbook (1 to 255 characters)
 	 * @param string $account The new account the cashbook is kept for (up to 255 characters)
 	 * @return DataResponse<Http::STATUS_OK, CashbookCashbook, array{}>
@@ -327,9 +327,9 @@ final class ApiController extends OCSController {
 	 * 200: Cashbook updated
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'PUT', url: '/api/v1/cashbooks/{id}')]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/cashbooks/{id}', requirements: ['id' => '\d+'])]
 	public function updateCashbook(
-		int $id,
+		string $id,
 		string $name,
 		string $account = '',
 	): DataResponse {
@@ -359,7 +359,7 @@ final class ApiController extends OCSController {
 	 *
 	 * @param ImportFormat $import The import format to use
 	 * @param ?string $timezone The timezone of the dates in the uploaded files (defaults to the timezone of the user)
-	 * @return DataResponse<Http::STATUS_OK, array{id: int}, array{}>
+	 * @return DataResponse<Http::STATUS_OK, array{id: string}, array{}>
 	 * @throws OCSBadRequestException No files uploaded, unsupported import format or invalid files
 	 *
 	 * 200: Cashbook imported

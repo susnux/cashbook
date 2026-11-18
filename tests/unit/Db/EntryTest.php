@@ -25,6 +25,7 @@ final class EntryTest extends TestCase {
 
 		$entry = Entry::create(
 			$cashbook,
+			7,
 			'alice',
 			new \DateTimeImmutable('2025-01-02 10:00', new \DateTimeZone('UTC')),
 			'',
@@ -34,14 +35,16 @@ final class EntryTest extends TestCase {
 			BigRational::of('19/100'),
 			'R-1',
 		);
-		$entry->setId(42);
+		$entry->generateId();
 		$entry->setText($text);
 		return $entry;
 	}
 
 	public function testJsonSerialize(): void {
+		$entry = $this->createEntry('0.1', '9007199254740993.1');
 		$this->assertSame([
-			'id' => 42,
+			'id' => $entry->getId(),
+			'sequence' => 7,
 			'balance' => '9007199254740993.10',
 			'text' => 'Text',
 			'date' => '2025-01-02T10:00:00+00:00',
@@ -50,7 +53,7 @@ final class EntryTest extends TestCase {
 			'referenceDate' => null,
 			'tax' => 0.19,
 			'debit' => '0.10',
-		], $this->createEntry('0.1', '9007199254740993.1')->jsonSerialize());
+		], $entry->jsonSerialize());
 	}
 
 	public function testJsonSerializeReferenceDate(): void {
@@ -86,6 +89,13 @@ final class EntryTest extends TestCase {
 
 		$entry = Entry::fromRow(['reason' => 'day-closing']);
 		$this->assertSame(EntryReason::DayClosing, $entry->getReason());
+	}
+
+	public function testFromRowCastsIds(): void {
+		$entry = Entry::fromRow(['id' => 7_000_000_000_000_000_001, 'cashbook_id' => 7_000_000_000_000_000_002, 'sequence' => '3']);
+		$this->assertSame('7000000000000000001', $entry->getId());
+		$this->assertSame('7000000000000000002', $entry->getCashbookId());
+		$this->assertSame(3, $entry->getSequence());
 	}
 
 	public function testReasonNull(): void {

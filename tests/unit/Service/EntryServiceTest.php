@@ -34,6 +34,7 @@ final class EntryServiceTest extends TestCase {
 	private EntryService $service;
 	private EntryMapper $entryMapper;
 	private Cashbook $cashbook;
+	private int $sequence = 0;
 
 	#[\Override]
 	protected function setUp(): void {
@@ -64,6 +65,7 @@ final class EntryServiceTest extends TestCase {
 	private function insertEntry(string $datetime, string $amount, string $balance): void {
 		$this->entryMapper->insert(Entry::create(
 			$this->cashbook,
+			++$this->sequence,
 			self::USER_ID,
 			new \DateTimeImmutable($datetime, new \DateTimeZone('UTC')),
 			'',
@@ -87,6 +89,7 @@ final class EntryServiceTest extends TestCase {
 
 		$this->assertSame([
 			'id' => $entry->getId(),
+			'sequence' => 1,
 			'balance' => '150.50',
 			'text' => 'Cash float',
 			'date' => '2026-03-04T09:00:00+00:00',
@@ -110,6 +113,7 @@ final class EntryServiceTest extends TestCase {
 		$entry = $this->service->add($this->cashbook, self::USER_ID, EntryReason::ExpenseGoods, '12.25');
 
 		$data = $entry->jsonSerialize();
+		$this->assertSame(3, $data['sequence']);
 		$this->assertSame('37.75', $data['balance']);
 		$this->assertSame('12.25', $data['credit']);
 		$this->assertArrayNotHasKey('debit', $data);

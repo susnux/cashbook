@@ -24,7 +24,7 @@ import { useCashbookStore } from '../store/cashbookStore.ts'
 import { getPeriod, periodFromQuery, periodToQuery } from '../utils/period.ts'
 
 const props = defineProps<{
-	cashbookId: number
+	cashbookId: string
 	/** Show the printable export page instead of the app view */
 	isExport?: boolean
 }>()

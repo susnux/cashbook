@@ -51,7 +51,7 @@ export async function fetchCashbooks(): Promise<ICashbook[]> {
  *
  * @param id - The cashbook id
  */
-export async function fetchCashbook(id: number): Promise<ICashbook> {
+export async function fetchCashbook(id: string): Promise<ICashbook> {
 	const { data } = await axios.get<OCSResponse<ICashbook>>(generateApiRoute(API_ENDPOINT.Cashbook, `/${id}`))
 	if (data.ocs.meta.status !== 'ok') {
 		throw new Error(data.ocs.meta.message, { cause: data.ocs })
@@ -185,7 +185,7 @@ export async function createCashbook(cashbook: ICashbookData): Promise<ICashbook
  * @param cashbook - The new name and account
  * @return The updated cashbook
  */
-export async function updateCashbook(id: number, cashbook: Pick<ICashbookData, 'name' | 'account'>): Promise<ICashbook> {
+export async function updateCashbook(id: string, cashbook: Pick<ICashbookData, 'name' | 'account'>): Promise<ICashbook> {
 	const { name, account } = cashbook
 	const { data } = await axios.put<OCSResponse<ICashbook>>(
 		generateApiRoute(API_ENDPOINT.Cashbook, `/${id}`),
@@ -214,7 +214,7 @@ export async function importSumupCashbook(files: File[], timezone: string): Prom
 		formData.append('files[]', file)
 	}
 
-	const { data } = await axios.post<OCSResponse<{ id: number }>>(
+	const { data } = await axios.post<OCSResponse<{ id: string }>>(
 		generateApiRoute(API_ENDPOINT.Cashbook, '/import'),
 		formData,
 	)

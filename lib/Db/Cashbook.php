@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace OCA\Cashbook\Db;
 
 use OCA\Cashbook\ResponseDefinitions;
-use OCP\AppFramework\Db\Entity;
+use OCP\AppFramework\Db\SnowflakeAwareEntity;
 
 /**
  * @psalm-import-type CashbookCashbook from ResponseDefinitions
@@ -27,7 +27,7 @@ use OCP\AppFramework\Db\Entity;
  * @method string getOwner()
  * @method void setOwner(string $value)
  */
-final class Cashbook extends Entity implements \JsonSerializable {
+final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 
 	/**
 	 * Name of the cashbook
@@ -66,7 +66,7 @@ final class Cashbook extends Entity implements \JsonSerializable {
 	#[\Override]
 	public function jsonSerialize(): array {
 		return [
-			'id' => $this->id,
+			'id' => $this->getId(),
 			'account' => $this->account,
 			'currency' => $this->currency,
 			'name' => $this->name,

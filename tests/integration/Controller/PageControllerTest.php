@@ -39,10 +39,10 @@ final class PageControllerTest extends IntegrationTestCase {
 	}
 
 	/**
-	 * @return array{id: int, ...}
+	 * @return array{id: string, ...}
 	 */
 	private function createCashbook(string $userId): array {
-		/** @var array{id: int, ...} */
+		/** @var array{id: string, ...} */
 		return $this->assertOcsResponse(200, $this->ocsRequest($userId, 'POST', 'api/v1/cashbooks', [
 			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
 		]));

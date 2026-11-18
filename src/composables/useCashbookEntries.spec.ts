@@ -14,8 +14,8 @@ import { useCashbookEntries } from './useCashbookEntries.ts'
 const fetchEntriesByDate = vi.hoisted(() => vi.fn())
 vi.mock('../api/cashbooks.ts', () => ({ fetchEntriesByDate }))
 
-const cashbookA: ICashbook = { id: 1, name: 'A', account: '', currency: 'EUR', owner: 'alice' }
-const cashbookB: ICashbook = { id: 2, name: 'B', account: '', currency: 'EUR', owner: 'alice' }
+const cashbookA: ICashbook = { id: '1', name: 'A', account: '', currency: 'EUR', owner: 'alice' }
+const cashbookB: ICashbook = { id: '2', name: 'B', account: '', currency: 'EUR', owner: 'alice' }
 
 /**
  * Create a promise that can be resolved from the outside

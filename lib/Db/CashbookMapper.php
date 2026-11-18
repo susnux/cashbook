@@ -10,7 +10,6 @@ declare(strict_types=1);
 namespace OCA\Cashbook\Db;
 
 use OCP\AppFramework\Db\QBMapper;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 /**
@@ -25,12 +24,12 @@ final class CashbookMapper extends QBMapper {
 		parent::__construct($db, 'cashbook_cashbooks', Cashbook::class);
 	}
 
-	public function getCashbook(int $id): Cashbook {
+	public function getCashbook(string $id): Cashbook {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->tableName)
 			->where(
-				$qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('id', $qb->createNamedParameter($id)),
 			);
 		return $this->findEntity($qb);
 	}
@@ -48,7 +47,7 @@ final class CashbookMapper extends QBMapper {
 		$qb->update($this->tableName)
 			->set('owner', 'owner')
 			->where(
-				$qb->expr()->eq('id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('id', $qb->createNamedParameter($cashbook->getId())),
 			)
 			->executeStatement();
 	}

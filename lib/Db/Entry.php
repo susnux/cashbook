@@ -13,7 +13,7 @@ use Brick\Math\BigRational;
 use Brick\Money\Money;
 use JsonSerializable;
 use OCA\Cashbook\ResponseDefinitions;
-use OCP\AppFramework\Db\Entity;
+use OCP\AppFramework\Db\SnowflakeAwareEntity;
 use OCP\DB\Types;
 use RuntimeException;
 
@@ -24,7 +24,9 @@ use RuntimeException;
  * @psalm-suppress PossiblyUnusedProperty Properties are accessed through the magic getters and setters
  *
  * @method ?Cashbook getCashbook()
- * @method int getCashbookId()
+ * @method string getCashbookId()
+ * @method int getSequence()
+ * @method void setSequence(int $sequence)
  * @method \DateTimeImmutable getDatetime()
  * @method void setDatetime(\DateTimeImmutable $datetime)
  * @method string getUserId()
@@ -44,13 +46,19 @@ use RuntimeException;
  * @method ?\DateTimeImmutable getReferenceDate()
  * @method void setReferenceDate(?\DateTimeImmutable $referenceDate)
  */
-final class Entry extends Entity implements JsonSerializable {
+final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 
 	/**
 	 * The cashbook this entry belongs to
-	 * @var int
+	 * @var string
 	 */
 	protected $cashbookId;
+
+	/**
+	 * The gapless number of this entry within its cashbook, starting at 1
+	 * @var int
+	 */
+	protected $sequence;
 
 	/**
 	 * The date of this entry
@@ -121,13 +129,15 @@ final class Entry extends Entity implements JsonSerializable {
 	public function __construct(
 		protected ?Cashbook $cashbook = null,
 	) {
-		$this->addType('cashbookId', Types::BIGINT);
+		$this->addType('cashbookId', Types::STRING);
+		$this->addType('sequence', Types::BIGINT);
 		$this->addType('datetime', Types::DATETIME_IMMUTABLE);
 		$this->addType('referenceDate', Types::DATE_IMMUTABLE);
 	}
 
 	public static function create(
 		Cashbook $cashbook,
+		int $sequence,
 		string $userId,
 		\DateTimeImmutable $datetime,
 		string $text,
@@ -139,6 +149,7 @@ final class Entry extends Entity implements JsonSerializable {
 		?\DateTimeImmutable $referenceDate = null,
 	): self {
 		$entry = new self($cashbook);
+		$entry->setSequence($sequence);
 		$entry->setUserId($userId);
 		$entry->setDatetime($datetime);
 		$entry->setText($text);
@@ -247,6 +258,7 @@ final class Entry extends Entity implements JsonSerializable {
 	public function jsonSerialize(): array {
 		$data = [
 			'id' => $this->getId(),
+			'sequence' => $this->getSequence(),
 			'balance' => (string)$this->getBalance()->getAmount(),
 			'text' => $this->getText() ?? '',
 			'date' => $this->getDatetime()->format(DATE_ATOM),

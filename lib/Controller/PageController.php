@@ -59,7 +59,7 @@ final class PageController extends Controller {
 	#[NoAdminRequired()]
 	#[NoCSRFRequired()]
 	#[FrontpageRoute(verb: 'GET', url: '/{cashbookId}', requirements: ['cashbookId' => '\d+'])]
-	public function showCashbook(int $cashbookId): TemplateResponse|RedirectResponse {
+	public function showCashbook(string $cashbookId): TemplateResponse|RedirectResponse {
 		if (!$this->isAccessible($cashbookId)) {
 			return $this->redirectToNotFound();
 		}
@@ -72,7 +72,7 @@ final class PageController extends Controller {
 	#[NoAdminRequired()]
 	#[NoCSRFRequired()]
 	#[FrontpageRoute(verb: 'GET', url: '/{cashbookId}/export', requirements: ['cashbookId' => '\d+'])]
-	public function exportCashbook(int $cashbookId): TemplateResponse|RedirectResponse {
+	public function exportCashbook(string $cashbookId): TemplateResponse|RedirectResponse {
 		if (!$this->isAccessible($cashbookId)) {
 			return $this->redirectToNotFound();
 		}
@@ -86,7 +86,7 @@ final class PageController extends Controller {
 	/**
 	 * Check if the cashbook exists and is owned by the current user
 	 */
-	private function isAccessible(int $cashbookId): bool {
+	private function isAccessible(string $cashbookId): bool {
 		try {
 			return $this->cashbookMapper->getCashbook($cashbookId)->getOwner() === $this->userId;
 		} catch (DoesNotExistException) {

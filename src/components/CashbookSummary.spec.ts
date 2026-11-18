@@ -10,14 +10,14 @@ import { describe, expect, it } from 'vitest'
 import CashbookSummary from './CashbookSummary.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
 
-const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
 
 const base = { reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), text: '', reference: null, referenceDate: null }
 const entries: ICashbookEntry[] = [
-	{ ...base, id: 1, reason: EntryReason.DayOpening, balance: '100.00', tax: null },
-	{ ...base, id: 2, balance: '130.00', debit: '30.00', tax: 0.19 },
-	{ ...base, id: 3, reason: EntryReason.ExpenseMisc, balance: '125.00', credit: '5.00', tax: null },
-	{ ...base, id: 4, balance: '135.00', debit: '10.00', tax: 0.07 },
+	{ ...base, id: '1', sequence: 1, reason: EntryReason.DayOpening, balance: '100.00', tax: null },
+	{ ...base, id: '2', sequence: 2, balance: '130.00', debit: '30.00', tax: 0.19 },
+	{ ...base, id: '3', sequence: 3, reason: EntryReason.ExpenseMisc, balance: '125.00', credit: '5.00', tax: null },
+	{ ...base, id: '4', sequence: 4, balance: '135.00', debit: '10.00', tax: 0.07 },
 ]
 
 describe('CashbookSummary', () => {

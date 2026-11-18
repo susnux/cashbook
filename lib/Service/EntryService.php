@@ -48,8 +48,8 @@ final class EntryService {
 	/**
 	 * Add an income or expense entry after the last entry of a cashbook.
 	 *
-	 * The entry is booked at the current time, or at the time of the last entry if that is in the future,
-	 * so the balance always follows from the previous entry.
+	 * The entry gets the next sequence number of the cashbook. It is booked at the current time,
+	 * or at the time of the last entry if that is in the future, so the balance always follows from the previous entry.
 	 *
 	 * @param string $amount The positive amount as decimal string, expenses are subtracted from the balance
 	 * @param ?float $tax The tax rate (e.g. `0.19` for 19%)
@@ -103,6 +103,7 @@ final class EntryService {
 
 			return $this->entryMapper->insert(Entry::create(
 				$cashbook,
+				($last?->getSequence() ?? 0) + 1,
 				$userId,
 				$datetime,
 				$text,

@@ -17,7 +17,7 @@ import { calculateTotals } from './totals.ts'
  * @param tax - The tax rate
  */
 function entry(balance: string, amount?: string, tax: number | null = null): ICashbookEntry {
-	const base = { id: 1, reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), balance, text: '', reference: null, referenceDate: null, tax }
+	const base = { id: '1', sequence: 1, reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), balance, text: '', reference: null, referenceDate: null, tax }
 	if (amount === undefined) {
 		return { ...base, reason: EntryReason.DayOpening }
 	}

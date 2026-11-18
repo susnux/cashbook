@@ -10,8 +10,10 @@ declare(strict_types=1);
 namespace OCA\Cashbook;
 
 /**
+ * Ids are Snowflake IDs, sent as strings as they exceed the safe integer range of JavaScript.
+ *
  * @psalm-type CashbookCashbook = array{
- *     id: int,
+ *     id: string,
  *     name: string,
  *     account: string,
  *     currency: string,
@@ -23,9 +25,11 @@ namespace OCA\Cashbook;
  * Amounts of money are decimal strings (e.g. `"12.50"`) to keep their precision,
  * `debit` is set for income and `credit` for expenses, both are omitted for entries without an amount.
  * `referenceDate` is the date of the receipt (`YYYY-MM-DD`).
+ * `sequence` is the gapless number of the entry within its cashbook, starting at 1.
  *
  * @psalm-type CashbookEntry = array{
- *     id: int,
+ *     id: string,
+ *     sequence: int,
  *     balance: string,
  *     debit?: string,
  *     credit?: string,

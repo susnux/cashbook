@@ -21,35 +21,33 @@ use OCP\Migration\SimpleMigrationStep;
 final class Version000001Date20250214140000 extends SimpleMigrationStep {
 
 	/**
-	 * @param IOutput $output
-	 * @param Closure $schemaClosure The `\Closure` returns a `ISchemaWrapper`
-	 * @param array $options
-	 * @return null|ISchemaWrapper
+	 * @param Closure(): ISchemaWrapper $schemaClosure
 	 */
 	#[\Override]
 	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
-		/** @var ISchemaWrapper $schema */
 		$schema = $schemaClosure();
-		$changedSchema = null;
+		$changed = false;
 
 		if (!$schema->hasTable('cashbook_cashbooks')) {
 			$this->createCashbooksTable($schema);
-			$changedSchema = $schema;
+			$changed = true;
 		}
 
 		if (!$schema->hasTable('cashbook_cashbook_entries')) {
 			$this->createCashbookEntriesTable($schema);
-			$changedSchema = $schema;
+			$changed = true;
 		}
 
-		return $changedSchema;
+		return $changed ? $schema : null;
 	}
 
-	private function createCashbooksTable(ISchemaWrapper &$schema): void {
+	private function createCashbooksTable(ISchemaWrapper $schema): void {
 		$table = $schema->createTable('cashbook_cashbooks');
+		// Snowflake ID
 		$table->addColumn('id', Types::BIGINT, [
-			'autoincrement' => true,
 			'notnull' => true,
+			'length' => 20,
+			'unsigned' => true,
 		]);
 		$table->addColumn('name', Types::STRING, [
 			'notnull' => false,
@@ -67,21 +65,31 @@ final class Version000001Date20250214140000 extends SimpleMigrationStep {
 		]);
 
 		$table->setPrimaryKey(['id']);
+		$table->addIndex(['owner'], 'cashbook_owner_idx');
 	}
 
-	private function createCashbookEntriesTable(ISchemaWrapper &$schema): void {
+	private function createCashbookEntriesTable(ISchemaWrapper $schema): void {
 		$table = $schema->createTable('cashbook_cashbook_entries');
 
+		// Snowflake ID
 		$table->addColumn('id', Types::BIGINT, [
-			'autoincrement' => true,
 			'notnull' => true,
+			'length' => 20,
+			'unsigned' => true,
+		]);
+		$table->addColumn('cashbook_id', Types::BIGINT, [
+			'notnull' => true,
+			'length' => 20,
+			'unsigned' => true,
+		]);
+		// Gapless number of the entry within its cashbook, starting at 1
+		$table->addColumn('sequence', Types::BIGINT, [
+			'notnull' => true,
+			'unsigned' => true,
 		]);
 		$table->addColumn('user_id', Types::STRING, [
 			'notnull' => true,
 			'length' => 64,
-		]);
-		$table->addColumn('cashbook_id', Types::BIGINT, [
-			'notnull' => true,
 		]);
 		$table->addColumn('datetime', Types::DATETIME_IMMUTABLE, [
 			'notnull' => true,
@@ -114,5 +122,8 @@ final class Version000001Date20250214140000 extends SimpleMigrationStep {
 		]);
 
 		$table->setPrimaryKey(['id']);
+		$table->addUniqueIndex(['cashbook_id', 'sequence'], 'cashbook_entries_seq_uniq');
+		$table->addIndex(['cashbook_id', 'datetime'], 'cashbook_entries_date_idx');
+		$table->addIndex(['cashbook_id', 'reason', 'datetime'], 'cashbook_entries_reason_idx');
 	}
 }

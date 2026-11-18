@@ -4,7 +4,8 @@
  */
 
 export interface ICashbook {
-	id: number
+	/** The Snowflake ID, a string as it exceeds the safe integer range */
+	id: string
 	name: string
 	account: string
 	currency: string
@@ -18,7 +19,7 @@ export interface ICashbook {
 export type ICashbookData = Pick<ICashbook, 'name' | 'account' | 'currency'>
 
 export class Cashbook implements ICashbook {
-	public id: number
+	public id: string
 	public name: string
 	public account: string
 	public currency: string
