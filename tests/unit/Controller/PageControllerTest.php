@@ -70,7 +70,7 @@ final class PageControllerTest extends TestCase {
 	}
 
 	public function testShowMissingCashbook(): void {
-		$response = $this->createController()->showCashbook(PHP_INT_MAX);
+		$response = $this->createController()->showCashbook((string)PHP_INT_MAX);
 		$this->assertInstanceOf(RedirectResponse::class, $response);
 		$this->assertSame('https://cloud.example.com/cashbook.page.notFound', $response->getRedirectURL());
 	}
@@ -97,7 +97,7 @@ final class PageControllerTest extends TestCase {
 	}
 
 	public function testExportMissingCashbook(): void {
-		$response = $this->createController()->exportCashbook(PHP_INT_MAX);
+		$response = $this->createController()->exportCashbook((string)PHP_INT_MAX);
 		$this->assertInstanceOf(RedirectResponse::class, $response);
 		$this->assertSame('https://cloud.example.com/cashbook.page.notFound', $response->getRedirectURL());
 	}

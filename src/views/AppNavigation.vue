@@ -33,7 +33,7 @@ const router = useRouter()
  */
 function openNewCashbook(cashbook: ICashbook) {
 	store.cashbooks.push(cashbook)
-	router.push({ name: 'cashbook', params: { cashbook: String(cashbook.id) } })
+	router.push({ name: 'cashbook', params: { cashbook: cashbook.id } })
 }
 
 /**
@@ -80,7 +80,7 @@ async function onDeleteCashbook(cashbook: ICashbook) {
 	}
 
 	// leave the cashbook view first, otherwise it redirects to "not found" once the cashbook is gone
-	if (route.params.cashbook === String(cashbook.id)) {
+	if (route.params.cashbook === cashbook.id) {
 		await router.push({ name: 'root' })
 	}
 	store.cashbooks = store.cashbooks.filter(({ id }) => id !== cashbook.id)
@@ -99,7 +99,7 @@ async function onDeleteCashbook(cashbook: ICashbook) {
 				v-for="cashbook in store.cashbooks"
 				:key="cashbook.id"
 				:name="cashbook.name"
-				:to="{ name: 'cashbook', params: { cashbook: String(cashbook.id) } }">
+				:to="{ name: 'cashbook', params: { cashbook: cashbook.id } }">
 				<template #actions>
 					<NcActionButton closeAfterClick @click="onEditCashbook(cashbook)">
 						<template #icon>

@@ -58,6 +58,7 @@ final class CashbookServiceTest extends TestCase {
 	private function addEntry(Cashbook $cashbook): void {
 		$this->entryMapper->insert(Entry::create(
 			$cashbook,
+			$this->countEntries($cashbook) + 1,
 			self::USER_ID,
 			new \DateTimeImmutable(),
 			'',

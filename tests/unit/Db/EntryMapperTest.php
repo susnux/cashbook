@@ -15,6 +15,7 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
+use OCP\DB\Exception;
 use OCP\IDBConnection;
 use OCP\Server;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -27,6 +28,7 @@ final class EntryMapperTest extends TestCase {
 	private CashbookMapper $cashbookMapper;
 	private EntryMapper $entryMapper;
 	private Cashbook $cashbook;
+	private int $sequence = 0;
 
 	#[\Override]
 	protected function setUp(): void {
@@ -53,9 +55,13 @@ final class EntryMapperTest extends TestCase {
 		parent::tearDown();
 	}
 
-	private function insertEntry(string $datetime, ?EntryReason $reason, string $text): void {
+	/**
+	 * @param ?int $sequence The sequence number, defaults to the next one
+	 */
+	private function insertEntry(string $datetime, ?EntryReason $reason, string $text, ?int $sequence = null): void {
 		$this->entryMapper->insert(Entry::create(
 			$this->cashbook,
+			$sequence ?? ++$this->sequence,
 			self::USER_ID,
 			new \DateTimeImmutable($datetime, new \DateTimeZone('UTC')),
 			$text,
@@ -90,22 +96,35 @@ final class EntryMapperTest extends TestCase {
 		$this->insertEntry('2025-03-02 09:00', EntryReason::IncomeSales, 'sale-6');
 	}
 
-	public function testGetEntriesIsOrderedByDate(): void {
-		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'c');
-		$this->insertEntry('2025-01-01 10:00', EntryReason::IncomeSales, 'a');
-		$this->insertEntry('2025-01-02 10:00', EntryReason::IncomeSales, 'b');
-		$this->insertEntry('2025-01-02 10:00', EntryReason::IncomeSales, 'b2');
+	public function testGetEntriesIsOrderedBySequence(): void {
+		$this->insertEntry('2025-01-02 10:00', EntryReason::IncomeSales, 'c', 3);
+		$this->insertEntry('2025-01-02 10:00', EntryReason::IncomeSales, 'a', 1);
+		$this->insertEntry('2025-01-02 10:00', EntryReason::IncomeSales, 'b', 2);
+		$this->insertEntry('2025-01-02 10:00', EntryReason::IncomeSales, 'd', 4);
 
-		$this->assertSame(['a', 'b', 'b2', 'c'], $this->texts($this->entryMapper->getEntries($this->cashbook)));
-		$this->assertSame(['b2', 'c'], $this->texts($this->entryMapper->getEntries($this->cashbook, 2, 2)));
+		$entries = $this->entryMapper->getEntries($this->cashbook);
+		$this->assertSame(['a', 'b', 'c', 'd'], $this->texts($entries));
+		$this->assertSame([1, 2, 3, 4], array_map(static fn (Entry $entry): int => $entry->getSequence(), $entries));
+		$this->assertSame(['c', 'd'], $this->texts($this->entryMapper->getEntries($this->cashbook, 2, 2)));
+	}
+
+	public function testSequenceIsUniquePerCashbook(): void {
+		$this->insertEntry('2025-01-02 10:00', EntryReason::IncomeSales, 'a', 1);
+
+		try {
+			$this->insertEntry('2025-01-02 11:00', EntryReason::IncomeSales, 'b', 1);
+			$this->fail('A duplicate sequence number must be rejected.');
+		} catch (Exception $error) {
+			$this->assertSame(Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION, $error->getReason());
+		}
 	}
 
 	public function testGetLastEntry(): void {
 		$this->assertNull($this->entryMapper->getLastEntry($this->cashbook));
 
-		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'c');
-		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'c2');
-		$this->insertEntry('2025-01-01 10:00', EntryReason::IncomeSales, 'a');
+		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'c', 2);
+		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'c2', 3);
+		$this->insertEntry('2025-01-03 10:00', EntryReason::IncomeSales, 'a', 1);
 
 		$last = $this->entryMapper->getLastEntry($this->cashbook);
 		$this->assertSame('c2', $last?->getText());
@@ -128,9 +147,9 @@ final class EntryMapperTest extends TestCase {
 	}
 
 	public function testGetEntriesByDateWithLimit(): void {
-		$this->insertEntry('2025-02-03 10:00', null, 'c');
 		$this->insertEntry('2025-02-01 10:00', null, 'a');
 		$this->insertEntry('2025-02-02 10:00', null, 'b');
+		$this->insertEntry('2025-02-03 10:00', null, 'c');
 
 		$entries = $this->entryMapper->getEntriesByDate(
 			$this->cashbook,

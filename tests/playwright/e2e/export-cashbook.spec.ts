@@ -16,7 +16,7 @@ const JANUARY_2025 = 'period=month&from=2025-01-01&to=2025-01-31'
 test.use({ timezoneId: TIMEZONE, locale: 'en-US' })
 
 test.describe('Export cashbook', () => {
-	let cashbookId: number
+	let cashbookId: string
 
 	test.beforeEach(async ({ page }) => {
 		cashbookId = await importReportFixture(page.request, TIMEZONE)

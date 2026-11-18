@@ -27,7 +27,7 @@ const formattedReason = computed(() => props.modelValue.reason ? EntryReasonRead
 
 <template>
 	<tr>
-		<td>{{ modelValue.id }}</td>
+		<td>{{ modelValue.sequence }}</td>
 		<td>
 			<div :class="$style.wrappedText" v-text="formattedTime" />
 		</td>

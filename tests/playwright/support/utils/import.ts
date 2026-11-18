@@ -18,7 +18,7 @@ const FIXTURES = join(import.meta.dirname, '..', '..', '..', 'fixtures', 'sumup'
  * @param timezone - The timezone of the dates in the fixture
  * @return The id of the imported cashbook
  */
-export async function importReportFixture(request: APIRequestContext, timezone: string): Promise<number> {
+export async function importReportFixture(request: APIRequestContext, timezone: string): Promise<string> {
 	const form = new FormData()
 	form.append('import', 'sumup-pos-pro-de')
 	form.append('timezone', timezone)

@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import CashbookTable from './CashbookTable.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
 
-const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
 
 /**
  * Create a cashbook entry
@@ -22,7 +22,7 @@ const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'al
  * @param tax - The tax rate
  */
 function entry(id: number, reason: EntryReason | null, amount?: number, tax: number | null = null): ICashbookEntry {
-	const base = { id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, referenceDate: null, tax }
+	const base = { id: String(id), sequence: id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, referenceDate: null, tax }
 	if (amount === undefined) {
 		return base
 	}
@@ -67,6 +67,14 @@ describe('CashbookTable', () => {
 		expect(sections[1]!.text()).toContain('Closed:')
 		expect(sections[3]!.text()).not.toContain('Closed:')
 		expect(sections[3]!.text()).toContain('Transfer from bank')
+	})
+
+	it('shows the sequence number instead of the id', () => {
+		const wrapper = mount(CashbookTable, {
+			props: { cashbook, entries: [{ ...entry(5, EntryReason.IncomeSales, 1), id: '7012345678901234567' }] },
+		})
+
+		expect(entryRows(wrapper).map((row) => row.get('td').text())).toEqual(['5'])
 	})
 
 	it('groups entries outside of days by calendar day', () => {

@@ -135,7 +135,7 @@ final class ApiControllerTest extends TestCase {
 
 	public function testGetCashbookNotFound(): void {
 		$this->expectException(OCSNotFoundException::class);
-		$this->createController()->getCashbook(PHP_INT_MAX);
+		$this->createController()->getCashbook((string)PHP_INT_MAX);
 	}
 
 	public function testGetCashbookOfOtherUser(): void {
@@ -152,6 +152,7 @@ final class ApiControllerTest extends TestCase {
 			$balance = $balance->plus('1.00');
 			$this->entryMapper->insert(Entry::create(
 				$cashbook,
+				$index + 1,
 				'alice',
 				new \DateTimeImmutable('2025-01-02 10:0' . $index, new \DateTimeZone('UTC')),
 				'',
@@ -277,6 +278,7 @@ final class ApiControllerTest extends TestCase {
 			$balance = $balance->plus($amount);
 			$entry = Entry::create(
 				$cashbook,
+				$index + 1,
 				'alice',
 				new \DateTimeImmutable('2025-01-02 10:0' . $index, new \DateTimeZone('UTC')),
 				'',
@@ -317,6 +319,7 @@ final class ApiControllerTest extends TestCase {
 		for ($index = 0; $index < $count; $index++) {
 			$this->entryMapper->insert(Entry::create(
 				$cashbook,
+				$index + 1,
 				'alice',
 				new \DateTimeImmutable('2025-01-02 10:00', new \DateTimeZone('UTC')),
 				'Sale ' . $index,
@@ -373,7 +376,7 @@ final class ApiControllerTest extends TestCase {
 
 	public function testAddCashbookEntryNotFound(): void {
 		$this->expectException(OCSNotFoundException::class);
-		$this->createController()->addCashbookEntry(PHP_INT_MAX, EntryReason::IncomeMisc, '1');
+		$this->createController()->addCashbookEntry((string)PHP_INT_MAX, EntryReason::IncomeMisc, '1');
 	}
 
 	public static function dataAddCashbookEntryOfOtherUser(): array {
@@ -443,7 +446,7 @@ final class ApiControllerTest extends TestCase {
 
 	public function testUpdateCashbookNotFound(): void {
 		$this->expectException(OCSNotFoundException::class);
-		$this->createController()->updateCashbook(PHP_INT_MAX, 'Market');
+		$this->createController()->updateCashbook((string)PHP_INT_MAX, 'Market');
 	}
 
 	public function testUpdateCashbookOfOtherUser(): void {
@@ -466,7 +469,7 @@ final class ApiControllerTest extends TestCase {
 
 	public function testDeleteCashbookNotFound(): void {
 		$this->expectException(OCSNotFoundException::class);
-		$this->createController()->deleteCashbook(PHP_INT_MAX);
+		$this->createController()->deleteCashbook((string)PHP_INT_MAX);
 	}
 
 	public function testDeleteCashbookOfOtherUser(): void {

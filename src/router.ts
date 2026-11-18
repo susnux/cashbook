@@ -30,14 +30,14 @@ export const routes = [
 		path: '/:cashbook(\\d+)',
 		name: 'cashbook',
 		component: CashbookView,
-		props: (route: RouteLocationNormalized) => ({ cashbookId: Number.parseInt(normalizeParam('cashbook', route.params)) }),
+		props: (route: RouteLocationNormalized) => ({ cashbookId: normalizeParam('cashbook', route.params) }),
 	},
 	{
 		path: '/:cashbook(\\d+)/export',
 		name: 'cashbook-export',
 		component: CashbookView,
 		props: (route: RouteLocationNormalized) => ({
-			cashbookId: Number.parseInt(normalizeParam('cashbook', route.params)),
+			cashbookId: normalizeParam('cashbook', route.params),
 			isExport: true,
 		}),
 	},

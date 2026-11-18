@@ -26,7 +26,7 @@ final class EntryMapper extends QBMapper {
 	}
 
 	/**
-	 * Get a page of the entries of a cashbook in chronological order.
+	 * Get a page of the entries of a cashbook in the order they were recorded.
 	 *
 	 * @return list<Entry>
 	 */
@@ -35,17 +35,16 @@ final class EntryMapper extends QBMapper {
 		$qb->select('*')
 			->from($this->tableName)
 			->where(
-				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId())),
 			)
-			->orderBy('datetime', 'ASC')
-			->addOrderBy('id', 'ASC')
+			->orderBy('sequence', 'ASC')
 			->setMaxResults($limit)
 			->setFirstResult($offset);
 		return $this->findCashbookEntities($cashbook, $qb);
 	}
 
 	/**
-	 * Get all entries of a cashbook in the date range `[$begin, $end)` in chronological order.
+	 * Get all entries of a cashbook in the date range `[$begin, $end)` in the order they were recorded.
 	 *
 	 * If the range starts or ends within an open day (between a day opening and its day closing),
 	 * the range is extended to include the whole day.
@@ -63,11 +62,10 @@ final class EntryMapper extends QBMapper {
 		$qb->select('*')
 			->from($this->tableName)
 			->where(
-				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId())),
 				$qb->expr()->gte('datetime', $qb->createNamedParameter($begin, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)),
 			)
-			->orderBy('datetime', 'ASC')
-			->addOrderBy('id', 'ASC');
+			->orderBy('sequence', 'ASC');
 
 		$closing = $this->findBoundary($cashbook, EntryReason::DayClosing, 'gte', $end, 'ASC');
 		if ($closing !== null && $this->findBoundary($cashbook, EntryReason::DayOpening, 'gte', $end, 'ASC', $closing) === null) {
@@ -83,17 +81,16 @@ final class EntryMapper extends QBMapper {
 	}
 
 	/**
-	 * Get the chronologically last entry of a cashbook, null if it has no entries.
+	 * Get the last recorded entry of a cashbook, null if it has no entries.
 	 */
 	public function getLastEntry(Cashbook $cashbook): ?Entry {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('*')
 			->from($this->tableName)
 			->where(
-				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId())),
 			)
-			->orderBy('datetime', 'DESC')
-			->addOrderBy('id', 'DESC')
+			->orderBy('sequence', 'DESC')
 			->setMaxResults(1);
 		return $this->findCashbookEntities($cashbook, $qb)[0] ?? null;
 	}
@@ -105,7 +102,7 @@ final class EntryMapper extends QBMapper {
 		$qb = $this->db->getQueryBuilder();
 		$qb->delete($this->tableName)
 			->where(
-				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId())),
 			)
 			->executeStatement();
 	}
@@ -130,7 +127,7 @@ final class EntryMapper extends QBMapper {
 		$qb->select('datetime')
 			->from($this->tableName)
 			->where(
-				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId(), IQueryBuilder::PARAM_INT)),
+				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId())),
 				$qb->expr()->eq('reason', $qb->createNamedParameter($reason->value)),
 				$qb->expr()->$comparison('datetime', $qb->createNamedParameter($date, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)),
 			)

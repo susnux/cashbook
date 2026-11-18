@@ -87,9 +87,7 @@ final class SumupPosProGermanyTest extends TestCase {
 	 * @return list<Entry>
 	 */
 	private function getEntries(Cashbook $cashbook): array {
-		$entries = $this->entryMapper->getEntries($cashbook, 0, 50);
-		usort($entries, static fn (Entry $a, Entry $b): int => $a->getId() <=> $b->getId());
-		return $entries;
+		return $this->entryMapper->getEntries($cashbook, 0, 50);
 	}
 
 	private function countImportedRows(string $table, string $column): int {
@@ -146,21 +144,21 @@ final class SumupPosProGermanyTest extends TestCase {
 		$cashbook = $this->createImporter()->import($this->files('Kassenbuch_report.csv', 'Tagesabschluss_report.csv'));
 
 		$entries = array_map(
-			static fn (Entry $entry): array => [$entry->getReason(), (string)$entry->getAmount()->getAmount(), (string)$entry->getBalance()->getAmount()],
+			static fn (Entry $entry): array => [$entry->getSequence(), $entry->getReason(), (string)$entry->getAmount()->getAmount(), (string)$entry->getBalance()->getAmount()],
 			$this->getEntries($cashbook),
 		);
 		$this->assertSame([
 			// Entry before the first day of the report
-			[EntryReason::IncomeSales, '10.00', '100.00'],
-			[EntryReason::DayOpening, '0.00', '100.00'],
-			[EntryReason::IncomeSales, '20.00', '120.00'],
-			[EntryReason::ExpenseMisc, '-5.00', '115.00'],
-			[EntryReason::DayClosing, '0.00', '115.00'],
-			[EntryReason::DayOpening, '0.00', '115.00'],
-			[EntryReason::IncomeSales, '10.00', '125.00'],
-			[EntryReason::DayClosing, '0.00', '125.00'],
+			[1, EntryReason::IncomeSales, '10.00', '100.00'],
+			[2, EntryReason::DayOpening, '0.00', '100.00'],
+			[3, EntryReason::IncomeSales, '20.00', '120.00'],
+			[4, EntryReason::ExpenseMisc, '-5.00', '115.00'],
+			[5, EntryReason::DayClosing, '0.00', '115.00'],
+			[6, EntryReason::DayOpening, '0.00', '115.00'],
+			[7, EntryReason::IncomeSales, '10.00', '125.00'],
+			[8, EntryReason::DayClosing, '0.00', '125.00'],
 			// Entry after the last closing is imported as well
-			[EntryReason::IncomeSales, '1.00', '126.00'],
+			[9, EntryReason::IncomeSales, '1.00', '126.00'],
 		], $entries);
 	}
 

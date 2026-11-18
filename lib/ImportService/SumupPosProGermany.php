@@ -49,6 +49,8 @@ final class SumupPosProGermany implements IImportService {
 	protected Cashbook $cashbook;
 	/** The cash balance after the last imported entry, null before the first entry */
 	protected ?Money $balance = null;
+	/** The sequence number of the last imported entry */
+	protected int $sequence = 0;
 	protected \DateTimeZone $timezone;
 
 	protected const string CASHBOOK_FILE_PREFIX = 'Kassenbuch_';
@@ -203,6 +205,7 @@ final class SumupPosProGermany implements IImportService {
 
 			$this->entryMapper->insert(Entry::create(
 				$this->cashbook,
+				++$this->sequence,
 				$this->getUserId(),
 				$opening,
 				'',
@@ -223,6 +226,7 @@ final class SumupPosProGermany implements IImportService {
 
 			$this->entryMapper->insert(Entry::create(
 				$this->cashbook,
+				++$this->sequence,
 				$this->getUserId(),
 				$closing,
 				'',
@@ -271,6 +275,7 @@ final class SumupPosProGermany implements IImportService {
 
 			$this->entryMapper->insert(Entry::create(
 				$this->cashbook,
+				++$this->sequence,
 				$this->getUserId(),
 				$datetime,
 				$record['text'],

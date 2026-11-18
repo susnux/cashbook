@@ -23,7 +23,8 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
 			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR', 'account' => '1000'],
 		]));
-		$this->assertIsInt($cashbook['id']);
+		$this->assertIsString($cashbook['id']);
+		$this->assertMatchesRegularExpression('/^\d+$/', $cashbook['id']);
 		$this->assertSame([
 			'id' => $cashbook['id'],
 			'account' => '1000',
@@ -72,6 +73,8 @@ final class ApiControllerTest extends IntegrationTestCase {
 				'referenceDate' => '2025-01-02',
 			],
 		]));
+		$this->assertIsString($income['id']);
+		$this->assertSame(1, $income['sequence']);
 		$this->assertSame('100.00', $income['debit']);
 		$this->assertSame('100.00', $income['balance']);
 		$this->assertSame('Cash float', $income['text']);
@@ -83,6 +86,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$expense = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', $path, [
 			RequestOptions::JSON => ['reason' => 'expense-goods', 'amount' => '11.90', 'tax' => 0.19],
 		]));
+		$this->assertSame(2, $expense['sequence']);
 		$this->assertSame('11.90', $expense['credit']);
 		$this->assertSame('88.10', $expense['balance']);
 		$this->assertSame(0.19, $expense['tax']);
@@ -146,9 +150,10 @@ final class ApiControllerTest extends IntegrationTestCase {
 				['name' => $field, 'contents' => fopen(self::FIXTURES . 'Kassenbuch_basic.csv', 'r'), 'filename' => 'Kassenbuch_basic.csv'],
 			],
 		]));
-		$this->assertIsInt($result['id']);
+		$this->assertIsString($result['id']);
 
 		$entries = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $result['id'] . '/entries'));
+		$this->assertSame([1, 2, 3], array_column($entries, 'sequence'));
 		$this->assertSame(['1300.50', '1280.50', '1285.50'], array_column($entries, 'balance'));
 	}
 
@@ -186,5 +191,12 @@ final class ApiControllerTest extends IntegrationTestCase {
 			$cashbook,
 			$this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbook['id'])),
 		);
+	}
+
+	public function testNonNumericCashbookIdIsNotFound(): void {
+		$alice = $this->createUser();
+
+		$this->assertSame(404, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/abc')->getStatusCode());
+		$this->assertSame(404, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/1x/entries')->getStatusCode());
 	}
 }

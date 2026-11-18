@@ -26,7 +26,7 @@ test.describe('Add entry', () => {
 		})
 
 		const income = cashbookApp.entryRow('Cash float')
-		await expect(income.getByRole('cell')).toHaveText([/^\d+$/, /\S/, 'Transfer from bank', 'Cash float', /B-1/, '', '€100.00', '', '€100.00'])
+		await expect(income.getByRole('cell')).toHaveText(['1', /\S/, 'Transfer from bank', 'Cash float', /B-1/, '', '€100.00', '', '€100.00'])
 		await expect(income.getByRole('cell').nth(4)).toContainText('Jan 31, 2025')
 
 		await cashbookApp.addEntry({
@@ -38,7 +38,7 @@ test.describe('Add entry', () => {
 		})
 
 		const expense = cashbookApp.entryRow('Coffee beans')
-		await expect(expense.getByRole('cell')).toHaveText([/^\d+$/, /\S/, 'Purchases', 'Coffee beans', '', '19%', '', '€11.90', '€88.10'])
+		await expect(expense.getByRole('cell')).toHaveText(['2', /\S/, 'Purchases', 'Coffee beans', '', '19%', '', '€11.90', '€88.10'])
 
 		const summary = page.getByRole('region', { name: 'Totals of the period' })
 		await expect(summary.getByRole('definition')).toHaveText(['€0.00', '€100.00', '€11.90', '€88.10'])

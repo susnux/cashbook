@@ -60,7 +60,10 @@ export const ExpenseReasons: readonly EntryReason[] = Object.freeze([
 ])
 
 interface BaseEntry {
-	id: number
+	/** The Snowflake ID, a string as it exceeds the safe integer range */
+	id: string
+	/** The gapless number of the entry within its cashbook, starting at 1 */
+	sequence: number
 	date: Date
 	/** The balance after this entry as decimal string */
 	balance: string

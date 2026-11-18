@@ -10,7 +10,7 @@ import DeleteCashbookDialog from './DeleteCashbookDialog.vue'
 const deleteCashbook = vi.hoisted(() => vi.fn())
 vi.mock('../api/cashbooks.ts', () => ({ deleteCashbook }))
 
-const cashbook = { id: 1, name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
 
 /**
  * Find a dialog button by its text
