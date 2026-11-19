@@ -50,7 +50,7 @@ describe('NewCashbookDialog', () => {
 	})
 
 	it('creates the cashbook with the currency code and emits it', async () => {
-		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'USD', owner: 'alice' }
+		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'USD', owner: 'alice', lastSequence: 0, balance: '0.00' }
 		createCashbook.mockResolvedValue(cashbook)
 		const wrapper = await mountFilledDialog()
 
@@ -74,7 +74,7 @@ describe('NewCashbookDialog', () => {
 	})
 
 	it('updates the name and account of an existing cashbook', async () => {
-		const cashbook = { id: '1', name: 'Shop', account: '1000', currency: 'USD', owner: 'alice' }
+		const cashbook = { id: '1', name: 'Shop', account: '1000', currency: 'USD', owner: 'alice', lastSequence: 0, balance: '0.00' }
 		const updated = { ...cashbook, name: 'Market', account: '1200' }
 		updateCashbook.mockResolvedValue(updated)
 		const wrapper = mount(NewCashbookDialog, { attachTo: document.body, props: { cashbook } })

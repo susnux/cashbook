@@ -14,8 +14,8 @@ import { useCashbookEntries } from './useCashbookEntries.ts'
 const fetchEntriesByDate = vi.hoisted(() => vi.fn())
 vi.mock('../api/cashbooks.ts', () => ({ fetchEntriesByDate }))
 
-const cashbookA: ICashbook = { id: '1', name: 'A', account: '', currency: 'EUR', owner: 'alice' }
-const cashbookB: ICashbook = { id: '2', name: 'B', account: '', currency: 'EUR', owner: 'alice' }
+const cashbookA: ICashbook = { id: '1', name: 'A', account: '', currency: 'EUR', owner: 'alice', lastSequence: 0, balance: '0.00' }
+const cashbookB: ICashbook = { id: '2', name: 'B', account: '', currency: 'EUR', owner: 'alice', lastSequence: 0, balance: '0.00' }
 
 /**
  * Create a promise that can be resolved from the outside
@@ -45,6 +45,24 @@ describe('useCashbookEntries', () => {
 		expect(fetchEntriesByDate).toHaveBeenCalledWith(cashbookA, expect.objectContaining({ begin: period.begin, end: period.end }))
 		expect(entries.value).toEqual([{ id: 1 }])
 		expect(loading.value).toBe(false)
+		scope.stop()
+	})
+
+	it('loads the entries again when the cashbook gets new entries', async () => {
+		fetchEntriesByDate.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: '1' }])
+		const cashbook = ref(cashbookA)
+
+		const scope = effectScope()
+		const { entries } = scope.run(() => useCashbookEntries(cashbook, getPeriod('month', new Date())))!
+		await flushPromises()
+		cashbook.value = { ...cashbookA, name: 'Renamed' }
+		await flushPromises()
+		expect(fetchEntriesByDate).toHaveBeenCalledTimes(1)
+
+		cashbook.value = { ...cashbookA, lastSequence: 1, balance: '5.00' }
+		await flushPromises()
+		expect(fetchEntriesByDate).toHaveBeenCalledTimes(2)
+		expect(entries.value).toEqual([{ id: '1' }])
 		scope.stop()
 	})
 

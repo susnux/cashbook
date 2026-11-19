@@ -64,7 +64,7 @@ async function createNew() {
 async function onEditCashbook(cashbook: ICashbook) {
 	const updated = await spawnDialog(NewCashbookDialog, { cashbook })
 	if (updated) {
-		store.cashbooks = store.cashbooks.map((item) => item.id === updated.id ? updated : item)
+		store.updateCashbook(updated)
 	}
 }
 

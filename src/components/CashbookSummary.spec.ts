@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import CashbookSummary from './CashbookSummary.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
 
-const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', lastSequence: 0, balance: '0.00' }
 
 const base = { reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), text: '', reference: null, referenceDate: null }
 const entries: ICashbookEntry[] = [

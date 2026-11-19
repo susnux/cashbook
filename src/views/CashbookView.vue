@@ -4,6 +4,7 @@
 -->
 
 <script setup lang="ts">
+import type { ICashbook } from '../models/Cashbook.ts'
 import type { Period } from '../utils/period.ts'
 
 import { mdiAlertCircleOutline, mdiCashRemove, mdiFileExportOutline, mdiPlus, mdiPrinterOutline, mdiRefresh } from '@mdi/js'
@@ -48,17 +49,21 @@ const exportUrl = computed(() => router.resolve({
 }).href)
 
 /**
- * Show the dialog to add an entry, then show the period containing the added entry
+ * Show the dialog to add an entry, then show the period containing the added entry.
+ *
+ * The entries are reloaded through the updated cashbook, also if the dialog reports that the cashbook was changed in the meantime.
  */
 async function onAddEntry() {
-	const entry = await spawnDialog(NewEntryDialog, { cashbook: cashbook.value! })
+	const entry = await spawnDialog(NewEntryDialog, {
+		cashbook: cashbook.value!,
+		onConflict: (current: ICashbook) => store.updateCashbook(current),
+	})
 	if (!entry) {
 		return
 	}
 
-	if (entry.date >= period.value.begin && entry.date < period.value.end) {
-		reload()
-	} else {
+	store.updateCashbook({ ...cashbook.value!, lastSequence: entry.sequence, balance: entry.balance })
+	if (entry.date < period.value.begin || entry.date >= period.value.end) {
 		period.value = getPeriod(period.value.type, entry.date)
 	}
 }

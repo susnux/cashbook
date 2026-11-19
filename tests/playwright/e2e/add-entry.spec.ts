@@ -4,6 +4,7 @@
  */
 
 import { expect, test } from '../support/fixtures/cashbook-app.ts'
+import { addEntryWithApi } from '../support/utils/entries.ts'
 
 test.use({ timezoneId: 'Europe/Berlin', locale: 'en-US' })
 
@@ -64,6 +65,33 @@ test.describe('Add entry', () => {
 		await expect(dialog.getByRole('radio', { name: 'Expense' })).toBeChecked()
 		await reason.click()
 		await expect(page.getByRole('option')).toHaveText(['Purchases', 'Transfer to bank', 'Salaries', 'Tips', 'Change', 'Refund', 'Miscellaneous expenses'])
+	})
+
+	test('reloads the cashbook if it was changed in the meantime', async ({ cashbookApp, page }) => {
+		await cashbookApp.addEntry({ type: 'Income', reason: 'Transfer from bank', amount: '100', text: 'Cash float' })
+		const dialog = await cashbookApp.fillNewEntryDialog({ type: 'Expense', amount: '80', text: 'Late purchase' })
+		await expect(dialog.getByText('Cash balance: €100.00')).toBeVisible()
+
+		const cashbookId = page.url().match(/\/apps\/cashbook\/(\d+)/)![1]!
+		await addEntryWithApi(page.request, cashbookId, { lastSequence: 1, reason: 'expense-goods', amount: '30', text: 'Other device' })
+
+		const conflict = await cashbookApp.submitNewEntryDialog()
+		expect(conflict.status()).toBe(409)
+		await expect(dialog.getByText('The cashbook was changed in the meantime.')).toBeVisible()
+		await expect(dialog.getByText('Cash balance: €70.00')).toBeVisible()
+
+		// the expense is checked against the new balance
+		const exceeding = await cashbookApp.submitNewEntryDialog()
+		expect(exceeding.status()).toBe(400)
+		await expect(dialog.getByText('The expense exceeds the cash balance.')).toBeVisible()
+
+		await dialog.getByRole('spinbutton', { name: /^Amount/ }).fill('70')
+		const added = await cashbookApp.submitNewEntryDialog()
+		expect(added.status()).toBe(200)
+		await expect(dialog).toBeHidden()
+
+		await expect(cashbookApp.entryRow('Other device').getByRole('cell')).toHaveText(['2', /\S/, 'Purchases', 'Other device', '', '', '', '€30.00', '€70.00'])
+		await expect(cashbookApp.entryRow('Late purchase').getByRole('cell').first()).toHaveText('3')
 	})
 
 	test('rejects an expense exceeding the cash balance', async ({ cashbookApp }) => {

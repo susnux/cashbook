@@ -7,7 +7,7 @@ import type { OCSResponse } from '@nextcloud/typings/ocs'
 import type { ICashbook, ICashbookData } from '../models/Cashbook.ts'
 import type { EntryReason, ICashbookEntry } from '../models/CashbookEntry.ts'
 
-import axios from '@nextcloud/axios'
+import axios, { isAxiosError } from '@nextcloud/axios'
 import { generateOcsUrl } from '@nextcloud/router'
 
 enum API_ENDPOINT {
@@ -140,22 +140,43 @@ export interface NewEntryData {
 }
 
 /**
+ * The cashbook was changed since it was loaded, so an entry could not be added
+ */
+export class CashbookConflictError extends Error {
+	/**
+	 * @param cashbook - The current state of the cashbook
+	 */
+	public constructor(public readonly cashbook: ICashbook) {
+		super('The cashbook was changed in the meantime')
+		this.name = 'CashbookConflictError'
+	}
+}
+
+/**
  * Add an income or expense entry after the last entry of a cashbook
  *
- * @param cashbook - The cashbook to add the entry to
+ * @param cashbook - The cashbook to add the entry to, its `lastSequence` has to be the last entry
  * @param entry - The entry to add
  * @return The added entry
+ * @throws {CashbookConflictError} If the cashbook has other entries than `cashbook.lastSequence`
  */
 export async function addEntry(cashbook: ICashbook, entry: NewEntryData): Promise<ICashbookEntry> {
-	const { data } = await axios.post<OCSResponse<RawCashbookEntry>>(
-		generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries`),
-		entry,
-	)
-	if (data.ocs.meta.status !== 'ok') {
-		throw new Error(data.ocs.meta.message, { cause: data.ocs })
-	}
+	try {
+		const { data } = await axios.post<OCSResponse<RawCashbookEntry>>(
+			generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries`),
+			{ ...entry, lastSequence: cashbook.lastSequence },
+		)
+		if (data.ocs.meta.status !== 'ok') {
+			throw new Error(data.ocs.meta.message, { cause: data.ocs })
+		}
 
-	return parseEntry(data.ocs.data)
+		return parseEntry(data.ocs.data)
+	} catch (error) {
+		if (isAxiosError<OCSResponse<ICashbook>>(error) && error.response?.status === 409 && error.response.data?.ocs) {
+			throw new CashbookConflictError(error.response.data.ocs.data)
+		}
+		throw error
+	}
 }
 
 /**

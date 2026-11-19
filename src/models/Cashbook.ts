@@ -11,6 +11,10 @@ export interface ICashbook {
 	currency: string
 	/** The user id of the owner */
 	owner: string
+	/** The sequence number of the last entry, 0 if there are no entries */
+	lastSequence: number
+	/** The cash balance after the last entry as decimal string */
+	balance: string
 }
 
 /**
@@ -24,6 +28,8 @@ export class Cashbook implements ICashbook {
 	public account: string
 	public currency: string
 	public owner: string
+	public lastSequence: number
+	public balance: string
 
 	public constructor(data: ICashbook) {
 		this.id = data.id
@@ -31,5 +37,7 @@ export class Cashbook implements ICashbook {
 		this.name = data.name
 		this.currency = data.currency
 		this.owner = data.owner
+		this.lastSequence = data.lastSequence
+		this.balance = data.balance
 	}
 }

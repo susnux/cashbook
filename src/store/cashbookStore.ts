@@ -31,6 +31,15 @@ export const useCashbookStore = defineStore('cashbook', () => {
 		}
 	}
 
+	/**
+	 * Replace a cashbook with its updated state
+	 *
+	 * @param cashbook - The updated cashbook
+	 */
+	function updateCashbook(cashbook: ICashbook) {
+		cashbooks.value = cashbooks.value.map((item) => item.id === cashbook.id ? cashbook : item)
+	}
+
 	load()
 
 	return {
@@ -38,5 +47,6 @@ export const useCashbookStore = defineStore('cashbook', () => {
 		loaded,
 		failed,
 		load,
+		updateCashbook,
 	}
 })

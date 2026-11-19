@@ -11,6 +11,8 @@ namespace OCA\Cashbook;
 
 /**
  * Ids are Snowflake IDs, sent as strings as they exceed the safe integer range of JavaScript.
+ * `lastSequence` and `balance` of a cashbook are the sequence number and the cash balance after its last entry,
+ * `0` and zero for a cashbook without entries.
  *
  * @psalm-type CashbookCashbook = array{
  *     id: string,
@@ -18,6 +20,8 @@ namespace OCA\Cashbook;
  *     account: string,
  *     currency: string,
  *     owner: string,
+ *     lastSequence: int,
+ *     balance: string,
  * }
  *
  * @psalm-type CashbookEntryReason = 'day-opening'|'day-closing'|'correction'|'income-bank'|'income-sales'|'income-misc'|'expense-bank'|'expense-goods'|'expense-salary'|'expense-tips'|'expense-change'|'expense-refund'|'expense-misc'

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type * as CashbooksApi from '../api/cashbooks.ts'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import NcDateTimePickerNative from '@nextcloud/vue/components/NcDateTimePickerNative'
@@ -10,12 +12,13 @@ import NcRadioGroup from '@nextcloud/vue/components/NcRadioGroup'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import NewEntryDialog from './NewEntryDialog.vue'
+import { CashbookConflictError } from '../api/cashbooks.ts'
 import { EntryReason } from '../models/CashbookEntry.ts'
 
 const { addEntry } = vi.hoisted(() => ({ addEntry: vi.fn() }))
-vi.mock('../api/cashbooks.ts', () => ({ addEntry }))
+vi.mock('../api/cashbooks.ts', async (importOriginal) => ({ ...await importOriginal<typeof CashbooksApi>(), addEntry }))
 
-const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', lastSequence: 2, balance: '100.00' }
 
 /**
  * Mount the dialog for the test cashbook
@@ -79,6 +82,33 @@ describe('NewEntryDialog', () => {
 		const select = wrapper.findComponent(NcSelect)
 		expect(select.props('options')).toHaveLength(7)
 		expect(select.props('modelValue')).toEqual({ value: EntryReason.ExpenseGoods, label: 'Purchases' })
+	})
+
+	it('shows the cash balance', async () => {
+		await mountDialog()
+
+		expect(document.body.textContent).toContain('Cash balance: €100.00')
+	})
+
+	it('updates the cash balance and stays open if the cashbook was changed in the meantime', async () => {
+		const current = { ...cashbook, lastSequence: 3, balance: '90.00' }
+		const entry = { id: '4', sequence: 4, date: new Date(), balance: '95.00', debit: '5.00' }
+		addEntry.mockRejectedValueOnce(new CashbookConflictError(current)).mockResolvedValueOnce(entry)
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '5')
+		await clickButton('Add entry')
+
+		expect(wrapper.emitted('conflict')).toEqual([[current]])
+		expect(wrapper.emitted('close')).toBeUndefined()
+		expect(document.body.textContent).toContain('Cash balance: €90.00')
+		expect(document.body.textContent).toContain('The cashbook was changed in the meantime.')
+		expect(textField(wrapper, 'Amount (EUR)').props('modelValue')).toBe('5')
+
+		await clickButton('Add entry')
+
+		expect(addEntry).toHaveBeenLastCalledWith(current, expect.objectContaining({ amount: '5' }))
+		expect(wrapper.emitted('close')).toEqual([[entry]])
 	})
 
 	it('uses the minor unit of the currency for the amount', async () => {
