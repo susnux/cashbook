@@ -230,6 +230,20 @@ final class SumupPosProGermanyTest extends TestCase {
 		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}
 
+	public function testImportStoresEqualTaxRatesEqually(): void {
+		$file = $this->createTempFile((string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0]
+			. "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n"
+			. "Test Shop;1234;02.01.2025 11:00:00;2;Sonstige Einnahme;;EUR;1,00;;19,0;0,16;2,00\n"
+			. "Test Shop;1234;02.01.2025 12:00:00;3;Sonstige Einnahme;;EUR;1,00;;19,00 %;0,16;3,00\n");
+
+		$cashbook = $this->createImporter()->import(['cashbook' => $file]);
+
+		$this->assertSame(['19/100', '19/100', '19/100'], array_map(
+			static fn (Entry $entry): ?string => $entry->getTaxRaw(),
+			$this->getEntries($cashbook),
+		));
+	}
+
 	public function testImportTooManyRows(): void {
 		$row = "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n";
 		$file = $this->createTempFile((string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0] . str_repeat($row, SumupPosProGermany::MAX_ROWS + 1));

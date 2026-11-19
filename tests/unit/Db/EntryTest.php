@@ -98,6 +98,30 @@ final class EntryTest extends TestCase {
 		$this->assertSame(3, $entry->getSequence());
 	}
 
+	public static function dataTax(): array {
+		return [
+			'lowest terms' => ['19/100', '19/100'],
+			'one decimal' => ['190/1000', '19/100'],
+			'two decimals' => ['1900/10000', '19/100'],
+			'zero' => ['0/100', '0'],
+		];
+	}
+
+	#[DataProvider('dataTax')]
+	public function testTaxIsStoredInLowestTerms(string $tax, string $expected): void {
+		$entry = $this->createEntry('1', '1');
+		$entry->setTax(BigRational::of($tax));
+		$this->assertSame($expected, $entry->getTaxRaw());
+		$this->assertTrue($entry->getTax()?->isEqualTo($tax));
+	}
+
+	public function testTaxNull(): void {
+		$entry = $this->createEntry('1', '1');
+		$entry->setTax(null);
+		$this->assertNull($entry->getTaxRaw());
+		$this->assertNull($entry->getTax());
+	}
+
 	public function testReasonNull(): void {
 		$entry = $this->createEntry('1', '1');
 		$entry->setReason(null);

@@ -166,8 +166,11 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 		$this->cashbook = $cashbook;
 	}
 
+	/**
+	 * The rate is stored in lowest terms, so equal rates are stored equally.
+	 */
 	public function setTax(?BigRational $tax): void {
-		$this->setTaxRaw($tax === null ? null : (string)$tax);
+		$this->setTaxRaw($tax === null ? null : (string)$tax->simplified());
 	}
 
 	public function getTax(): ?BigRational {
