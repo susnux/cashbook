@@ -13,7 +13,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDateTimePickerNative from '@nextcloud/vue/components/NcDateTimePickerNative'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
-import { formatPeriod, getPeriod, shiftPeriod } from '../utils/period.ts'
+import { addDays, formatDay, formatPeriod, getPeriod, parseDay, shiftPeriod } from '../utils/period.ts'
 
 const period = defineModel<Period>({ required: true })
 
@@ -38,26 +38,27 @@ const selectedType = computed({
 
 const label = computed(() => formatPeriod(period.value))
 
+// The date pickers work with local dates, the period with plain days
 const customBegin = computed({
-	get: () => period.value.begin,
+	get: () => parseDay(period.value.begin),
 	set: (value: Date | null) => {
 		if (!value) {
 			return
 		}
-		const begin = new Date(value.getFullYear(), value.getMonth(), value.getDate())
-		const end = begin < period.value.end ? period.value.end : new Date(begin.getFullYear(), begin.getMonth(), begin.getDate() + 1)
+		const begin = formatDay(value)
+		const end = begin < period.value.end ? period.value.end : addDays(begin, 1)
 		period.value = { type: 'custom', begin, end }
 	},
 })
 
 const customEnd = computed({
-	get: () => new Date(period.value.end.getFullYear(), period.value.end.getMonth(), period.value.end.getDate() - 1),
+	get: () => parseDay(addDays(period.value.end, -1)),
 	set: (value: Date | null) => {
 		if (!value) {
 			return
 		}
-		const end = new Date(value.getFullYear(), value.getMonth(), value.getDate() + 1)
-		const begin = period.value.begin < end ? period.value.begin : new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1)
+		const end = addDays(formatDay(value), 1)
+		const begin = period.value.begin < end ? period.value.begin : addDays(end, -1)
 		period.value = { type: 'custom', begin, end }
 	},
 })

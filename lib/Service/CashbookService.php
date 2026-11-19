@@ -73,19 +73,49 @@ final class CashbookService {
 	}
 
 	/**
-	 * Parse an IANA timezone ID.
+	 * Parse an IANA timezone ID, legacy names like `Europe/Kiev` are resolved to their canonical ID (`Europe/Kyiv`).
 	 *
-	 * Only `UTC` and the timezones of locations (`Area/Location`, including legacy names like `Europe/Kiev`) are supported.
+	 * Only `UTC` and the timezones of locations (`Area/Location`) are supported.
 	 * Fixed offsets like `+02:00`, `Etc/GMT-2` or `EST` are rejected, as they have no daylight saving time rules.
 	 *
 	 * @throws InvalidInputException If the timezone is not supported
 	 */
 	public function parseTimezone(string $timezone): \DateTimeZone {
 		$isLocation = str_contains($timezone, '/') && !str_starts_with($timezone, 'Etc/');
-		if ($timezone === '' || ($timezone !== 'UTC' && !$isLocation) || !in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)) {
+		$canonical = $timezone === 'UTC' || $isLocation ? $this->getCanonicalTimezone($timezone) : null;
+		if ($canonical === null) {
 			throw new InvalidInputException('Unknown timezone.', $this->l10n->t('The selected timezone is not supported.'));
 		}
-		return new \DateTimeZone($timezone);
+		return new \DateTimeZone($canonical);
+	}
+
+	/**
+	 * Get the canonical IANA ID of a timezone from the timezone database of PHP.
+	 *
+	 * Browsers report legacy names like `Europe/Kiev` or `Asia/Calcutta`, which are missing from databases without
+	 * the backward compatible links (e.g. the system database PHP uses on Debian and Ubuntu).
+	 * They are resolved with the timezone data of ICU, which is independent of the database of PHP.
+	 *
+	 * @return ?non-empty-string The canonical ID, null if the timezone is unknown
+	 */
+	private function getCanonicalTimezone(string $timezone): ?string {
+		$canonical = \DateTimeZone::listIdentifiers();
+		if ($timezone !== '' && in_array($timezone, $canonical, true)) {
+			return $timezone;
+		}
+
+		if (class_exists(\IntlTimeZone::class)) {
+			$count = \IntlTimeZone::countEquivalentIDs($timezone);
+			for ($index = 0; $index < $count; $index++) {
+				// Equivalent timezones are links with the same rules since 1970
+				$equivalent = \IntlTimeZone::getEquivalentID($timezone, $index);
+				if (is_string($equivalent) && $equivalent !== '' && in_array($equivalent, $canonical, true)) {
+					return $equivalent;
+				}
+			}
+		}
+
+		return $timezone !== '' && in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true) ? $timezone : null;
 	}
 
 	/**

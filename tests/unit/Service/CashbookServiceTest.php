@@ -24,6 +24,7 @@ use OCP\IDBConnection;
 use OCP\IL10N;
 use OCP\Server;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 
 final class CashbookServiceTest extends TestCase {
@@ -115,7 +116,6 @@ final class CashbookServiceTest extends TestCase {
 		return [
 			'canonical' => ['America/New_York'],
 			'UTC' => ['UTC'],
-			'legacy name reported by browsers' => ['Europe/Kiev'],
 		];
 	}
 
@@ -126,6 +126,25 @@ final class CashbookServiceTest extends TestCase {
 		$stored = $this->cashbookMapper->getCashbook($cashbook->getId());
 		$this->assertSame($timezone, $stored->getTimezone());
 		$this->assertSame($timezone, $stored->getDateTimeZone()->getName());
+	}
+
+	public static function dataCreateWithLegacyTimezone(): array {
+		return [
+			'renamed' => ['Europe/Kiev', 'Europe/Kyiv'],
+			'renamed and reported by browsers' => ['Asia/Calcutta', 'Asia/Kolkata'],
+			'link' => ['US/Eastern', 'America/New_York'],
+		];
+	}
+
+	/**
+	 * The legacy names are not known to PHP if it uses a timezone database without backward compatible links
+	 */
+	#[DataProvider('dataCreateWithLegacyTimezone')]
+	#[RequiresPhpExtension('intl')]
+	public function testCreateWithLegacyTimezone(string $timezone, string $canonical): void {
+		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR', '', $timezone);
+
+		$this->assertSame($canonical, $this->cashbookMapper->getCashbook($cashbook->getId())->getTimezone());
 	}
 
 	public static function dataDefaultTimezone(): array {

@@ -111,6 +111,14 @@ describe('NewEntryDialog', () => {
 		expect(wrapper.emitted('close')).toEqual([[entry]])
 	})
 
+	it('limits the receipt date to the current day of the cashbook', async () => {
+		vi.setSystemTime(new Date('2025-06-30T22:30:00Z'))
+		const wrapper = mount(NewEntryDialog, { attachTo: document.body, props: { cashbook: { ...cashbook, timezone: 'Pacific/Auckland' } } })
+		await flushPromises()
+
+		expect(wrapper.findComponent(NcDateTimePickerNative).props('max')).toEqual(new Date(2025, 6, 1))
+	})
+
 	it('uses the minor unit of the currency for the amount', async () => {
 		const wrapper = await mountDialog()
 

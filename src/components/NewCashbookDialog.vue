@@ -18,7 +18,7 @@ import { createCashbook, updateCashbook } from '../api/cashbooks.ts'
 import { getCurrencyOptions } from '../utils/currencies.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
-import { getBrowserTimezone, UTC_TIMEZONE } from '../utils/timezone.ts'
+import { getBrowserTimezone, toBrowserTimezoneId, UTC_TIMEZONE } from '../utils/timezone.ts'
 
 const props = defineProps<{
 	/** The cashbook to edit, if not set a new cashbook is created */
@@ -39,7 +39,7 @@ const newCashbook = ref<ICashbookData>({
 watch(() => props.cashbook, () => {
 	if (props.cashbook) {
 		const { name, account, currency, timezone } = props.cashbook
-		newCashbook.value = { name, account, currency, timezone }
+		newCashbook.value = { name, account, currency, timezone: toBrowserTimezoneId(timezone) }
 	}
 }, { immediate: true })
 
