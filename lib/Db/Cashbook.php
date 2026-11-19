@@ -28,6 +28,8 @@ use OCP\DB\Types;
  * @method void setCurrency(string $value)
  * @method string getOwner()
  * @method void setOwner(string $value)
+ * @method non-empty-string getTimezone()
+ * @method void setTimezone(string $value)
  */
 final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 
@@ -56,6 +58,12 @@ final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 	protected $owner;
 
 	/**
+	 * The timezone (IANA ID) of the cashbook, its business days are calendar days in this timezone
+	 * @var non-empty-string
+	 */
+	protected $timezone;
+
+	/**
 	 * The sequence number of the last entry, loaded from the entries by the mapper (not stored)
 	 * @var ?int
 	 */
@@ -72,6 +80,7 @@ final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 		$this->addType('account', 'string');
 		$this->addType('currency', 'string');
 		$this->addType('owner', 'string');
+		$this->addType('timezone', 'string');
 		$this->addType('lastSequence', Types::BIGINT);
 		$this->addType('balanceRaw', Types::STRING);
 	}
@@ -90,6 +99,10 @@ final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 		return Money::of($this->balanceRaw ?? '0', $this->currency);
 	}
 
+	public function getDateTimeZone(): \DateTimeZone {
+		return new \DateTimeZone($this->timezone);
+	}
+
 	/**
 	 * @return CashbookCashbook
 	 */
@@ -101,6 +114,7 @@ final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 			'currency' => $this->currency,
 			'name' => $this->name,
 			'owner' => $this->owner,
+			'timezone' => $this->timezone,
 			'lastSequence' => $this->getLastSequence(),
 			'balance' => (string)$this->getBalance()->getAmount(),
 		];

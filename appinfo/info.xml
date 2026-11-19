@@ -16,7 +16,7 @@
 - Print the cashbook of a period
 - Import cashbooks exported from the SumUp POS Pro (German version)
 ]]></description>
-	<version>0.0.2</version>
+	<version>0.0.3</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="opensource@fthiessen.de" homepage="https://github.com/susnux/nextcloud-cashbook">Ferdinand Thiessen</author>
 	<namespace>Cashbook</namespace>

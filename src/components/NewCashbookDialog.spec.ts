@@ -3,14 +3,21 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type * as Timezone from '../utils/timezone.ts'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import NewCashbookDialog from './NewCashbookDialog.vue'
 
 const { createCashbook, updateCashbook } = vi.hoisted(() => ({ createCashbook: vi.fn(), updateCashbook: vi.fn() }))
 vi.mock('../api/cashbooks.ts', () => ({ createCashbook, updateCashbook }))
+vi.mock('../utils/timezone.ts', async (importOriginal) => ({
+	...await importOriginal<typeof Timezone>(),
+	getBrowserTimezone: () => 'Europe/Berlin',
+}))
 
 /**
  * Mount the dialog and fill in the name and currency
@@ -50,14 +57,27 @@ describe('NewCashbookDialog', () => {
 	})
 
 	it('creates the cashbook with the currency code and emits it', async () => {
-		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'USD', owner: 'alice', lastSequence: 0, balance: '0.00' }
+		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'USD', owner: 'alice', timezone: 'Europe/Berlin', lastSequence: 0, balance: '0.00' }
 		createCashbook.mockResolvedValue(cashbook)
 		const wrapper = await mountFilledDialog()
 
 		await clickButton('Create cashbook')
 
-		expect(createCashbook).toHaveBeenCalledWith({ name: 'Shop', account: '', currency: 'USD' })
+		expect(createCashbook).toHaveBeenCalledWith({ name: 'Shop', account: '', currency: 'USD', timezone: 'Europe/Berlin' })
 		expect(wrapper.emitted('close')).toEqual([[cashbook]])
+	})
+
+	it('creates the cashbook with the selected timezone', async () => {
+		createCashbook.mockResolvedValue({ id: '1', name: 'Shop', account: '', currency: 'USD', owner: 'alice', timezone: 'Pacific/Auckland', lastSequence: 0, balance: '0.00' })
+		const wrapper = await mountFilledDialog()
+		const picker = wrapper.findComponent(NcTimezonePicker)
+		expect(picker.props('modelValue')).toBe('Europe/Berlin')
+		expect(picker.props('additionalTimezones')).toEqual([{ timezoneId: 'UTC', label: 'UTC', continent: '' }])
+		await picker.vm.$emit('update:modelValue', 'Pacific/Auckland')
+
+		await clickButton('Create cashbook')
+
+		expect(createCashbook).toHaveBeenCalledWith({ name: 'Shop', account: '', currency: 'USD', timezone: 'Pacific/Auckland' })
 	})
 
 	it('shows the error and stays open if creating fails', async () => {
@@ -74,7 +94,7 @@ describe('NewCashbookDialog', () => {
 	})
 
 	it('updates the name and account of an existing cashbook', async () => {
-		const cashbook = { id: '1', name: 'Shop', account: '1000', currency: 'USD', owner: 'alice', lastSequence: 0, balance: '0.00' }
+		const cashbook = { id: '1', name: 'Shop', account: '1000', currency: 'USD', owner: 'alice', timezone: 'Europe/Berlin', lastSequence: 0, balance: '0.00' }
 		const updated = { ...cashbook, name: 'Market', account: '1200' }
 		updateCashbook.mockResolvedValue(updated)
 		const wrapper = mount(NewCashbookDialog, { attachTo: document.body, props: { cashbook } })
@@ -82,6 +102,9 @@ describe('NewCashbookDialog', () => {
 
 		expect(document.body.textContent).toContain('Edit cashbook')
 		expect(wrapper.findComponent(NcSelect).props('disabled')).toBe(true)
+		const picker = wrapper.findComponent(NcTimezonePicker)
+		expect(picker.props('modelValue')).toBe('Europe/Berlin')
+		expect(picker.findComponent(NcSelect).props('disabled')).toBe(true)
 		const [nameField, accountField] = wrapper.findAllComponents(NcTextField)
 		expect(nameField!.props('modelValue')).toBe('Shop')
 		await nameField!.vm.$emit('update:modelValue', 'Market')
@@ -90,7 +113,7 @@ describe('NewCashbookDialog', () => {
 		await clickButton('Save')
 
 		expect(createCashbook).not.toHaveBeenCalled()
-		expect(updateCashbook).toHaveBeenCalledWith('1', { name: 'Market', account: '1200', currency: 'USD' })
+		expect(updateCashbook).toHaveBeenCalledWith('1', { name: 'Market', account: '1200', currency: 'USD', timezone: 'Europe/Berlin' })
 		expect(wrapper.emitted('close')).toEqual([[updated]])
 	})
 })

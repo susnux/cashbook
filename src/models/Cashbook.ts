@@ -11,6 +11,8 @@ export interface ICashbook {
 	currency: string
 	/** The user id of the owner */
 	owner: string
+	/** The IANA timezone ID, the business days of the cashbook are calendar days in this timezone */
+	timezone: string
 	/** The sequence number of the last entry, 0 if there are no entries */
 	lastSequence: number
 	/** The cash balance after the last entry as decimal string */
@@ -20,7 +22,7 @@ export interface ICashbook {
 /**
  * The properties of a cashbook that can be set by the user
  */
-export type ICashbookData = Pick<ICashbook, 'name' | 'account' | 'currency'>
+export type ICashbookData = Pick<ICashbook, 'name' | 'account' | 'currency' | 'timezone'>
 
 export class Cashbook implements ICashbook {
 	public id: string
@@ -28,6 +30,7 @@ export class Cashbook implements ICashbook {
 	public account: string
 	public currency: string
 	public owner: string
+	public timezone: string
 	public lastSequence: number
 	public balance: string
 
@@ -37,6 +40,7 @@ export class Cashbook implements ICashbook {
 		this.name = data.name
 		this.currency = data.currency
 		this.owner = data.owner
+		this.timezone = data.timezone
 		this.lastSequence = data.lastSequence
 		this.balance = data.balance
 	}

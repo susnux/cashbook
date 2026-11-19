@@ -89,17 +89,18 @@ final class ApiControllerTest extends TestCase {
 		return $l10n;
 	}
 
-	private function newCashbook(string $owner, string $name = 'Cashbook'): Cashbook {
+	private function newCashbook(string $owner, string $name = 'Cashbook', string $timezone = 'UTC'): Cashbook {
 		$cashbook = new Cashbook();
 		$cashbook->setName($name);
 		$cashbook->setAccount('1000');
 		$cashbook->setCurrency('EUR');
+		$cashbook->setTimezone($timezone);
 		$cashbook->setOwner($owner);
 		return $cashbook;
 	}
 
-	private function createCashbook(string $owner, string $name = 'Cashbook'): Cashbook {
-		$cashbook = $this->cashbookMapper->insert($this->newCashbook($owner, $name));
+	private function createCashbook(string $owner, string $name = 'Cashbook', string $timezone = 'UTC'): Cashbook {
+		$cashbook = $this->cashbookMapper->insert($this->newCashbook($owner, $name, $timezone));
 		$this->cashbooks[] = $cashbook;
 		return $cashbook;
 	}
@@ -123,6 +124,7 @@ final class ApiControllerTest extends TestCase {
 				'currency' => 'EUR',
 				'name' => 'Shop',
 				'owner' => 'alice',
+				'timezone' => 'UTC',
 				'lastSequence' => 0,
 				'balance' => '0.00',
 			],
@@ -322,6 +324,55 @@ final class ApiControllerTest extends TestCase {
 		));
 	}
 
+	public static function dataGetCashbookEntriesPrintDays(): array {
+		return [
+			'plain days in the timezone of the cashbook' => ['2025-01-02', '2025-01-03', [2, 3]],
+			'date times with offset' => ['2025-01-02T00:00:00Z', '2025-01-03T00:00:00Z', [3, 4]],
+		];
+	}
+
+	/**
+	 * @param list<int> $sequences
+	 */
+	#[DataProvider('dataGetCashbookEntriesPrintDays')]
+	public function testGetCashbookEntriesPrintDays(string $begin, string $end, array $sequences): void {
+		// Midnight in Auckland (UTC+13 in January) is 11:00 UTC of the previous day
+		$cashbook = $this->createCashbook('alice', timezone: 'Pacific/Auckland');
+		$times = ['2025-01-01 10:59', '2025-01-01 11:00', '2025-01-02 10:59', '2025-01-02 11:00', '2025-01-03 00:00'];
+		$balance = Money::of('0', 'EUR');
+		foreach ($times as $index => $time) {
+			$balance = $balance->plus('1');
+			$this->entryMapper->insert(Entry::create(
+				$cashbook,
+				$index + 1,
+				'alice',
+				new \DateTimeImmutable($time, new \DateTimeZone('UTC')),
+				'',
+				EntryReason::IncomeMisc,
+				Money::of('1', 'EUR'),
+				$balance,
+			));
+		}
+
+		$response = $this->createController()->getCashbookEntriesPrint($cashbook->getId(), $begin, $end);
+		$this->assertSame($sequences, array_column($response->getData(), 'sequence'));
+	}
+
+	public function testGetCashbookEntriesPrintOfOtherUserWithInvalidDate(): void {
+		$cashbook = $this->createCashbook('bob');
+
+		$this->expectException(OCSNotFoundException::class);
+		$this->createController()->getCashbookEntriesPrint($cashbook->getId(), 'invalid', 'invalid');
+	}
+
+	public function testGetCashbookEntriesPrintInvalidDate(): void {
+		$cashbook = $this->createCashbook('alice');
+
+		$this->expectException(OCSBadRequestException::class);
+		$this->expectExceptionMessage('Invalid date param passed');
+		$this->createController()->getCashbookEntriesPrint($cashbook->getId(), 'invalid', '2025-01-03');
+	}
+
 	public static function dataGetCashbookEntriesPrintLimit(): array {
 		return [
 			'at the limit' => [ApiController::MAX_PRINT_ENTRIES, true],
@@ -448,6 +499,21 @@ final class ApiControllerTest extends TestCase {
 		$this->assertSame('alice', $data['owner']);
 	}
 
+	public function testCreateCashbookWithTimezone(): void {
+		$response = $this->createController()->createCashbook('Shop', 'EUR', '', 'America/New_York');
+		$data = $response->getData();
+		$this->cashbooks[] = $this->cashbookMapper->getCashbook($data['id']);
+
+		$this->assertSame('America/New_York', $data['timezone']);
+		$this->assertSame('America/New_York', $this->cashbookMapper->getCashbook($data['id'])->getTimezone());
+	}
+
+	public function testCreateCashbookInvalidTimezone(): void {
+		$this->expectException(OCSBadRequestException::class);
+		$this->expectExceptionMessage('The selected timezone is not supported.');
+		$this->createController()->createCashbook('Shop', 'EUR', '', 'Etc/GMT-2');
+	}
+
 	public function testCreateCashbookEmptyName(): void {
 		$this->expectException(OCSBadRequestException::class);
 		$this->expectExceptionMessage('The name of the cashbook must not be empty.');
@@ -461,7 +527,7 @@ final class ApiControllerTest extends TestCase {
 	}
 
 	public function testUpdateCashbook(): void {
-		$cashbook = $this->createCashbook('alice', 'Shop');
+		$cashbook = $this->createCashbook('alice', 'Shop', 'Europe/Berlin');
 		$this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeMisc, '5');
 
 		$response = $this->createController()->updateCashbook($cashbook->getId(), 'Market', '1200');
@@ -471,6 +537,7 @@ final class ApiControllerTest extends TestCase {
 			'currency' => 'EUR',
 			'name' => 'Market',
 			'owner' => 'alice',
+			'timezone' => 'Europe/Berlin',
 			'lastSequence' => 1,
 			'balance' => '5.00',
 		], $response->getData());

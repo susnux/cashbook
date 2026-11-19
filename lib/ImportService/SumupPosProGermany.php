@@ -25,7 +25,6 @@ use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\Db\TTransactional;
-use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
@@ -52,6 +51,10 @@ final class SumupPosProGermany implements IImportService {
 	protected ?Money $balance = null;
 	/** The sequence number of the last imported entry */
 	protected int $sequence = 0;
+	/**
+	 * The timezone of the cashbook, the exported dates are in this timezone
+	 * @psalm-suppress PropertyNotSetInConstructor Set in prepareCashbook() before it is used
+	 */
 	protected \DateTimeZone $timezone;
 
 	protected const string FILE_CASHBOOK = 'cashbook';
@@ -85,7 +88,6 @@ final class SumupPosProGermany implements IImportService {
 	];
 
 	public function __construct(
-		IDateTimeZone $timeZoneFactory,
 		protected ?string $userId,
 		protected LoggerInterface $logger,
 		protected IL10N $l10n,
@@ -94,7 +96,6 @@ final class SumupPosProGermany implements IImportService {
 		protected EntryMapper $entryMapper,
 		protected CashbookService $cashbookService,
 	) {
-		$this->timezone = $timeZoneFactory->getTimeZone();
 	}
 
 	/**
@@ -103,14 +104,8 @@ final class SumupPosProGermany implements IImportService {
 	 */
 	#[\Override]
 	public function import(array $files, array $options = []): Cashbook {
-		// The exported dates have no timezone information, so this needs to be set before anything is parsed
-		if (isset($options['timezone']) && $options['timezone'] !== '') {
-			try {
-				$this->timezone = new \DateTimeZone($options['timezone']);
-			} catch (Exception $error) {
-				throw new InvalidArgumentException('Invalid timezone option passed.', previous: $error);
-			}
-		}
+		$timezone = $options['timezone'] ?? '';
+		$timezone = $timezone === '' ? null : $this->cashbookService->parseTimezone($timezone)->getName();
 
 		$unknownFiles = array_diff(array_keys($files), [self::FILE_CASHBOOK, self::FILE_REPORT]);
 		if ($unknownFiles !== []) {
@@ -138,7 +133,7 @@ final class SumupPosProGermany implements IImportService {
 		}
 
 		try {
-			$this->prepareCashbook();
+			$this->prepareCashbook($timezone);
 			$this->atomic(function (): void {
 				$this->cashbookMapper->insert($this->cashbook);
 				if ($this->reportIterator !== null) {
@@ -157,9 +152,12 @@ final class SumupPosProGermany implements IImportService {
 	/**
 	 * Create the cashbook from the first entry of the cashbook export.
 	 *
+	 * The exported dates have no timezone information, they are parsed in the timezone of the cashbook.
+	 *
+	 * @param ?string $timezone The validated IANA timezone ID of the cashbook, defaults to the timezone of the user
 	 * @throws InvalidInputException If the currency, store name or store ID is invalid
 	 */
-	protected function prepareCashbook(): void {
+	protected function prepareCashbook(?string $timezone): void {
 		$entry = $this->currentRecord($this->cashbookIterator);
 		$currency = $entry['currency'];
 		try {
@@ -169,10 +167,11 @@ final class SumupPosProGermany implements IImportService {
 		}
 
 		try {
-			$this->cashbook = $this->cashbookService->build($this->getUserId(), $entry['store'], $currency, $entry['storeId']);
+			$this->cashbook = $this->cashbookService->build($this->getUserId(), $entry['store'], $currency, $entry['storeId'], $timezone);
 		} catch (InvalidInputException|InvalidArgumentException $error) {
 			throw new InvalidInputException('The store name or ID of the cashbook export is invalid.', $this->l10n->t('The store name or ID of the cashbook export is invalid.'), previous: $error);
 		}
+		$this->timezone = $this->cashbook->getDateTimeZone();
 	}
 
 	/**

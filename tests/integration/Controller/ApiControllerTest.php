@@ -21,7 +21,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$alice = $this->createUser();
 
 		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
-			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR', 'account' => '1000'],
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR', 'account' => '1000', 'timezone' => 'Europe/Berlin'],
 		]));
 		$this->assertIsString($cashbook['id']);
 		$this->assertMatchesRegularExpression('/^\d+$/', $cashbook['id']);
@@ -31,6 +31,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 			'currency' => 'EUR',
 			'name' => 'Shop',
 			'owner' => $alice,
+			'timezone' => 'Europe/Berlin',
 			'lastSequence' => 0,
 			'balance' => '0.00',
 		], $cashbook);
@@ -43,6 +44,56 @@ final class ApiControllerTest extends IntegrationTestCase {
 			[$cashbook],
 			$this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks')),
 		);
+	}
+
+	public function testCreateCashbookDefaultsToTimezoneOfUser(): void {
+		$alice = $this->createUser();
+
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+		$this->assertContains($cashbook['timezone'], \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC));
+	}
+
+	public static function dataCreateCashbookInvalidTimezone(): array {
+		return [
+			'unknown timezone' => ['Mars/Olympus'],
+			'offset' => ['+02:00'],
+			'fixed offset zone' => ['Etc/GMT-2'],
+		];
+	}
+
+	#[DataProvider('dataCreateCashbookInvalidTimezone')]
+	public function testCreateCashbookInvalidTimezone(string $timezone): void {
+		$alice = $this->createUser();
+
+		$response = $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR', 'timezone' => $timezone],
+		]);
+		$this->assertOcsResponse(400, $response);
+		$this->assertSame('The selected timezone is not supported.', json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
+		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks')));
+	}
+
+	public function testGetCashbookEntriesPrintUsesDaysOfCashbookTimezone(): void {
+		$alice = $this->createUser();
+		$result = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/import', [
+			RequestOptions::MULTIPART => [
+				['name' => 'import', 'contents' => 'sumup-pos-pro-de'],
+				['name' => 'timezone', 'contents' => 'Pacific/Auckland'],
+				['name' => 'files[cashbook]', 'contents' => fopen(self::FIXTURES . 'Kassenbuch_report.csv', 'r'), 'filename' => 'Kassenbuch_report.csv'],
+			],
+		]));
+		$path = 'api/v1/cashbooks/' . $result['id'];
+		$this->assertSame('Pacific/Auckland', $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path))['timezone']);
+
+		// The entries of 2 January in Auckland (UTC+13) were recorded on 1 January UTC
+		$entries = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path . '/entries/print?begin=2025-01-02&end=2025-01-03'));
+		$this->assertSame([2, 3], array_column($entries, 'sequence'));
+		$this->assertSame(['2025-01-01T20:30:00+00:00', '2025-01-01T21:00:00+00:00'], array_column($entries, 'date'));
+
+		$entries = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path . '/entries/print?begin=2025-01-02T00:00:00Z&end=2025-01-03T00:00:00Z'));
+		$this->assertSame([4], array_column($entries, 'sequence'));
 	}
 
 	public function testGetCashbookEntriesRejectsOutOfRangePagination(): void {
