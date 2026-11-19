@@ -111,6 +111,7 @@ function onUpdateOpen(open: boolean) {
 	<NcDialog
 		isForm
 		:buttons="buttons"
+		:contentClasses="$style.newCashbookDialog"
 		:name="isEditing ? t('cashbook', 'Edit cashbook') : t('cashbook', 'New cashbook')"
 		@update:open="onUpdateOpen">
 		<NcTextField
@@ -124,7 +125,7 @@ function onUpdateOpen(open: boolean) {
 			:label="t('cashbook', 'Account')" />
 		<NcSelect
 			v-model="selectedCurrency"
-			:class="$style.currencySelect"
+			:class="$style.newCashbookDialog__select"
 			:clearable="false"
 			:disabled="isEditing"
 			:inputLabel="t('cashbook', 'Currency')"
@@ -133,12 +134,13 @@ function onUpdateOpen(open: boolean) {
 		<!-- The picker sets an `ariaLabelCombobox` that would replace the input label as accessible name -->
 		<NcTimezonePicker
 			v-model="newCashbook.timezone"
+			:class="$style.newCashbookDialog__select"
 			:additionalTimezones="[UTC_TIMEZONE]"
 			:ariaLabelCombobox="null"
 			:disabled="isEditing"
 			:inputLabel="t('cashbook', 'Timezone')"
 			:uid="timezonePickerId" />
-		<p :class="$style.timezoneHint">
+		<p :class="$style.newCashbookDialog__timezoneHint">
 			{{ t('cashbook', 'The days of the cashbook follow this timezone. It can not be changed later.') }}
 		</p>
 		<NcNoteCard v-if="error" type="error" :text="error" />
@@ -146,11 +148,17 @@ function onUpdateOpen(open: boolean) {
 </template>
 
 <style lang="scss" module>
-.currencySelect {
+.newCashbookDialog {
+	> *:not(.newCashbookDialog__timezoneHint) {
+		margin-block: calc(3 * var(--default-grid-baseline));
+	}
+}
+
+.newCashbookDialog__select {
 	width: 100%;
 }
 
-.timezoneHint {
+.newCashbookDialog__timezoneHint {
 	color: var(--color-text-maxcontrast);
 }
 </style>
