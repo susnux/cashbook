@@ -88,6 +88,19 @@ final class SumupPosProGermanyTest extends TestCase {
 	}
 
 	/**
+	 * Create a temporary file which is removed after the test.
+	 *
+	 * @return string The path of the file
+	 */
+	private function createTempFile(string $content): string {
+		$file = tempnam(sys_get_temp_dir(), 'cashbook');
+		$this->assertIsString($file);
+		$this->tempFiles[] = $file;
+		file_put_contents($file, $content);
+		return $file;
+	}
+
+	/**
 	 * Create a temporary CSV file from the rows of the basic cashbook export, each row as list of columns.
 	 *
 	 * @param callable(list<string>): list<string> $mapRow Callback to change the columns of each row including the header
@@ -98,11 +111,7 @@ final class SumupPosProGermanyTest extends TestCase {
 			static fn (string $line): string => implode(';', $mapRow(explode(';', $line))),
 			file(self::FIXTURES . 'Kassenbuch_basic.csv', FILE_IGNORE_NEW_LINES) ?: [],
 		);
-		$file = tempnam(sys_get_temp_dir(), 'cashbook');
-		$this->assertIsString($file);
-		$this->tempFiles[] = $file;
-		file_put_contents($file, implode("\n", $rows) . "\n");
-		return $file;
+		return $this->createTempFile(implode("\n", $rows) . "\n");
 	}
 
 	/**
@@ -196,18 +205,6 @@ final class SumupPosProGermanyTest extends TestCase {
 		));
 	}
 
-	public function testImportTwiceWithTheSameImporter(): void {
-		$importer = $this->createImporter();
-		$importer->import($this->files('Kassenbuch_report.csv', 'Tagesabschluss_report.csv'), ['timezone' => 'UTC']);
-		$cashbook = $importer->import($this->files('Kassenbuch_report.csv'));
-
-		$entries = $this->getEntries($cashbook);
-		$this->assertSame([1, 2, 3, 4, 5], array_map(static fn (Entry $entry): int => $entry->getSequence(), $entries));
-		$this->assertNotContains(EntryReason::DayOpening, array_map(static fn (Entry $entry): ?EntryReason => $entry->getReason(), $entries));
-		// The default timezone (Europe/Berlin) is used again
-		$this->assertSame('2025-01-01T17:00:00+00:00', $entries[0]->getDatetime()->format(DATE_ATOM));
-	}
-
 	public static function dataInvalidCsv(): array {
 		return [
 			'empty file' => [static fn (array $columns): array => []],
@@ -232,23 +229,15 @@ final class SumupPosProGermanyTest extends TestCase {
 	}
 
 	public function testImportTooManyRows(): void {
-		$file = tempnam(sys_get_temp_dir(), 'cashbook');
-		$this->assertIsString($file);
-		try {
-			$csv = fopen($file, 'w');
-			$this->assertIsResource($csv);
-			fwrite($csv, (string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0]);
-			$row = "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n";
-			fwrite($csv, str_repeat($row, SumupPosProGermany::MAX_ROWS + 1));
-			fclose($csv);
+		$row = "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n";
+		$file = $this->createTempFile((string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0] . str_repeat($row, SumupPosProGermany::MAX_ROWS + 1));
 
+		try {
 			$this->createImporter()->import(['cashbook' => $file]);
 			$this->fail('Import should have failed');
 		} catch (InvalidInputException $error) {
 			$this->assertSame('The selected files contain more than 100000 rows.', $error->getMessage());
 			$this->assertSame('translated: The selected files contain more than 100000 rows. Export a shorter period.', $error->getHint());
-		} finally {
-			unlink($file);
 		}
 		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}

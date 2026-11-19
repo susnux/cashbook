@@ -127,7 +127,7 @@ test.describe('Add entry', () => {
 	})
 
 	test('shows the period of the added entry', async ({ cashbookApp, page }) => {
-		await page.goto(page.url().replace(/\?.*$/, '') + '?period=month&from=2025-01-01&to=2025-01-31')
+		await cashbookApp.showMonth('2025-01')
 		await expect(page.getByText('January 2025', { exact: true })).toBeVisible()
 
 		await cashbookApp.addEntry({ type: 'Income', amount: '20', text: 'First sale' })

@@ -8,7 +8,7 @@ import type { ICashbook } from '../models/Cashbook.ts'
 
 import { mdiClose } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
@@ -25,15 +25,36 @@ const emit = defineEmits<{
 
 const CSV_TYPES = ['.csv', 'text/csv']
 
-const cashbookFile = ref<File>()
-const reportFile = ref<File>()
+type ImportFiles = Parameters<typeof importSumupCashbook>[0]
+
+interface FileField {
+	name: keyof ImportFiles
+	legend: string
+	hint: string
+	pickLabel: string
+	/** Label of the button to remove the selected file, only set for optional files */
+	removeLabel?: string
+}
+
+const fileFields: FileField[] = [
+	{
+		name: 'cashbook',
+		legend: t('cashbook', 'Cashbook export'),
+		hint: t('cashbook', 'The export of the cash register book (Kassenbuch_….csv).'),
+		pickLabel: t('cashbook', 'Select cashbook export'),
+	},
+	{
+		name: 'report',
+		legend: t('cashbook', 'Daily closing report (optional)'),
+		hint: t('cashbook', 'The export of the daily closings to import the day openings and closings.'),
+		pickLabel: t('cashbook', 'Select daily closing report'),
+		removeLabel: t('cashbook', 'Remove daily closing report'),
+	},
+]
+
+const files = ref<Partial<ImportFiles>>({})
 const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone)
 const timezonePickerId = 'cashbook-import-timezone'
-// Fixed IDs as the dialog is mounted as a separate Vue app, so `useId()` would collide with IDs of the main app
-const cashbookHintId = 'cashbook-import-cashbook-hint'
-const cashbookFileNameId = 'cashbook-import-cashbook-file-name'
-const reportHintId = 'cashbook-import-report-hint'
-const reportFileNameId = 'cashbook-import-report-file-name'
 const error = ref('')
 const imported = ref<ICashbook>()
 
@@ -45,7 +66,7 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'primary',
 		label: t('cashbook', 'Import cashbook'),
-		disabled: !cashbookFile.value,
+		disabled: !files.value.cashbook,
 		callback: onImport,
 	},
 ])
@@ -54,19 +75,33 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
  * Upload the selected files, keep the dialog open on failure.
  */
 async function onImport() {
-	if (!cashbookFile.value) {
+	const { cashbook, report } = files.value
+	if (!cashbook) {
 		return false
 	}
 
 	error.value = ''
 	try {
-		imported.value = await importSumupCashbook({ cashbook: cashbookFile.value, report: reportFile.value }, timezone.value)
+		imported.value = await importSumupCashbook({ cashbook, report }, timezone.value)
 	} catch (e) {
 		logger.error('Failed to import cashbook', { error: e })
 		error.value = getOcsErrorMessage(e)
 			?? t('cashbook', 'Could not import the cashbook. Please make sure you selected the cashbook export (Kassenbuch_….csv) and optionally the matching daily closing report.')
 		return false
 	}
+}
+
+/**
+ * Remove a selected file and move the focus to its file picker, as the remove button disappears.
+ *
+ * @param name - The name of the file
+ * @param event - The click event of the remove button
+ */
+async function removeFile(name: FileField['name'], event: MouseEvent) {
+	const fieldset = (event.currentTarget as HTMLElement | null)?.closest('fieldset')
+	delete files.value[name]
+	await nextTick()
+	fieldset?.querySelector('button')?.focus()
 }
 
 /**
@@ -87,45 +122,32 @@ function onUpdateOpen(open: boolean) {
 		<p>
 			{{ t('cashbook', 'Select the CSV exports of the SumUp POS Pro.') }}
 		</p>
-		<fieldset :class="$style.fileField" :aria-describedby="`${cashbookHintId} ${cashbookFileNameId}`">
+		<!-- Fixed IDs as the dialog is mounted as a separate Vue app, so `useId()` would collide with IDs of the main app -->
+		<fieldset
+			v-for="field in fileFields"
+			:key="field.name"
+			:class="$style.fileField"
+			:aria-describedby="`cashbook-import-${field.name}-hint cashbook-import-${field.name}-file-name`">
 			<legend :class="$style.fileLegend">
-				{{ t('cashbook', 'Cashbook export') }}
+				{{ field.legend }}
 			</legend>
-			<p :id="cashbookHintId">
-				{{ t('cashbook', 'The export of the cash register book (Kassenbuch_….csv).') }}
+			<p :id="`cashbook-import-${field.name}-hint`">
+				{{ field.hint }}
 			</p>
 			<div :class="$style.fileSelection">
 				<NcFilePicker
 					:accept="CSV_TYPES"
-					:label="t('cashbook', 'Select cashbook export')"
+					:label="field.pickLabel"
 					variant="secondary"
-					@pick="cashbookFile = $event[0]" />
-				<span :id="cashbookFileNameId" :class="$style.fileName">
-					{{ cashbookFile?.name ?? t('cashbook', 'No file selected') }}
-				</span>
-			</div>
-		</fieldset>
-		<fieldset :class="$style.fileField" :aria-describedby="`${reportHintId} ${reportFileNameId}`">
-			<legend :class="$style.fileLegend">
-				{{ t('cashbook', 'Daily closing report (optional)') }}
-			</legend>
-			<p :id="reportHintId">
-				{{ t('cashbook', 'The export of the daily closings to import the day openings and closings.') }}
-			</p>
-			<div :class="$style.fileSelection">
-				<NcFilePicker
-					:accept="CSV_TYPES"
-					:label="t('cashbook', 'Select daily closing report')"
-					variant="secondary"
-					@pick="reportFile = $event[0]" />
-				<span :id="reportFileNameId" :class="$style.fileName">
-					{{ reportFile?.name ?? t('cashbook', 'No file selected') }}
+					@pick="files[field.name] = $event[0]" />
+				<span :id="`cashbook-import-${field.name}-file-name`" :class="$style.fileName">
+					{{ files[field.name]?.name ?? t('cashbook', 'No file selected') }}
 				</span>
 				<NcButton
-					v-if="reportFile"
-					:aria-label="t('cashbook', 'Remove daily closing report')"
+					v-if="field.removeLabel && files[field.name]"
+					:aria-label="field.removeLabel"
 					variant="tertiary"
-					@click="reportFile = undefined">
+					@click="removeFile(field.name, $event)">
 					<template #icon>
 						<NcIconSvgWrapper :path="mdiClose" />
 					</template>

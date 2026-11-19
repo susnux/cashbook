@@ -29,7 +29,6 @@ use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
-use UnexpectedValueException;
 
 /**
  * Allow to import the cashbook of the SumUp POS Pro (German version)
@@ -53,7 +52,6 @@ final class SumupPosProGermany implements IImportService {
 	protected ?Money $balance = null;
 	/** The sequence number of the last imported entry */
 	protected int $sequence = 0;
-	/** @psalm-suppress PropertyNotSetInConstructor Set at the beginning of import() */
 	protected \DateTimeZone $timezone;
 
 	protected const string FILE_CASHBOOK = 'cashbook';
@@ -63,24 +61,21 @@ final class SumupPosProGermany implements IImportService {
 	/** Maximum number of rows of an imported CSV file, all rows are imported in a single transaction */
 	public const int MAX_ROWS = 100_000;
 
+	/** Columns of the cashbook export read by the importer, all of them are required */
 	protected const array CSV_HEADER_MAPPING = [
 		'Geschäft' => 'store',
 		'Geschäfts ID' => 'storeId',
 		'Datum und Uhrzeit' => 'datetime',
-		'Belegnummer' => 'reference',
 		'Grund' => 'reason',
 		'Buchungstext' => 'text',
 		'Währung' => 'currency',
 		'Einnahmen' => 'debit',
 		'Ausgaben' => 'credit',
 		'Mehrwertsteuersatz' => 'tax',
-		'Betrag MwSt' => 'taxSum',
 		'Kassenbestand' => 'total',
 	];
 
-	/** The columns of the cashbook export read by the importer */
-	protected const array CSV_REQUIRED_COLUMNS = ['store', 'storeId', 'datetime', 'reason', 'text', 'currency', 'debit', 'credit', 'tax', 'total'];
-
+	/** Columns of the daily closing report read by the importer, all of them are required */
 	protected const array CSV_REPORT_HEADER_MAPPING = [
 		'Eröffnungsdatum' => 'opening',
 		'Datum geschlossen' => 'closing',
@@ -90,7 +85,7 @@ final class SumupPosProGermany implements IImportService {
 	];
 
 	public function __construct(
-		protected IDateTimeZone $timeZoneFactory,
+		IDateTimeZone $timeZoneFactory,
 		protected ?string $userId,
 		protected LoggerInterface $logger,
 		protected IL10N $l10n,
@@ -99,6 +94,7 @@ final class SumupPosProGermany implements IImportService {
 		protected EntryMapper $entryMapper,
 		protected CashbookService $cashbookService,
 	) {
+		$this->timezone = $timeZoneFactory->getTimeZone();
 	}
 
 	/**
@@ -107,12 +103,6 @@ final class SumupPosProGermany implements IImportService {
 	 */
 	#[\Override]
 	public function import(array $files, array $options = []): Cashbook {
-		// The service is shared by the container, so nothing of a previous import must be left
-		$this->reportIterator = null;
-		$this->balance = null;
-		$this->sequence = 0;
-		$this->timezone = $this->timeZoneFactory->getTimeZone();
-
 		// The exported dates have no timezone information, so this needs to be set before anything is parsed
 		if (isset($options['timezone']) && $options['timezone'] !== '') {
 			try {
@@ -130,27 +120,18 @@ final class SumupPosProGermany implements IImportService {
 			throw new InvalidArgumentException('No cashbook export passed.');
 		}
 
-		try {
-			$this->cashbookIterator = $this->readCsv($files[self::FILE_CASHBOOK], self::CSV_HEADER_MAPPING, self::CSV_REQUIRED_COLUMNS);
-		} catch (UnexpectedValueException $error) {
-			throw new InvalidInputException(
-				'The selected cashbook export is not a valid SumUp cashbook export.',
-				$this->l10n->t('The selected cashbook export is not a valid SumUp cashbook export.'),
-				previous: $error,
-			);
-		}
-
-		if (isset($files[self::FILE_REPORT])) {
-			try {
-				$this->reportIterator = $this->readCsv($files[self::FILE_REPORT], self::CSV_REPORT_HEADER_MAPPING, array_values(self::CSV_REPORT_HEADER_MAPPING));
-			} catch (UnexpectedValueException $error) {
-				throw new InvalidInputException(
-					'The selected daily closing report is not a valid SumUp daily closing report.',
-					$this->l10n->t('The selected daily closing report is not a valid SumUp daily closing report.'),
-					previous: $error,
-				);
-			}
-		}
+		$this->cashbookIterator = $this->readCsv(
+			$files[self::FILE_CASHBOOK],
+			self::CSV_HEADER_MAPPING,
+			'The selected cashbook export is not a valid SumUp cashbook export.',
+			$this->l10n->t('The selected cashbook export is not a valid SumUp cashbook export.'),
+		);
+		$this->reportIterator = !isset($files[self::FILE_REPORT]) ? null : $this->readCsv(
+			$files[self::FILE_REPORT],
+			self::CSV_REPORT_HEADER_MAPPING,
+			'The selected daily closing report is not a valid SumUp daily closing report.',
+			$this->l10n->t('The selected daily closing report is not a valid SumUp daily closing report.'),
+		);
 
 		if ($this->cashbookIterator->valid() === false) {
 			throw new InvalidInputException('The cashbook export does not contain any entries.', $this->l10n->t('The cashbook export does not contain any entries.'));
@@ -324,23 +305,23 @@ final class SumupPosProGermany implements IImportService {
 	/**
 	 * Read a CSV file and map its localized header to the internal keys.
 	 *
-	 * @param array<string, string> $headerMapping
-	 * @param list<string> $requiredColumns The internal keys of the columns the file needs to contain
+	 * @param array<string, string> $headerMapping The columns of the file, all of them are required
+	 * @param string $invalidMessage The English message if the file is not a CSV file with all columns
+	 * @param string $invalidHint The translated hint if the file is not a CSV file with all columns
 	 * @return Iterator<array-key, CsvRecord>
-	 * @throws UnexpectedValueException If the file is not a CSV file or misses a required column
-	 * @throws InvalidInputException If the file has more than `MAX_ROWS` rows
+	 * @throws InvalidInputException If the file is not a CSV file, misses a column or has more than `MAX_ROWS` rows
 	 */
-	protected function readCsv(string $path, array $headerMapping, array $requiredColumns): Iterator {
+	protected function readCsv(string $path, array $headerMapping, string $invalidMessage, string $invalidHint): Iterator {
 		try {
 			$csv = Reader::from($path, 'r');
 			$csv->setHeaderOffset(0);
 			$csv->setDelimiter(self::CSV_DELIMITER);
 			$csv->setEnclosure(self::CSV_ENCLOSURE);
-			$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csv->getHeader());
-
-			$missingColumns = array_diff($requiredColumns, $header);
+			$csvHeader = $csv->getHeader();
+			$missingColumns = array_diff(array_keys($headerMapping), $csvHeader);
 			if ($missingColumns !== []) {
-				throw new UnexpectedValueException('The CSV file is missing the columns: ' . implode(', ', $missingColumns));
+				$this->logger->debug('The CSV file is missing required columns', ['columns' => $missingColumns]);
+				throw new InvalidInputException($invalidMessage, $invalidHint);
 			}
 
 			if (count($csv) > self::MAX_ROWS) {
@@ -350,12 +331,13 @@ final class SumupPosProGermany implements IImportService {
 				);
 			}
 
+			$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csvHeader);
 			/** @var Iterator<array-key, CsvRecord> $records */
 			$records = $csv->getRecords($header);
 			$records->rewind();
 			return $records;
 		} catch (CsvException $error) {
-			throw new UnexpectedValueException('The file is not a valid CSV file.', previous: $error);
+			throw new InvalidInputException($invalidMessage, $invalidHint, previous: $error);
 		}
 	}
 

@@ -130,6 +130,7 @@ describe('ImportCashbookDialog', () => {
 		await pickFile(wrapper, 1, reportFile)
 		await clickButton('Remove daily closing report')
 		expect(document.body.textContent).not.toContain('Tagesabschluss_2025.csv')
+		expect(document.activeElement).toBe(getButton('Select daily closing report'))
 
 		await clickButton('Import cashbook')
 

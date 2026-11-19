@@ -248,6 +248,11 @@ final class ApiControllerTest extends TestCase {
 			'single file field' => [['name' => 'a.csv', 'tmp_name' => '/tmp/a.csv', 'error' => UPLOAD_ERR_OK], 'Files need to be uploaded as files[<name>]'],
 			'unnamed files' => [['name' => ['a.csv'], 'tmp_name' => ['/tmp/a.csv'], 'error' => [UPLOAD_ERR_OK]], 'Files need to be uploaded as files[<name>]'],
 			'nested files' => [['name' => ['cashbook' => ['a.csv']], 'tmp_name' => ['cashbook' => ['/tmp/a.csv']], 'error' => ['cashbook' => [UPLOAD_ERR_OK]]], 'Files need to be uploaded as files[<name>]'],
+			'malformed file next to a failed upload' => [[
+				'name' => ['cashbook' => 'a.csv', 'report' => 'b.csv'],
+				'tmp_name' => ['cashbook' => '/tmp/a.csv', 'report' => ['/tmp/b.csv']],
+				'error' => ['cashbook' => UPLOAD_ERR_INI_SIZE, 'report' => UPLOAD_ERR_OK],
+			], 'Files need to be uploaded as files[<name>]'],
 		];
 	}
 

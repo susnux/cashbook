@@ -407,18 +407,22 @@ final class ApiController extends OCSController {
 			throw new InvalidArgumentException('No files provided');
 		}
 
-		$notNamedMessage = sprintf('Files need to be uploaded as %s[<name>]', $field);
-		$tmpNames = $upload['tmp_name'];
-		$errors = $upload['error'];
-		if (!is_array($tmpNames) || !is_array($errors) || array_keys($tmpNames) !== array_keys($errors)) {
-			throw new InvalidArgumentException($notNamedMessage);
+		$tmpNames = is_array($upload['tmp_name']) ? $upload['tmp_name'] : null;
+		$errors = is_array($upload['error']) ? $upload['error'] : null;
+		$uploads = [];
+		if ($tmpNames !== null && $errors !== null && array_keys($tmpNames) === array_keys($errors)) {
+			foreach (array_keys($errors) as $name) {
+				if (is_string($name) && is_string($tmpNames[$name]) && is_int($errors[$name])) {
+					$uploads[$name] = ['tmpName' => $tmpNames[$name], 'error' => $errors[$name]];
+				}
+			}
+		}
+		if ($errors === null || count($uploads) !== count($errors)) {
+			throw new InvalidArgumentException(sprintf('Files need to be uploaded as %s[<name>]', $field));
 		}
 
 		$files = [];
-		foreach ($errors as $name => $error) {
-			if (!is_string($name) || !is_int($error)) {
-				throw new InvalidArgumentException($notNamedMessage);
-			}
+		foreach ($uploads as $name => ['tmpName' => $tmpName, 'error' => $error]) {
 			if ($error === UPLOAD_ERR_NO_FILE) {
 				continue;
 			}
@@ -427,10 +431,6 @@ final class ApiController extends OCSController {
 			}
 			if ($error !== UPLOAD_ERR_OK) {
 				throw new InvalidInputException('The upload of the files failed.', $this->l10n->t('The upload of the files failed.'));
-			}
-			$tmpName = $tmpNames[$name];
-			if (!is_string($tmpName)) {
-				throw new InvalidArgumentException($notNamedMessage);
 			}
 			$files[$name] = $tmpName;
 		}

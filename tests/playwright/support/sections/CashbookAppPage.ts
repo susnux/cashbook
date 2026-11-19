@@ -99,6 +99,17 @@ export class CashbookAppPage {
 	}
 
 	/**
+	 * Show a month of the current cashbook
+	 *
+	 * @param month - The month as `YYYY-MM`
+	 */
+	async showMonth(month: string): Promise<void> {
+		const [year, monthNumber] = month.split('-').map(Number) as [number, number]
+		const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()
+		await this.page.goto(this.page.url().replace(/\?.*$/, '') + `?period=month&from=${month}-01&to=${month}-${lastDay}`)
+	}
+
+	/**
 	 * Create a cashbook through the "New cashbook" dialog
 	 *
 	 * @param options - The values to enter into the dialog
@@ -131,6 +142,16 @@ export class CashbookAppPage {
 	}
 
 	/**
+	 * Open the "Import SumUp cashbook" dialog from the navigation
+	 */
+	async openImportCashbookDialog(): Promise<Locator> {
+		await this.navigation().getByText('Import cashbook', { exact: true }).click()
+		const dialog = this.importCashbookDialog()
+		await dialog.waitFor()
+		return dialog
+	}
+
+	/**
 	 * Open the "Import SumUp cashbook" dialog, select the files and submit it.
 	 * The export is imported in the timezone of the browser.
 	 *
@@ -138,9 +159,7 @@ export class CashbookAppPage {
 	 * @return The response of the import request
 	 */
 	async importCashbook({ cashbook, report }: ImportCashbookOptions): Promise<Response> {
-		await this.navigation().getByText('Import cashbook', { exact: true }).click()
-		const dialog = this.importCashbookDialog()
-		await dialog.waitFor()
+		const dialog = await this.openImportCashbookDialog()
 
 		await this.selectImportFile('Select cashbook export', cashbook)
 		if (report) {

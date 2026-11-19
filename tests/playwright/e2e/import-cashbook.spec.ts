@@ -17,7 +17,7 @@ test.describe('Import cashbook', () => {
 		await cashbookApp.open()
 	})
 
-	test('imports the cashbook export with the daily closing report', async ({ cashbookApp, page }) => {
+	test('imports the cashbook export with the daily closing report', async ({ cashbookApp }) => {
 		const response = await cashbookApp.importCashbook({ cashbook: CASHBOOK_EXPORT, report: DAILY_CLOSING_REPORT })
 
 		expect(response.ok()).toBe(true)
@@ -25,27 +25,26 @@ test.describe('Import cashbook', () => {
 		await expect(cashbookApp.cashbookNavigationItem('Test Shop')).toBeVisible()
 		await expect(cashbookApp.cashbookHeading()).toHaveText('Test Shop')
 
-		await page.goto(page.url().replace(/\?.*$/, '') + '?period=month&from=2025-01-01&to=2025-01-31')
+		await cashbookApp.showMonth('2025-01')
 		const days = cashbookApp.entriesTable().getByRole('columnheader', { name: /^Opened:/ })
 		await expect(days).toHaveCount(2)
 		await expect(days.nth(0)).toHaveAccessibleName(/Z-number: Z-1 /)
 		await expect(days.nth(1)).toHaveAccessibleName(/Z-number: Z-2 /)
 	})
 
-	test('imports the cashbook export without a daily closing report', async ({ cashbookApp, page }) => {
+	test('imports the cashbook export without a daily closing report', async ({ cashbookApp }) => {
 		const response = await cashbookApp.importCashbook({ cashbook: CASHBOOK_EXPORT })
 
 		expect(response.ok()).toBe(true)
 		await expect(cashbookApp.cashbookHeading()).toHaveText('Test Shop')
 
-		await page.goto(page.url().replace(/\?.*$/, '') + '?period=month&from=2025-01-01&to=2025-01-31')
+		await cashbookApp.showMonth('2025-01')
 		await expect(cashbookApp.entriesTable().getByRole('row')).not.toHaveCount(0)
 		await expect(cashbookApp.entriesTable().getByRole('columnheader', { name: /^Opened:/ })).toHaveCount(0)
 	})
 
 	test('requires the cashbook export and allows removing the daily closing report', async ({ cashbookApp }) => {
-		await cashbookApp.navigation().getByText('Import cashbook', { exact: true }).click()
-		const dialog = cashbookApp.importCashbookDialog()
+		const dialog = await cashbookApp.openImportCashbookDialog()
 		const importButton = dialog.getByRole('button', { name: 'Import cashbook' })
 
 		await cashbookApp.selectImportFile('Select daily closing report', DAILY_CLOSING_REPORT)
@@ -58,6 +57,7 @@ test.describe('Import cashbook', () => {
 
 		await dialog.getByRole('button', { name: 'Remove daily closing report' }).click()
 		await expect(dialog.getByText('Tagesabschluss_report.csv', { exact: true })).toBeHidden()
+		await expect(dialog.getByRole('button', { name: 'Select daily closing report' })).toBeFocused()
 		await expect(importButton).toBeEnabled()
 	})
 
