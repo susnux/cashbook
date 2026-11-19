@@ -5,6 +5,7 @@
 
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createApp, defineComponent, h, useId } from 'vue'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
 import ImportCashbookDialog from './ImportCashbookDialog.vue'
 
@@ -76,6 +77,12 @@ describe('ImportCashbookDialog', () => {
 	})
 
 	it('describes each file field with its hint and the selected file', async () => {
+		// The dialog is spawned as separate app next to the main app, which may use generated IDs as well
+		const mainApp = createApp(defineComponent(() => {
+			const id = useId()
+			return () => h('p', { id }, 'Main app')
+		}))
+		mainApp.mount(document.body.appendChild(document.createElement('div')))
 		const wrapper = await mountDialog()
 		await pickFile(wrapper, 0, cashbookFile)
 
@@ -86,6 +93,7 @@ describe('ImportCashbookDialog', () => {
 			['The export of the cash register book (Kassenbuch_….csv).', 'Kassenbuch_2025.csv'],
 			['The export of the daily closings to import the day openings and closings.', 'No file selected'],
 		])
+		mainApp.unmount()
 	})
 
 	it('requires the cashbook export', async () => {

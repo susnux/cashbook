@@ -8,7 +8,7 @@ import type { ICashbook } from '../models/Cashbook.ts'
 
 import { mdiClose } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
-import { computed, ref, useId } from 'vue'
+import { computed, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
@@ -29,10 +29,11 @@ const cashbookFile = ref<File>()
 const reportFile = ref<File>()
 const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone)
 const timezonePickerId = 'cashbook-import-timezone'
-const cashbookHintId = useId()
-const cashbookFileNameId = useId()
-const reportHintId = useId()
-const reportFileNameId = useId()
+// Fixed IDs as the dialog is mounted as a separate Vue app, so `useId()` would collide with IDs of the main app
+const cashbookHintId = 'cashbook-import-cashbook-hint'
+const cashbookFileNameId = 'cashbook-import-cashbook-file-name'
+const reportHintId = 'cashbook-import-report-hint'
+const reportFileNameId = 'cashbook-import-report-file-name'
 const error = ref('')
 const imported = ref<ICashbook>()
 
