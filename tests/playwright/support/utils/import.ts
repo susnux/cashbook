@@ -8,7 +8,7 @@ import type { APIRequestContext } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const FIXTURES = join(import.meta.dirname, '..', '..', '..', 'fixtures', 'sumup')
+export const SUMUP_FIXTURES = join(import.meta.dirname, '..', '..', '..', 'fixtures', 'sumup')
 
 /**
  * Import the SumUp fixture with day reports (`Kassenbuch_report.csv` and `Tagesabschluss_report.csv`)
@@ -22,8 +22,8 @@ export async function importReportFixture(request: APIRequestContext, timezone: 
 	const form = new FormData()
 	form.append('import', 'sumup-pos-pro-de')
 	form.append('timezone', timezone)
-	for (const name of ['Kassenbuch_report.csv', 'Tagesabschluss_report.csv']) {
-		form.append('files[]', new Blob([await readFile(join(FIXTURES, name))], { type: 'text/csv' }), name)
+	for (const [field, name] of Object.entries({ cashbook: 'Kassenbuch_report.csv', report: 'Tagesabschluss_report.csv' })) {
+		form.append(`files[${field}]`, new Blob([await readFile(join(SUMUP_FIXTURES, name))], { type: 'text/csv' }), name)
 	}
 
 	const response = await request.post('/ocs/v2.php/apps/cashbook/api/v1/cashbooks/import', {

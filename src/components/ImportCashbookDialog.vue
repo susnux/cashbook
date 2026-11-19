@@ -6,10 +6,13 @@
 <script setup lang="ts">
 import type { ICashbook } from '../models/Cashbook.ts'
 
+import { mdiClose } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
 import { computed, ref } from 'vue'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
+import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import { importSumupCashbook } from '../api/cashbooks.ts'
@@ -20,7 +23,10 @@ const emit = defineEmits<{
 	(e: 'close', cashbook?: ICashbook): void
 }>()
 
-const files = ref<File[]>([])
+const CSV_TYPES = ['.csv', 'text/csv']
+
+const cashbookFile = ref<File>()
+const reportFile = ref<File>()
 const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone)
 const timezonePickerId = 'cashbook-import-timezone'
 const error = ref('')
@@ -34,7 +40,7 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'primary',
 		label: t('cashbook', 'Import cashbook'),
-		disabled: files.value.length === 0,
+		disabled: !cashbookFile.value,
 		callback: onImport,
 	},
 ])
@@ -43,9 +49,13 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
  * Upload the selected files, keep the dialog open on failure.
  */
 async function onImport() {
+	if (!cashbookFile.value) {
+		return false
+	}
+
 	error.value = ''
 	try {
-		imported.value = await importSumupCashbook(files.value, timezone.value)
+		imported.value = await importSumupCashbook({ cashbook: cashbookFile.value, report: reportFile.value }, timezone.value)
 	} catch (e) {
 		logger.error('Failed to import cashbook', { error: e })
 		error.value = getOcsErrorMessage(e)
@@ -70,18 +80,49 @@ function onUpdateOpen(open: boolean) {
 		:name="t('cashbook', 'Import SumUp cashbook')"
 		@update:open="onUpdateOpen">
 		<p>
-			{{ t('cashbook', 'Select the cashbook CSV export of the SumUp POS Pro. Optionally also select the daily closing report to import the day openings and closings.') }}
+			{{ t('cashbook', 'Select the CSV exports of the SumUp POS Pro.') }}
 		</p>
-		<NcFilePicker
-			:accept="['.csv', 'text/csv']"
-			:label="t('cashbook', 'Select files')"
-			multiple
-			@pick="files = $event" />
-		<ul v-if="files.length > 0" :class="$style.fileList">
-			<li v-for="file in files" :key="file.name">
-				{{ file.name }}
-			</li>
-		</ul>
+		<fieldset :class="$style.fileField">
+			<legend :class="$style.fileLegend">
+				{{ t('cashbook', 'Cashbook export') }}
+			</legend>
+			<p>{{ t('cashbook', 'The export of the cash register book (Kassenbuch_….csv).') }}</p>
+			<div :class="$style.fileSelection">
+				<NcFilePicker
+					:accept="CSV_TYPES"
+					:label="t('cashbook', 'Select cashbook export')"
+					variant="secondary"
+					@pick="cashbookFile = $event[0]" />
+				<span :class="$style.fileName">
+					{{ cashbookFile?.name ?? t('cashbook', 'No file selected') }}
+				</span>
+			</div>
+		</fieldset>
+		<fieldset :class="$style.fileField">
+			<legend :class="$style.fileLegend">
+				{{ t('cashbook', 'Daily closing report (optional)') }}
+			</legend>
+			<p>{{ t('cashbook', 'The export of the daily closings to import the day openings and closings.') }}</p>
+			<div :class="$style.fileSelection">
+				<NcFilePicker
+					:accept="CSV_TYPES"
+					:label="t('cashbook', 'Select daily closing report')"
+					variant="secondary"
+					@pick="reportFile = $event[0]" />
+				<span :class="$style.fileName">
+					{{ reportFile?.name ?? t('cashbook', 'No file selected') }}
+				</span>
+				<NcButton
+					v-if="reportFile"
+					:aria-label="t('cashbook', 'Remove daily closing report')"
+					variant="tertiary"
+					@click="reportFile = undefined">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiClose" />
+					</template>
+				</NcButton>
+			</div>
+		</fieldset>
 		<label :class="$style.timezoneLabel" :for="`vs-${timezonePickerId}__combobox`">
 			{{ t('cashbook', 'Timezone of the export') }}
 		</label>
@@ -91,10 +132,26 @@ function onUpdateOpen(open: boolean) {
 </template>
 
 <style lang="scss" module>
-.fileList {
-	list-style: disc;
-	padding-inline-start: calc(3 * var(--default-grid-baseline));
-	margin-block: var(--default-grid-baseline);
+.fileField {
+	margin-block-start: calc(2 * var(--default-grid-baseline));
+}
+
+.fileLegend {
+	font-weight: bold;
+}
+
+.fileSelection {
+	display: flex;
+	align-items: center;
+	gap: calc(2 * var(--default-grid-baseline));
+	margin-block-start: var(--default-grid-baseline);
+}
+
+.fileName {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .timezoneLabel {

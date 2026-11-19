@@ -15,6 +15,7 @@ use Brick\Money\Money;
 use Exception;
 use InvalidArgumentException;
 use Iterator;
+use League\Csv\Exception as CsvException;
 use League\Csv\Reader;
 use OCA\Cashbook\Db\Cashbook;
 use OCA\Cashbook\Db\CashbookMapper;
@@ -28,6 +29,7 @@ use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
 use Psr\Log\LoggerInterface;
+use UnexpectedValueException;
 
 /**
  * Allow to import the cashbook of the SumUp POS Pro (German version)
@@ -53,7 +55,8 @@ final class SumupPosProGermany implements IImportService {
 	protected int $sequence = 0;
 	protected \DateTimeZone $timezone;
 
-	protected const string CASHBOOK_FILE_PREFIX = 'Kassenbuch_';
+	protected const string FILE_CASHBOOK = 'cashbook';
+	protected const string FILE_REPORT = 'report';
 	protected const string CSV_ENCLOSURE = '"';
 	protected const string CSV_DELIMITER = ';';
 	/** Maximum number of rows of an imported CSV file, all rows are imported in a single transaction */
@@ -96,7 +99,7 @@ final class SumupPosProGermany implements IImportService {
 	}
 
 	/**
-	 * @param array{name: list<string>, tmp_name: list<string>, ...} $files
+	 * @param array<string, string> $files The cashbook export as `cashbook` and optionally the daily closing report as `report`
 	 * @param array{timezone?: string} $options
 	 */
 	#[\Override]
@@ -110,27 +113,34 @@ final class SumupPosProGermany implements IImportService {
 			}
 		}
 
-		$cashbookCsvFile = '';
-		$reportCsvFile = '';
-		foreach ($files['name'] as $index => $name) {
-			if (str_starts_with($name, self::CASHBOOK_FILE_PREFIX)) {
-				$cashbookCsvFile = $files['tmp_name'][$index];
-			} else {
-				$reportCsvFile = $files['tmp_name'][$index];
-			}
+		$unknownFiles = array_diff(array_keys($files), [self::FILE_CASHBOOK, self::FILE_REPORT]);
+		if ($unknownFiles !== []) {
+			throw new InvalidArgumentException('Unknown files passed: ' . implode(', ', $unknownFiles));
 		}
-
-		if ($cashbookCsvFile === '') {
-			throw new InvalidInputException('No cashbook export (Kassenbuch_….csv) was selected.', $this->l10n->t('No cashbook export (Kassenbuch_….csv) was selected.'));
+		if (!isset($files[self::FILE_CASHBOOK])) {
+			throw new InvalidArgumentException('No cashbook export passed.');
 		}
 
 		try {
-			$this->cashbookIterator = $this->readCsv($cashbookCsvFile, self::CSV_HEADER_MAPPING);
-			$this->reportIterator = $reportCsvFile === '' ? null : $this->readCsv($reportCsvFile, self::CSV_REPORT_HEADER_MAPPING);
-		} catch (InvalidInputException $error) {
-			throw $error;
-		} catch (Exception $error) {
-			throw new InvalidInputException('The selected files are not valid CSV files.', $this->l10n->t('The selected files are not valid CSV files.'), previous: $error);
+			$this->cashbookIterator = $this->readCsv($files[self::FILE_CASHBOOK], self::CSV_HEADER_MAPPING);
+		} catch (UnexpectedValueException $error) {
+			throw new InvalidInputException(
+				'The selected cashbook export is not a valid SumUp cashbook export.',
+				$this->l10n->t('The selected cashbook export is not a valid SumUp cashbook export.'),
+				previous: $error,
+			);
+		}
+
+		if (isset($files[self::FILE_REPORT])) {
+			try {
+				$this->reportIterator = $this->readCsv($files[self::FILE_REPORT], self::CSV_REPORT_HEADER_MAPPING);
+			} catch (UnexpectedValueException $error) {
+				throw new InvalidInputException(
+					'The selected daily closing report is not a valid SumUp daily closing report.',
+					$this->l10n->t('The selected daily closing report is not a valid SumUp daily closing report.'),
+					previous: $error,
+				);
+			}
 		}
 
 		if ($this->cashbookIterator->valid() === false) {
@@ -307,22 +317,34 @@ final class SumupPosProGermany implements IImportService {
 	 *
 	 * @param array<string, string> $headerMapping
 	 * @return Iterator<array-key, CsvRecord>
+	 * @throws UnexpectedValueException If the file is not a CSV file containing all columns of the header mapping
 	 * @throws InvalidInputException If the file has more than `MAX_ROWS` rows
 	 */
 	protected function readCsv(string $path, array $headerMapping): Iterator {
-		$csv = Reader::from($path, 'r');
-		$csv->setHeaderOffset(0);
-		$csv->setDelimiter(self::CSV_DELIMITER);
-		$csv->setEnclosure(self::CSV_ENCLOSURE);
+		try {
+			$csv = Reader::from($path, 'r');
+			$csv->setHeaderOffset(0);
+			$csv->setDelimiter(self::CSV_DELIMITER);
+			$csv->setEnclosure(self::CSV_ENCLOSURE);
+			$csvHeader = $csv->getHeader();
+			$rows = count($csv);
+		} catch (CsvException $error) {
+			throw new UnexpectedValueException('The file is not a valid CSV file.', previous: $error);
+		}
 
-		if (count($csv) > self::MAX_ROWS) {
+		$missingColumns = array_diff(array_keys($headerMapping), $csvHeader);
+		if ($missingColumns !== []) {
+			throw new UnexpectedValueException('The CSV file is missing the columns: ' . implode(', ', $missingColumns));
+		}
+
+		if ($rows > self::MAX_ROWS) {
 			throw new InvalidInputException(
 				sprintf('The selected files contain more than %d rows.', self::MAX_ROWS),
 				$this->l10n->t('The selected files contain more than %s rows. Export a shorter period.', [self::MAX_ROWS]),
 			);
 		}
 
-		$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csv->getHeader());
+		$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csvHeader);
 		/** @var Iterator<array-key, CsvRecord> $records */
 		$records = $csv->getRecords($header);
 		$records->rewind();

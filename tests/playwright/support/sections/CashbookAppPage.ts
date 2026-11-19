@@ -10,6 +10,13 @@ export interface NewCashbookOptions {
 	account?: string
 }
 
+export interface ImportCashbookOptions {
+	/** Path of the cashbook export */
+	cashbook: string
+	/** Path of the daily closing report */
+	report?: string
+}
+
 export interface NewEntryOptions {
 	type: 'Income' | 'Expense'
 	/** The readable name of the reason, the first reason of the type is used if not set */
@@ -61,6 +68,10 @@ export class CashbookAppPage {
 		return this.page.getByRole('dialog', { name: 'Delete cashbook' })
 	}
 
+	importCashbookDialog(): Locator {
+		return this.page.getByRole('dialog', { name: 'Import SumUp cashbook' })
+	}
+
 	newEntryDialog(): Locator {
 		return this.page.getByRole('dialog', { name: 'New entry' })
 	}
@@ -105,6 +116,41 @@ export class CashbookAppPage {
 			&& response.url().includes('/apps/cashbook/api/v1/cashbooks'))
 		await dialog.getByRole('button', { name: 'Create cashbook' }).click()
 		await created
+	}
+
+	/**
+	 * Select a file with a file picker of the "Import SumUp cashbook" dialog
+	 *
+	 * @param picker - The label of the file picker
+	 * @param path - Path of the file to select
+	 */
+	async selectImportFile(picker: string, path: string): Promise<void> {
+		const fileChooser = this.page.waitForEvent('filechooser')
+		await this.importCashbookDialog().getByRole('button', { name: picker }).click()
+		await (await fileChooser).setFiles(path)
+	}
+
+	/**
+	 * Open the "Import SumUp cashbook" dialog, select the files and submit it.
+	 * The export is imported in the timezone of the browser.
+	 *
+	 * @param options - The files to import
+	 * @return The response of the import request
+	 */
+	async importCashbook({ cashbook, report }: ImportCashbookOptions): Promise<Response> {
+		await this.navigation().getByText('Import cashbook', { exact: true }).click()
+		const dialog = this.importCashbookDialog()
+		await dialog.waitFor()
+
+		await this.selectImportFile('Select cashbook export', cashbook)
+		if (report) {
+			await this.selectImportFile('Select daily closing report', report)
+		}
+
+		const imported = this.page.waitForResponse((response) => response.request().method() === 'POST'
+			&& response.url().includes('/apps/cashbook/api/v1/cashbooks/import'))
+		await dialog.getByRole('button', { name: 'Import cashbook' }).click()
+		return await imported
 	}
 
 	/**
