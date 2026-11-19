@@ -156,6 +156,7 @@ function onUpdateOpen(open: boolean) {
 			</div>
 			<NcTextField
 				v-model="text"
+				:class="$style.fullWidth"
 				:maxlength="1000"
 				:label="t('cashbook', 'Text')" />
 			<div :class="$style.row">
@@ -176,9 +177,13 @@ function onUpdateOpen(open: boolean) {
 	</NcDialog>
 </template>
 
-<style lang="scss" module>
+<style lang="css" module>
 .fields {
 	display: contents;
+
+	> * {
+		margin-block: var(--default-grid-baseline);
+	}
 }
 
 .fullWidth {
