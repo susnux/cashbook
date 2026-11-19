@@ -23,6 +23,7 @@ use OCA\Cashbook\ImportService\ImportFormat;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
 use OCA\Cashbook\Service\CashbookService;
 use OCA\Cashbook\Service\EntryService;
+use OCP\AppFramework\Http;
 use OCP\AppFramework\OCS\OCSBadRequestException;
 use OCP\AppFramework\OCS\OCSNotFoundException;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -122,6 +123,8 @@ final class ApiControllerTest extends TestCase {
 				'currency' => 'EUR',
 				'name' => 'Shop',
 				'owner' => 'alice',
+				'lastSequence' => 0,
+				'balance' => '0.00',
 			],
 		], $response->getData());
 	}
@@ -342,7 +345,7 @@ final class ApiControllerTest extends TestCase {
 	public function testAddCashbookEntry(): void {
 		$cashbook = $this->createCashbook('alice');
 
-		$response = $this->createController()->addCashbookEntry($cashbook->getId(), EntryReason::IncomeBankTransfer, '100', 'Cash float', null, 'R-1', '2025-01-02');
+		$response = $this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeBankTransfer, '100', 'Cash float', null, 'R-1', '2025-01-02');
 		$data = $response->getData();
 		$this->assertSame('100.00', $data['debit']);
 		$this->assertSame('100.00', $data['balance']);
@@ -350,7 +353,7 @@ final class ApiControllerTest extends TestCase {
 		$this->assertSame('R-1', $data['reference']);
 		$this->assertSame('2025-01-02', $data['referenceDate']);
 
-		$response = $this->createController()->addCashbookEntry($cashbook->getId(), EntryReason::ExpenseGoods, '30.5', tax: 0.19);
+		$response = $this->createController()->addCashbookEntry($cashbook->getId(), 1, EntryReason::ExpenseGoods, '30.5', tax: 0.19);
 		$this->assertSame('69.50', $response->getData()['balance']);
 		$this->assertSame(
 			['100.00', '69.50'],
@@ -358,12 +361,34 @@ final class ApiControllerTest extends TestCase {
 		);
 	}
 
+	public function testAddCashbookEntryUpdatesCashbook(): void {
+		$cashbook = $this->createCashbook('alice');
+		$this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeMisc, '12.5');
+
+		$data = $this->createController()->getCashbook($cashbook->getId())->getData();
+		$this->assertSame(1, $data['lastSequence']);
+		$this->assertSame('12.50', $data['balance']);
+		$this->assertSame([$data], $this->createController()->index()->getData());
+	}
+
+	public function testAddCashbookEntryConflict(): void {
+		$cashbook = $this->createCashbook('alice');
+		$this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeMisc, '10');
+
+		$response = $this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::ExpenseMisc, '10');
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame($this->createController()->getCashbook($cashbook->getId())->getData(), $response->getData());
+		$this->assertSame(1, $response->getData()['lastSequence']);
+		$this->assertSame('10.00', $response->getData()['balance']);
+		$this->assertCount(1, $this->createController()->getCashbookEntries($cashbook->getId())->getData());
+	}
+
 	public function testAddCashbookEntryExceedingBalance(): void {
 		$cashbook = $this->createCashbook('alice');
 
 		$this->expectException(OCSBadRequestException::class);
 		$this->expectExceptionMessage('translated: The expense exceeds the cash balance.');
-		$this->createController()->addCashbookEntry($cashbook->getId(), EntryReason::ExpenseGoods, '1');
+		$this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::ExpenseGoods, '1');
 	}
 
 	public function testAddCashbookEntryInvalid(): void {
@@ -371,12 +396,12 @@ final class ApiControllerTest extends TestCase {
 
 		$this->expectException(OCSBadRequestException::class);
 		$this->expectExceptionMessage('Only income and expense entries can be added.');
-		$this->createController()->addCashbookEntry($cashbook->getId(), EntryReason::DayOpening, '1');
+		$this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::DayOpening, '1');
 	}
 
 	public function testAddCashbookEntryNotFound(): void {
 		$this->expectException(OCSNotFoundException::class);
-		$this->createController()->addCashbookEntry((string)PHP_INT_MAX, EntryReason::IncomeMisc, '1');
+		$this->createController()->addCashbookEntry((string)PHP_INT_MAX, 0, EntryReason::IncomeMisc, '1');
 	}
 
 	public static function dataAddCashbookEntryOfOtherUser(): array {
@@ -391,7 +416,7 @@ final class ApiControllerTest extends TestCase {
 		$cashbook = $this->createCashbook('bob');
 
 		try {
-			$this->createController($userId)->addCashbookEntry($cashbook->getId(), EntryReason::IncomeMisc, '1');
+			$this->createController($userId)->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeMisc, '1');
 			$this->fail('Adding an entry to a foreign cashbook should fail');
 		} catch (OCSNotFoundException) {
 		}
@@ -421,6 +446,7 @@ final class ApiControllerTest extends TestCase {
 
 	public function testUpdateCashbook(): void {
 		$cashbook = $this->createCashbook('alice', 'Shop');
+		$this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeMisc, '5');
 
 		$response = $this->createController()->updateCashbook($cashbook->getId(), 'Market', '1200');
 		$this->assertSame([
@@ -429,6 +455,8 @@ final class ApiControllerTest extends TestCase {
 			'currency' => 'EUR',
 			'name' => 'Market',
 			'owner' => 'alice',
+			'lastSequence' => 1,
+			'balance' => '5.00',
 		], $response->getData());
 
 		$stored = $this->cashbookMapper->getCashbook($cashbook->getId());

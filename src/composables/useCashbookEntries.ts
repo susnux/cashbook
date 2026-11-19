@@ -17,6 +17,7 @@ import logger from '../utils/logger.ts'
 /**
  * Load the entries of a cashbook within a period.
  *
+ * The entries are loaded again when the cashbook gets new entries (its `lastSequence` changes).
  * Changing the cashbook or period aborts pending requests, so only entries of the current selection are shown.
  *
  * @param cashbook - The cashbook to load the entries of
@@ -31,7 +32,13 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 	const reloadCounter = ref(0)
 
 	watch(
-		() => [toValue(cashbook)?.id, toValue(period).begin.getTime(), toValue(period).end.getTime(), reloadCounter.value],
+		[
+			() => toValue(cashbook)?.id,
+			() => toValue(cashbook)?.lastSequence,
+			() => toValue(period).begin.getTime(),
+			() => toValue(period).end.getTime(),
+			reloadCounter,
+		],
 		async (_, __, onCleanup) => {
 			entries.value = []
 			failed.value = false

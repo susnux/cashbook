@@ -16,10 +16,11 @@ import NcRadioGroup from '@nextcloud/vue/components/NcRadioGroup'
 import NcRadioGroupButton from '@nextcloud/vue/components/NcRadioGroupButton'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
-import { addEntry } from '../api/cashbooks.ts'
+import { addEntry, CashbookConflictError } from '../api/cashbooks.ts'
 import { EntryReason, EntryReasonReadable, ExpenseReasons, IncomeReasons } from '../models/CashbookEntry.ts'
 import { getCurrencyStep } from '../utils/currencies.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
+import { formatCurrency } from '../utils/formatter.ts'
 import logger from '../utils/logger.ts'
 import { formatDay } from '../utils/period.ts'
 
@@ -35,6 +36,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	(e: 'close', entry?: ICashbookEntry): void
+	/** The cashbook was changed in the meantime, emitted with its current state */
+	(e: 'conflict', cashbook: ICashbook): void
 }>()
 
 const type = ref<'income' | 'expense'>('income')
@@ -59,12 +62,17 @@ watch(type, () => {
 	reason.value = reasonOptions.value[0]!.value
 })
 
+/** The cashbook the entry is added after, updated if it was changed in the meantime */
+const currentCashbook = ref(props.cashbook)
+const formattedBalance = computed(() => formatCurrency(currentCashbook.value.balance, currentCashbook.value.currency))
+
 const amountStep = computed(() => getCurrencyStep(props.cashbook.currency))
 const today = new Date()
 
 const fieldsElement = useTemplateRef<HTMLDivElement>('fields')
 const saved = ref<ICashbookEntry>()
 const error = ref('')
+const conflict = ref(false)
 const loading = ref(false)
 
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
@@ -91,9 +99,10 @@ async function onAddEntry() {
 	}
 
 	error.value = ''
+	conflict.value = false
 	loading.value = true
 	try {
-		saved.value = await addEntry(props.cashbook, {
+		saved.value = await addEntry(currentCashbook.value, {
 			reason: reason.value,
 			amount: amount.value,
 			text: text.value,
@@ -102,6 +111,13 @@ async function onAddEntry() {
 			referenceDate: receiptDate.value ? formatDay(receiptDate.value) : null,
 		})
 	} catch (e) {
+		if (e instanceof CashbookConflictError) {
+			logger.info('Cashbook was changed while adding an entry', { cashbook: e.cashbook })
+			currentCashbook.value = e.cashbook
+			conflict.value = true
+			emit('conflict', e.cashbook)
+			return false
+		}
 		logger.error('Failed to add cashbook entry', { error: e })
 		error.value = getOcsErrorMessage(e) ?? t('cashbook', 'Could not add the entry.')
 		return false
@@ -127,6 +143,9 @@ function onUpdateOpen(open: boolean) {
 		:name="t('cashbook', 'New entry')"
 		@update:open="onUpdateOpen">
 		<div ref="fields" :class="$style.fields">
+			<p :class="$style.balance">
+				{{ t('cashbook', 'Cash balance: {balance}', { balance: formattedBalance }) }}
+			</p>
 			<NcRadioGroup v-model="type" :label="t('cashbook', 'Entry type')" hideLabel>
 				<NcRadioGroupButton value="income" :label="t('cashbook', 'Income')" />
 				<NcRadioGroupButton value="expense" :label="t('cashbook', 'Expense')" />
@@ -172,6 +191,10 @@ function onUpdateOpen(open: boolean) {
 					:label="t('cashbook', 'Receipt date')" />
 			</div>
 			<NcNoteCard type="info" :text="t('cashbook', 'Entries can not be changed or deleted once they are added.')" />
+			<NcNoteCard
+				v-if="conflict"
+				type="warning"
+				:text="t('cashbook', 'The cashbook was changed in the meantime. Check the cash balance and add the entry again.')" />
 			<NcNoteCard v-if="error" type="error" :text="error" />
 		</div>
 	</NcDialog>
@@ -184,6 +207,10 @@ function onUpdateOpen(open: boolean) {
 	> * {
 		margin-block: var(--default-grid-baseline);
 	}
+}
+
+.balance {
+	font-weight: bold;
 }
 
 .fullWidth {

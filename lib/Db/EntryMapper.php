@@ -18,11 +18,13 @@ use OCP\IDBConnection;
  */
 final class EntryMapper extends QBMapper {
 
+	public const string TABLE_NAME = 'cashbook_cashbook_entries';
+
 	/** @psalm-suppress PossiblyUnusedMethod Created by the DI container */
 	public function __construct(
 		IDBConnection $db,
 	) {
-		parent::__construct($db, 'cashbook_cashbook_entries', Entry::class);
+		parent::__construct($db, self::TABLE_NAME, Entry::class);
 	}
 
 	/**

@@ -16,6 +16,7 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
+use OCA\Cashbook\Exception\ConflictException;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\Service\CashbookService;
 use OCA\Cashbook\Service\EntryService;
@@ -75,10 +76,15 @@ final class EntryServiceTest extends TestCase {
 		));
 	}
 
+	private function lastSequence(): int {
+		return $this->entryMapper->getLastEntry($this->cashbook)?->getSequence() ?? 0;
+	}
+
 	public function testAddFirstEntry(): void {
 		$entry = $this->service->add(
 			$this->cashbook,
 			self::USER_ID,
+			$this->lastSequence(),
 			EntryReason::IncomeBankTransfer,
 			' 150.5 ',
 			' Cash float ',
@@ -110,7 +116,7 @@ final class EntryServiceTest extends TestCase {
 		$this->insertEntry('2026-03-01 10:00', '20', '20');
 		$this->insertEntry('2026-03-02 10:00', '30', '50');
 
-		$entry = $this->service->add($this->cashbook, self::USER_ID, EntryReason::ExpenseGoods, '12.25');
+		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::ExpenseGoods, '12.25');
 
 		$data = $entry->jsonSerialize();
 		$this->assertSame(3, $data['sequence']);
@@ -126,7 +132,7 @@ final class EntryServiceTest extends TestCase {
 	public function testAddAfterEntryInTheFuture(): void {
 		$this->insertEntry('2026-05-01 10:00', '20', '20');
 
-		$entry = $this->service->add($this->cashbook, self::USER_ID, EntryReason::IncomeMisc, '5');
+		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::IncomeMisc, '5');
 
 		$this->assertSame('2026-05-01T10:00:00+00:00', $entry->jsonSerialize()['date']);
 		$this->assertSame(['20.00', '25.00'], array_map(
@@ -139,7 +145,7 @@ final class EntryServiceTest extends TestCase {
 		$this->insertEntry('2026-03-01 10:00', '10', '10');
 
 		try {
-			$this->service->add($this->cashbook, self::USER_ID, EntryReason::ExpenseMisc, '10.01');
+			$this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::ExpenseMisc, '10.01');
 			$this->fail('An expense exceeding the balance should be rejected');
 		} catch (InvalidInputException $error) {
 			$this->assertSame('The expense exceeds the cash balance.', $error->getMessage());
@@ -148,16 +154,43 @@ final class EntryServiceTest extends TestCase {
 		$this->assertCount(1, $this->entryMapper->getEntries($this->cashbook));
 
 		// spending all cash is allowed
-		$entry = $this->service->add($this->cashbook, self::USER_ID, EntryReason::ExpenseMisc, '10');
+		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::ExpenseMisc, '10');
 		$this->assertSame('0.00', $entry->jsonSerialize()['balance']);
 	}
 
 	public function testAddStoresTaxLikeTheImport(): void {
-		$entry = $this->service->add($this->cashbook, self::USER_ID, EntryReason::IncomeSales, '1', tax: 0.07);
+		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::IncomeSales, '1', tax: 0.07);
 		$this->assertSame('7/100', $entry->getTaxRaw());
 
-		$entry = $this->service->add($this->cashbook, self::USER_ID, EntryReason::IncomeSales, '1', tax: 0.0);
+		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::IncomeSales, '1', tax: 0.0);
 		$this->assertSame(0.0, $entry->jsonSerialize()['tax']);
+	}
+
+	public static function dataAddConflict(): array {
+		return [
+			'outdated' => [1],
+			'ahead' => [3],
+			'empty cashbook expected' => [0],
+		];
+	}
+
+	#[DataProvider('dataAddConflict')]
+	public function testAddConflict(int $lastSequence): void {
+		$this->insertEntry('2026-03-01 10:00', '20', '20');
+		$this->insertEntry('2026-03-02 10:00', '30', '50');
+
+		try {
+			$this->service->add($this->cashbook, self::USER_ID, $lastSequence, EntryReason::IncomeMisc, '1');
+			$this->fail('An entry based on a different last entry should be rejected');
+		} catch (ConflictException $error) {
+			$this->assertSame('The cashbook was changed in the meantime.', $error->getMessage());
+		}
+		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public function testAddToEmptyCashbookExpectingEntries(): void {
+		$this->expectException(ConflictException::class);
+		$this->service->add($this->cashbook, self::USER_ID, 1, EntryReason::IncomeMisc, '1');
 	}
 
 	public static function dataAddInvalid(): array {
@@ -190,7 +223,7 @@ final class EntryServiceTest extends TestCase {
 	#[DataProvider('dataAddInvalid')]
 	public function testAddInvalid(EntryReason $reason, string $amount, array $options, string $message): void {
 		try {
-			$this->service->add($this->cashbook, self::USER_ID, $reason, $amount, ...$options);
+			$this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), $reason, $amount, ...$options);
 			$this->fail('Invalid values should be rejected');
 		} catch (InvalidArgumentException $error) {
 			$this->assertSame($message, $error->getMessage());
@@ -202,6 +235,7 @@ final class EntryServiceTest extends TestCase {
 		$entry = $this->service->add(
 			$this->cashbook,
 			self::USER_ID,
+			$this->lastSequence(),
 			EntryReason::IncomeMisc,
 			str_repeat('9', 18) . '.99',
 			text: str_repeat('ä', 1000),

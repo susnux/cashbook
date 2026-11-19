@@ -27,7 +27,9 @@
                     "name",
                     "account",
                     "currency",
-                    "owner"
+                    "owner",
+                    "lastSequence",
+                    "balance"
                 ],
                 "properties": {
                     "id": {
@@ -43,6 +45,13 @@
                         "type": "string"
                     },
                     "owner": {
+                        "type": "string"
+                    },
+                    "lastSequence": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "balance": {
                         "type": "string"
                     }
                 }
@@ -1026,7 +1035,7 @@
             "post": {
                 "operationId": "api-add-cashbook-entry",
                 "summary": "Add an income or expense entry to a cashbook",
-                "description": "The entry is booked after the last entry of the cashbook at the current time. Entries can not be changed afterwards, mistakes need to be corrected with a new entry.",
+                "description": "The entry is booked after the last entry of the cashbook at the current time. Entries can not be changed afterwards, mistakes need to be corrected with a new entry. If the cashbook was changed since `lastSequence` was loaded, the entry is rejected with the current cashbook.",
                 "tags": [
                     "api"
                 ],
@@ -1045,10 +1054,17 @@
                             "schema": {
                                 "type": "object",
                                 "required": [
+                                    "lastSequence",
                                     "reason",
                                     "amount"
                                 ],
                                 "properties": {
+                                    "lastSequence": {
+                                        "type": "integer",
+                                        "format": "int64",
+                                        "description": "The sequence number of the last entry of the cashbook, 0 if it has no entries",
+                                        "minimum": 0
+                                    },
                                     "reason": {
                                         "type": "string",
                                         "enum": [
@@ -1146,6 +1162,36 @@
                                                 },
                                                 "data": {
                                                     "$ref": "#/components/schemas/Entry"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The last entry is not `lastSequence`, the current cashbook is returned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {
+                                                    "$ref": "#/components/schemas/Cashbook"
                                                 }
                                             }
                                         }

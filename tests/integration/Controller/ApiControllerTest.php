@@ -31,6 +31,8 @@ final class ApiControllerTest extends IntegrationTestCase {
 			'currency' => 'EUR',
 			'name' => 'Shop',
 			'owner' => $alice,
+			'lastSequence' => 0,
+			'balance' => '0.00',
 		], $cashbook);
 
 		$this->assertSame(
@@ -66,6 +68,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 
 		$income = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', $path, [
 			RequestOptions::JSON => [
+				'lastSequence' => 0,
 				'reason' => 'income-bank',
 				'amount' => '100.00',
 				'text' => 'Cash float',
@@ -84,7 +87,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$this->assertNull($income['tax']);
 
 		$expense = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', $path, [
-			RequestOptions::JSON => ['reason' => 'expense-goods', 'amount' => '11.90', 'tax' => 0.19],
+			RequestOptions::JSON => ['lastSequence' => 1, 'reason' => 'expense-goods', 'amount' => '11.90', 'tax' => 0.19],
 		]));
 		$this->assertSame(2, $expense['sequence']);
 		$this->assertSame('11.90', $expense['credit']);
@@ -94,6 +97,48 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$this->assertNull($expense['referenceDate']);
 
 		$this->assertSame([$income, $expense], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path)));
+
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbook['id']));
+		$this->assertSame(2, $cashbook['lastSequence']);
+		$this->assertSame('88.10', $cashbook['balance']);
+	}
+
+	public function testAddCashbookEntryConflict(): void {
+		$alice = $this->createUser();
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+		$path = 'api/v1/cashbooks/' . $cashbook['id'] . '/entries';
+		$this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', $path, [
+			RequestOptions::JSON => ['lastSequence' => 0, 'reason' => 'income-misc', 'amount' => '10'],
+		]));
+
+		// A second client still based on the empty cashbook
+		$current = $this->assertOcsResponse(409, $this->ocsRequest($alice, 'POST', $path, [
+			RequestOptions::JSON => ['lastSequence' => 0, 'reason' => 'expense-misc', 'amount' => '10'],
+		]));
+		$this->assertSame(
+			$this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbook['id'])),
+			$current,
+		);
+		$this->assertSame(1, $current['lastSequence']);
+		$this->assertSame('10.00', $current['balance']);
+		$this->assertCount(1, $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path)));
+	}
+
+	public function testAddCashbookEntryRejectsNegativeLastSequence(): void {
+		$alice = $this->createUser();
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+		$path = 'api/v1/cashbooks/' . $cashbook['id'] . '/entries';
+
+		// The documented range is enforced by the framework, which responds without an OCS body
+		$response = $this->ocsRequest($alice, 'POST', $path, [
+			RequestOptions::JSON => ['lastSequence' => -1, 'reason' => 'income-misc', 'amount' => '1'],
+		]);
+		$this->assertSame(400, $response->getStatusCode());
+		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path)));
 	}
 
 	public static function dataAddCashbookEntryInvalid(): array {
@@ -113,7 +158,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 		]));
 		$path = 'api/v1/cashbooks/' . $cashbook['id'] . '/entries';
 
-		$response = $this->ocsRequest($alice, 'POST', $path, [RequestOptions::JSON => $body]);
+		$response = $this->ocsRequest($alice, 'POST', $path, [RequestOptions::JSON => $body + ['lastSequence' => 0]]);
 		$this->assertOcsResponse(400, $response);
 		$this->assertSame($message, json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
 		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path)));
@@ -127,7 +172,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 
 		// Unknown enum values are rejected by the framework, which responds without an OCS body
 		$response = $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries', [
-			RequestOptions::JSON => ['reason' => 'income-gift', 'amount' => '1'],
+			RequestOptions::JSON => ['lastSequence' => 0, 'reason' => 'income-gift', 'amount' => '1'],
 		]);
 		$this->assertSame(400, $response->getStatusCode());
 	}
@@ -183,7 +228,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$this->assertOcsResponse(404, $this->ocsRequest($bob, 'GET', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries'));
 		$this->assertOcsResponse(404, $this->ocsRequest($bob, 'DELETE', 'api/v1/cashbooks/' . $cashbook['id']));
 		$this->assertOcsResponse(404, $this->ocsRequest($bob, 'POST', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries', [
-			RequestOptions::JSON => ['reason' => 'income-misc', 'amount' => '1'],
+			RequestOptions::JSON => ['lastSequence' => 0, 'reason' => 'income-misc', 'amount' => '1'],
 		]));
 		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbook['id'] . '/entries')));
 

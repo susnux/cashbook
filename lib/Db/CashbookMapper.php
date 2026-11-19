@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Cashbook\Db;
 
 use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 /**
@@ -25,12 +26,10 @@ final class CashbookMapper extends QBMapper {
 	}
 
 	public function getCashbook(string $id): Cashbook {
-		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')
-			->from($this->tableName)
-			->where(
-				$qb->expr()->eq('id', $qb->createNamedParameter($id)),
-			);
+		$qb = $this->selectWithLastEntry();
+		$qb->where(
+			$qb->expr()->eq('c.id', $qb->createNamedParameter($id)),
+		);
 		return $this->findEntity($qb);
 	}
 
@@ -56,12 +55,31 @@ final class CashbookMapper extends QBMapper {
 	 * @return list<Cashbook>
 	 */
 	public function getCashbooksByOwner(string $owner): array {
-		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')
-			->from($this->tableName)
-			->where(
-				$qb->expr()->eq('owner', $qb->createNamedParameter($owner)),
-			);
+		$qb = $this->selectWithLastEntry();
+		$qb->where(
+			$qb->expr()->eq('c.owner', $qb->createNamedParameter($owner)),
+		);
 		return $this->findEntities($qb);
+	}
+
+	/**
+	 * Select cashbooks (alias `c`) with the sequence number and balance of their last entry.
+	 */
+	private function selectWithLastEntry(): IQueryBuilder {
+		$last = $this->db->getQueryBuilder();
+		$last->select($last->func()->max('l.sequence'))
+			->from(EntryMapper::TABLE_NAME, 'l')
+			->where($last->expr()->eq('l.cashbook_id', 'c.id'));
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('c.*')
+			->selectAlias('e.sequence', 'last_sequence')
+			->selectAlias('e.balance_raw', 'balance_raw')
+			->from($this->tableName, 'c')
+			->leftJoin('c', EntryMapper::TABLE_NAME, 'e', $qb->expr()->andX(
+				$qb->expr()->eq('e.cashbook_id', 'c.id'),
+				$qb->expr()->eq('e.sequence', $qb->createFunction('(' . $last->getSQL() . ')')),
+			));
+		return $qb;
 	}
 }

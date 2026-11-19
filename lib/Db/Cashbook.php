@@ -9,8 +9,10 @@ declare(strict_types=1);
 
 namespace OCA\Cashbook\Db;
 
+use Brick\Money\Money;
 use OCA\Cashbook\ResponseDefinitions;
 use OCP\AppFramework\Db\SnowflakeAwareEntity;
+use OCP\DB\Types;
 
 /**
  * @psalm-import-type CashbookCashbook from ResponseDefinitions
@@ -53,11 +55,39 @@ final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 	 */
 	protected $owner;
 
+	/**
+	 * The sequence number of the last entry, loaded from the entries by the mapper (not stored)
+	 * @var ?int
+	 */
+	protected $lastSequence;
+
+	/**
+	 * The cash balance after the last entry, loaded from the entries by the mapper (not stored)
+	 * @var ?string
+	 */
+	protected $balanceRaw;
+
 	public function __construct() {
 		$this->addType('name', 'string');
 		$this->addType('account', 'string');
 		$this->addType('currency', 'string');
 		$this->addType('owner', 'string');
+		$this->addType('lastSequence', Types::BIGINT);
+		$this->addType('balanceRaw', Types::STRING);
+	}
+
+	/**
+	 * The sequence number of the last entry, 0 if the cashbook has no entries
+	 */
+	public function getLastSequence(): int {
+		return $this->lastSequence ?? 0;
+	}
+
+	/**
+	 * The cash balance after the last entry
+	 */
+	public function getBalance(): Money {
+		return Money::of($this->balanceRaw ?? '0', $this->currency);
 	}
 
 	/**
@@ -71,6 +101,8 @@ final class Cashbook extends SnowflakeAwareEntity implements \JsonSerializable {
 			'currency' => $this->currency,
 			'name' => $this->name,
 			'owner' => $this->owner,
+			'lastSequence' => $this->getLastSequence(),
+			'balance' => (string)$this->getBalance()->getAmount(),
 		];
 	}
 }

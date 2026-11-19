@@ -17,6 +17,7 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
+use OCA\Cashbook\Exception\ConflictException;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\IImportService;
 use OCA\Cashbook\ImportService\ImportFormat;
@@ -140,24 +141,28 @@ final class ApiController extends OCSController {
 	 *
 	 * The entry is booked after the last entry of the cashbook at the current time.
 	 * Entries can not be changed afterwards, mistakes need to be corrected with a new entry.
+	 * If the cashbook was changed since `lastSequence` was loaded, the entry is rejected with the current cashbook.
 	 *
 	 * @param string $id The id of the cashbook
+	 * @param int<0, max> $lastSequence The sequence number of the last entry of the cashbook, 0 if it has no entries
 	 * @param EntryReason $reason The reason of the entry, only income and expense reasons are allowed
 	 * @param string $amount The positive amount as decimal string (e.g. `"12.50"`), expenses are subtracted from the balance
 	 * @param string $text The posting text (up to 1000 characters)
 	 * @param ?float $tax The tax rate included in the amount (e.g. `0.19` for 19%)
 	 * @param ?string $reference The receipt number (up to 127 characters)
 	 * @param ?string $referenceDate The date of the receipt (`YYYY-MM-DD`)
-	 * @return DataResponse<Http::STATUS_OK, CashbookEntry, array{}>
+	 * @return DataResponse<Http::STATUS_OK, CashbookEntry, array{}>|DataResponse<Http::STATUS_CONFLICT, CashbookCashbook, array{}>
 	 * @throws OCSBadRequestException Invalid values or the expense exceeds the cash balance
 	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
 	 *
 	 * 200: Entry added
+	 * 409: The last entry is not `lastSequence`, the current cashbook is returned
 	 */
 	#[NoAdminRequired]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/{id}/entries', requirements: ['id' => '\d+'])]
 	public function addCashbookEntry(
 		string $id,
+		int $lastSequence,
 		EntryReason $reason,
 		string $amount,
 		string $text = '',
@@ -175,7 +180,9 @@ final class ApiController extends OCSController {
 		}
 
 		try {
-			$entry = $this->entryService->add($cashbook, $this->userId, $reason, $amount, $text, $tax, $reference, $referenceDate);
+			$entry = $this->entryService->add($cashbook, $this->userId, $lastSequence, $reason, $amount, $text, $tax, $reference, $referenceDate);
+		} catch (ConflictException) {
+			return new DataResponse($this->cashbookMapper->getCashbook($id)->jsonSerialize(), Http::STATUS_CONFLICT);
 		} catch (InvalidInputException $error) {
 			throw new OCSBadRequestException($error->getHint());
 		} catch (InvalidArgumentException $error) {

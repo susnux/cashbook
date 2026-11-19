@@ -19,6 +19,7 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
+use OCA\Cashbook\Exception\ConflictException;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCP\AppFramework\Db\TTransactional;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -51,15 +52,18 @@ final class EntryService {
 	 * The entry gets the next sequence number of the cashbook. It is booked at the current time,
 	 * or at the time of the last entry if that is in the future, so the balance always follows from the previous entry.
 	 *
+	 * @param int $lastSequence The sequence number of the last entry known to the client, 0 for an empty cashbook
 	 * @param string $amount The positive amount as decimal string, expenses are subtracted from the balance
 	 * @param ?float $tax The tax rate (e.g. `0.19` for 19%)
 	 * @param ?string $referenceDate The date of the receipt (`YYYY-MM-DD`)
+	 * @throws ConflictException If `$lastSequence` is not the sequence number of the last entry
 	 * @throws InvalidInputException If an expense exceeds the cash balance
 	 * @throws InvalidArgumentException If a value is invalid
 	 */
 	public function add(
 		Cashbook $cashbook,
 		string $userId,
+		int $lastSequence,
 		EntryReason $reason,
 		string $amount,
 		string $text = '',
@@ -87,10 +91,13 @@ final class EntryService {
 		$taxRate = $this->parseTax($tax);
 		$receiptDate = $referenceDate === null || $referenceDate === '' ? null : $this->parseDate($referenceDate);
 
-		return $this->atomic(function () use ($cashbook, $userId, $reason, $signedAmount, $text, $taxRate, $reference, $receiptDate): Entry {
+		return $this->atomic(function () use ($cashbook, $userId, $lastSequence, $reason, $signedAmount, $text, $taxRate, $reference, $receiptDate): Entry {
 			$this->cashbookMapper->lock($cashbook);
 
 			$last = $this->entryMapper->getLastEntry($cashbook);
+			if (($last?->getSequence() ?? 0) !== $lastSequence) {
+				throw new ConflictException('The cashbook was changed in the meantime.');
+			}
 			$balance = ($last?->getBalance() ?? Money::zero($cashbook->getCurrency()))->plus($signedAmount);
 			if ($balance->isNegative()) {
 				throw new InvalidInputException('The expense exceeds the cash balance.', $this->l10n->t('The expense exceeds the cash balance.'));
