@@ -17,6 +17,7 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCP\AppFramework\Db\TTransactional;
+use OCP\Config\IUserConfig;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -32,6 +33,7 @@ final class CashbookService {
 		private IDBConnection $db,
 		private IL10N $l10n,
 		private IDateTimeZone $dateTimeZone,
+		private IUserConfig $userConfig,
 		private CashbookMapper $cashbookMapper,
 		private EntryMapper $entryMapper,
 	) {
@@ -41,7 +43,7 @@ final class CashbookService {
 	 * Create a new cashbook.
 	 *
 	 * @param ?string $timezone The IANA timezone ID, defaults to the timezone of the owner
-	 * @throws InvalidInputException If the name is empty
+	 * @throws InvalidInputException If the name is empty or the timezone is not supported
 	 * @throws InvalidArgumentException If a value is invalid
 	 */
 	public function create(string $owner, string $name, string $currency, string $account = '', ?string $timezone = null): Cashbook {
@@ -54,7 +56,7 @@ final class CashbookService {
 	 * The currency and timezone can not be changed afterwards.
 	 *
 	 * @param ?string $timezone The IANA timezone ID, defaults to the timezone of the owner
-	 * @throws InvalidInputException If the name is empty
+	 * @throws InvalidInputException If the name is empty or the timezone is not supported
 	 * @throws InvalidArgumentException If a value is invalid
 	 */
 	public function build(string $owner, string $name, string $currency, string $account = '', ?string $timezone = null): Cashbook {
@@ -73,27 +75,37 @@ final class CashbookService {
 	/**
 	 * Parse an IANA timezone ID.
 	 *
-	 * Fixed offsets like `+02:00` are rejected, as they have no daylight saving time rules.
+	 * Only `UTC` and the timezones of locations (`Area/Location`, including legacy names like `Europe/Kiev`) are supported.
+	 * Fixed offsets like `+02:00`, `Etc/GMT-2` or `EST` are rejected, as they have no daylight saving time rules.
 	 *
-	 * @throws InvalidArgumentException If the timezone is not a known IANA timezone ID
+	 * @throws InvalidInputException If the timezone is not supported
 	 */
 	public function parseTimezone(string $timezone): \DateTimeZone {
-		if ($timezone === '' || !in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)) {
-			throw new InvalidArgumentException('Unknown timezone.');
+		$isLocation = str_contains($timezone, '/') && !str_starts_with($timezone, 'Etc/');
+		if ($timezone === '' || ($timezone !== 'UTC' && !$isLocation) || !in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)) {
+			throw new InvalidInputException('Unknown timezone.', $this->l10n->t('The selected timezone is not supported.'));
 		}
 		return new \DateTimeZone($timezone);
 	}
 
 	/**
-	 * Get the timezone of a user as IANA timezone ID, `UTC` if the user has no valid timezone.
+	 * Get the timezone of a user as IANA timezone ID.
+	 *
+	 * Falls back to the default timezone of the server and then to `UTC` if they are not supported.
+	 * Unlike `IDateTimeZone::getTimeZone()` this never guesses a fixed offset from the session of the current user.
 	 */
 	public function getDefaultTimezone(string $userId): string {
-		$timezone = $this->dateTimeZone->getTimeZone(userId: $userId)->getName();
-		try {
-			return $this->parseTimezone($timezone)->getName();
-		} catch (InvalidArgumentException) {
-			return 'UTC';
+		$timezones = [
+			$this->userConfig->getValueString($userId, 'core', 'timezone'),
+			$this->dateTimeZone->getDefaultTimeZone()->getName(),
+		];
+		foreach ($timezones as $timezone) {
+			try {
+				return $this->parseTimezone($timezone)->getName();
+			} catch (InvalidInputException) {
+			}
 		}
+		return 'UTC';
 	}
 
 	/**

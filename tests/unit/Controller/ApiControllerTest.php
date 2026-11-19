@@ -510,8 +510,8 @@ final class ApiControllerTest extends TestCase {
 
 	public function testCreateCashbookInvalidTimezone(): void {
 		$this->expectException(OCSBadRequestException::class);
-		$this->expectExceptionMessage('Unknown timezone.');
-		$this->createController()->createCashbook('Shop', 'EUR', '', '+02:00');
+		$this->expectExceptionMessage('The selected timezone is not supported.');
+		$this->createController()->createCashbook('Shop', 'EUR', '', 'Etc/GMT-2');
 	}
 
 	public function testCreateCashbookEmptyName(): void {

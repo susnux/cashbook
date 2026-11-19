@@ -16,6 +16,7 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Migration\Version000002Date20261119120000;
 use OCA\Cashbook\Service\CashbookService;
+use OCP\Config\IUserConfig;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -27,7 +28,7 @@ final class Version000002Date20261119120000Test extends TestCase {
 
 	private const array USER_TIMEZONES = [
 		'cashbook-migration-berlin' => 'Europe/Berlin',
-		'cashbook-migration-offset' => '+02:00',
+		'cashbook-migration-offset' => 'Etc/GMT-2',
 	];
 
 	private CashbookMapper $cashbookMapper;
@@ -39,13 +40,17 @@ final class Version000002Date20261119120000Test extends TestCase {
 		$this->cashbookMapper = Server::get(CashbookMapper::class);
 
 		$dateTimeZone = $this->createStub(IDateTimeZone::class);
-		$dateTimeZone->method('getTimeZone')->willReturnCallback(
-			static fn (int|false $timestamp = false, ?string $userId = null): \DateTimeZone => new \DateTimeZone(self::USER_TIMEZONES[$userId] ?? 'Pacific/Auckland'),
+		$dateTimeZone->method('getDefaultTimeZone')->willReturn(new \DateTimeZone('UTC'));
+		// A session timezone must not be used for the owners
+		$dateTimeZone->method('getTimeZone')->willReturn(new \DateTimeZone('Asia/Colombo'));
+		$userConfig = $this->createStub(IUserConfig::class);
+		$userConfig->method('getValueString')->willReturnCallback(
+			static fn (string $userId, string $app, string $key): string => $app === 'core' && $key === 'timezone' ? (self::USER_TIMEZONES[$userId] ?? '') : '',
 		);
 		$db = Server::get(IDBConnection::class);
 		$this->migration = new Version000002Date20261119120000(
 			$db,
-			new CashbookService($db, $this->createStub(IL10N::class), $dateTimeZone, $this->cashbookMapper, Server::get(EntryMapper::class)),
+			new CashbookService($db, $this->createStub(IL10N::class), $dateTimeZone, $userConfig, $this->cashbookMapper, Server::get(EntryMapper::class)),
 		);
 	}
 

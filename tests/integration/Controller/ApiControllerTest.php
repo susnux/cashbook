@@ -58,7 +58,8 @@ final class ApiControllerTest extends IntegrationTestCase {
 	public static function dataCreateCashbookInvalidTimezone(): array {
 		return [
 			'unknown timezone' => ['Mars/Olympus'],
-			'fixed offset' => ['+02:00'],
+			'offset' => ['+02:00'],
+			'fixed offset zone' => ['Etc/GMT-2'],
 		];
 	}
 
@@ -70,7 +71,7 @@ final class ApiControllerTest extends IntegrationTestCase {
 			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR', 'timezone' => $timezone],
 		]);
 		$this->assertOcsResponse(400, $response);
-		$this->assertSame('Unknown timezone.', json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
+		$this->assertSame('The selected timezone is not supported.', json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
 		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks')));
 	}
 

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type * as Timezone from '../utils/timezone.ts'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
@@ -12,6 +14,10 @@ import NewCashbookDialog from './NewCashbookDialog.vue'
 
 const { createCashbook, updateCashbook } = vi.hoisted(() => ({ createCashbook: vi.fn(), updateCashbook: vi.fn() }))
 vi.mock('../api/cashbooks.ts', () => ({ createCashbook, updateCashbook }))
+vi.mock('../utils/timezone.ts', async (importOriginal) => ({
+	...await importOriginal<typeof Timezone>(),
+	getBrowserTimezone: () => 'Europe/Berlin',
+}))
 
 /**
  * Mount the dialog and fill in the name and currency
@@ -57,7 +63,7 @@ describe('NewCashbookDialog', () => {
 
 		await clickButton('Create cashbook')
 
-		expect(createCashbook).toHaveBeenCalledWith({ name: 'Shop', account: '', currency: 'USD', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+		expect(createCashbook).toHaveBeenCalledWith({ name: 'Shop', account: '', currency: 'USD', timezone: 'Europe/Berlin' })
 		expect(wrapper.emitted('close')).toEqual([[cashbook]])
 	})
 
@@ -65,7 +71,8 @@ describe('NewCashbookDialog', () => {
 		createCashbook.mockResolvedValue({ id: '1', name: 'Shop', account: '', currency: 'USD', owner: 'alice', timezone: 'Pacific/Auckland', lastSequence: 0, balance: '0.00' })
 		const wrapper = await mountFilledDialog()
 		const picker = wrapper.findComponent(NcTimezonePicker)
-		expect(picker.props('modelValue')).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone)
+		expect(picker.props('modelValue')).toBe('Europe/Berlin')
+		expect(picker.props('additionalTimezones')).toEqual([{ timezoneId: 'UTC', label: 'UTC', continent: '' }])
 		await picker.vm.$emit('update:modelValue', 'Pacific/Auckland')
 
 		await clickButton('Create cashbook')

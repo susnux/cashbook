@@ -18,6 +18,7 @@ import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import { importSumupCashbook } from '../api/cashbooks.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
+import { getBrowserTimezone, UTC_TIMEZONE } from '../utils/timezone.ts'
 
 const emit = defineEmits<{
 	(e: 'close', cashbook?: ICashbook): void
@@ -53,7 +54,7 @@ const fileFields: FileField[] = [
 ]
 
 const files = ref<Partial<ImportFiles>>({})
-const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone)
+const timezone = ref(getBrowserTimezone())
 const timezonePickerId = 'cashbook-import-timezone'
 const error = ref('')
 const imported = ref<ICashbook>()
@@ -157,6 +158,7 @@ function onUpdateOpen(open: boolean) {
 		<!-- The picker sets an `ariaLabelCombobox` that would replace the input label as accessible name -->
 		<NcTimezonePicker
 			v-model="timezone"
+			:additionalTimezones="[UTC_TIMEZONE]"
 			:ariaLabelCombobox="null"
 			:inputLabel="t('cashbook', 'Timezone of the export and the cashbook')"
 			:uid="timezonePickerId" />

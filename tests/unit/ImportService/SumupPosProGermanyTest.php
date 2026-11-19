@@ -17,6 +17,7 @@ use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\ImportService\SumupPosProGermany;
 use OCA\Cashbook\Service\CashbookService;
+use OCP\Config\IUserConfig;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -59,8 +60,10 @@ final class SumupPosProGermanyTest extends TestCase {
 	}
 
 	private function createImporter(?LoggerInterface $logger = null): SumupPosProGermany {
-		$timezone = $this->createStub(IDateTimeZone::class);
-		$timezone->method('getTimeZone')->willReturn(new \DateTimeZone('Europe/Berlin'));
+		$dateTimeZone = $this->createStub(IDateTimeZone::class);
+		$dateTimeZone->method('getDefaultTimeZone')->willReturn(new \DateTimeZone('UTC'));
+		$userConfig = $this->createStub(IUserConfig::class);
+		$userConfig->method('getValueString')->willReturn('Europe/Berlin');
 		$l10n = $this->createStub(IL10N::class);
 		$l10n->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => 'translated: ' . vsprintf($text, $parameters));
 
@@ -71,7 +74,7 @@ final class SumupPosProGermanyTest extends TestCase {
 			$this->db,
 			$this->cashbookMapper,
 			$this->entryMapper,
-			new CashbookService($this->db, $l10n, $timezone, $this->cashbookMapper, $this->entryMapper),
+			new CashbookService($this->db, $l10n, $dateTimeZone, $userConfig, $this->cashbookMapper, $this->entryMapper),
 		);
 	}
 
@@ -259,7 +262,8 @@ final class SumupPosProGermanyTest extends TestCase {
 	public static function dataInvalidTimezoneOption(): array {
 		return [
 			'unknown timezone' => ['Mars/Olympus'],
-			'fixed offset' => ['+02:00'],
+			'offset' => ['+02:00'],
+			'fixed offset zone' => ['Etc/GMT-2'],
 		];
 	}
 
@@ -268,8 +272,9 @@ final class SumupPosProGermanyTest extends TestCase {
 		try {
 			$this->createImporter()->import($this->files('Kassenbuch_basic.csv'), ['timezone' => $timezone]);
 			$this->fail('Import should have failed');
-		} catch (\InvalidArgumentException $error) {
+		} catch (InvalidInputException $error) {
 			$this->assertSame('Unknown timezone.', $error->getMessage());
+			$this->assertSame('translated: The selected timezone is not supported.', $error->getHint());
 		}
 		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}

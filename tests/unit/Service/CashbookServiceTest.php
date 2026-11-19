@@ -18,6 +18,7 @@ use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\Config\IUserConfig;
 use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -28,8 +29,13 @@ use PHPUnit\Framework\TestCase;
 final class CashbookServiceTest extends TestCase {
 
 	private const string USER_ID = 'cashbook-service-test';
-	/** A user whose timezone is a fixed offset instead of an IANA timezone ID */
+	/** A user whose timezone is a fixed offset instead of the timezone of a location */
 	private const string USER_ID_OFFSET = 'cashbook-service-test-offset';
+	/** The timezone setting of the users */
+	private const array USER_TIMEZONES = [
+		self::USER_ID => 'Europe/Berlin',
+		self::USER_ID_OFFSET => 'Etc/GMT-1',
+	];
 
 	private CashbookService $service;
 	private CashbookMapper $cashbookMapper;
@@ -40,17 +46,26 @@ final class CashbookServiceTest extends TestCase {
 		parent::setUp();
 		$this->cashbookMapper = Server::get(CashbookMapper::class);
 		$this->entryMapper = Server::get(EntryMapper::class);
+		$this->service = $this->createService('America/New_York');
+	}
 
+	/**
+	 * @param string $serverTimezone The default timezone of the server
+	 */
+	private function createService(string $serverTimezone): CashbookService {
 		$l10n = $this->createStub(IL10N::class);
 		$l10n->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => 'translated: ' . vsprintf($text, $parameters));
 		$dateTimeZone = $this->createStub(IDateTimeZone::class);
-		$dateTimeZone->method('getTimeZone')->willReturnCallback(
-			static fn (int|false $timestamp = false, ?string $userId = null): \DateTimeZone => new \DateTimeZone($userId === self::USER_ID_OFFSET ? '+02:00' : 'Europe/Berlin'),
+		$dateTimeZone->method('getDefaultTimeZone')->willReturn(new \DateTimeZone($serverTimezone));
+		$userConfig = $this->createStub(IUserConfig::class);
+		$userConfig->method('getValueString')->willReturnCallback(
+			static fn (string $userId, string $app, string $key): string => $app === 'core' && $key === 'timezone' ? (self::USER_TIMEZONES[$userId] ?? '') : '',
 		);
-		$this->service = new CashbookService(
+		return new CashbookService(
 			Server::get(IDBConnection::class),
 			$l10n,
 			$dateTimeZone,
+			$userConfig,
 			$this->cashbookMapper,
 			$this->entryMapper,
 		);
@@ -113,10 +128,20 @@ final class CashbookServiceTest extends TestCase {
 		$this->assertSame($timezone, $stored->getDateTimeZone()->getName());
 	}
 
-	public function testCreateDefaultsToUtcIfTheUserHasNoTimezoneId(): void {
-		$cashbook = $this->service->create(self::USER_ID_OFFSET, 'Shop', 'EUR');
+	public static function dataDefaultTimezone(): array {
+		return [
+			'timezone of the user' => [self::USER_ID, 'America/New_York', 'Europe/Berlin'],
+			'fixed offset of the user' => [self::USER_ID_OFFSET, 'America/New_York', 'America/New_York'],
+			'user without timezone' => [self::USER_ID . '-other', 'America/New_York', 'America/New_York'],
+			'fixed offset of the server' => [self::USER_ID_OFFSET, 'Etc/GMT+5', 'UTC'],
+		];
+	}
 
-		$this->assertSame('UTC', $this->cashbookMapper->getCashbook($cashbook->getId())->getTimezone());
+	#[DataProvider('dataDefaultTimezone')]
+	public function testCreateDefaultsToTimezoneOfTheUser(string $owner, string $serverTimezone, string $expected): void {
+		$cashbook = $this->createService($serverTimezone)->create($owner, 'Shop', 'EUR');
+
+		$this->assertSame($expected, $this->cashbookMapper->getCashbook($cashbook->getId())->getTimezone());
 	}
 
 	public function testBuildDoesNotStore(): void {
@@ -147,10 +172,6 @@ final class CashbookServiceTest extends TestCase {
 			'account too long' => ['Shop', 'EUR', str_repeat('a', 256), null, 'The account must not be longer than 255 characters.'],
 			'unknown currency' => ['Shop', 'ABC', '', null, 'Unknown currency.'],
 			'currency name' => ['Shop', 'Euro', '', null, 'Unknown currency.'],
-			'unknown timezone' => ['Shop', 'EUR', '', 'Mars/Olympus', 'Unknown timezone.'],
-			'timezone with wrong case' => ['Shop', 'EUR', '', 'europe/berlin', 'Unknown timezone.'],
-			'fixed offset' => ['Shop', 'EUR', '', '+02:00', 'Unknown timezone.'],
-			'empty timezone' => ['Shop', 'EUR', '', '', 'Unknown timezone.'],
 		];
 	}
 
@@ -161,6 +182,31 @@ final class CashbookServiceTest extends TestCase {
 			$this->fail('Creating the cashbook should have failed');
 		} catch (\InvalidArgumentException $error) {
 			$this->assertSame($message, $error->getMessage());
+		}
+		$this->assertSame([], $this->cashbookMapper->getCashbooksByOwner(self::USER_ID));
+	}
+
+	public static function dataCreateUnsupportedTimezone(): array {
+		return [
+			'unknown timezone' => ['Mars/Olympus'],
+			'wrong case' => ['europe/berlin'],
+			'empty' => [''],
+			'offset' => ['+02:00'],
+			'fixed offset zone' => ['Etc/GMT-1'],
+			'UTC alias of the Etc area' => ['Etc/UTC'],
+			'legacy fixed offset' => ['EST'],
+			'legacy name without location' => ['GMT'],
+		];
+	}
+
+	#[DataProvider('dataCreateUnsupportedTimezone')]
+	public function testCreateUnsupportedTimezone(string $timezone): void {
+		try {
+			$this->service->create(self::USER_ID, 'Shop', 'EUR', '', $timezone);
+			$this->fail('Creating the cashbook should have failed');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('Unknown timezone.', $error->getMessage());
+			$this->assertSame('translated: The selected timezone is not supported.', $error->getHint());
 		}
 		$this->assertSame([], $this->cashbookMapper->getCashbooksByOwner(self::USER_ID));
 	}

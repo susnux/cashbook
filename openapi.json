@@ -1570,7 +1570,7 @@
                         }
                     },
                     "400": {
-                        "description": "No files uploaded, unsupported import format or invalid files",
+                        "description": "No files uploaded, unsupported import format, invalid files or timezone",
                         "content": {
                             "application/json": {
                                 "schema": {

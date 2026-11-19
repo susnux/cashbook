@@ -53,7 +53,7 @@ final class SumupPosProGermany implements IImportService {
 	protected int $sequence = 0;
 	/**
 	 * The timezone of the cashbook, the exported dates are in this timezone
-	 * @psalm-suppress PropertyNotSetInConstructor Set in import() before it is used
+	 * @psalm-suppress PropertyNotSetInConstructor Set in prepareCashbook() before it is used
 	 */
 	protected \DateTimeZone $timezone;
 

@@ -18,6 +18,7 @@ import { createCashbook, updateCashbook } from '../api/cashbooks.ts'
 import { getCurrencyOptions } from '../utils/currencies.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
+import { getBrowserTimezone, UTC_TIMEZONE } from '../utils/timezone.ts'
 
 const props = defineProps<{
 	/** The cashbook to edit, if not set a new cashbook is created */
@@ -32,7 +33,7 @@ const newCashbook = ref<ICashbookData>({
 	currency: 'EUR',
 	name: '',
 	account: '',
-	timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+	timezone: getBrowserTimezone(),
 })
 
 watch(() => props.cashbook, () => {
@@ -132,6 +133,7 @@ function onUpdateOpen(open: boolean) {
 		<!-- The picker sets an `ariaLabelCombobox` that would replace the input label as accessible name -->
 		<NcTimezonePicker
 			v-model="newCashbook.timezone"
+			:additionalTimezones="[UTC_TIMEZONE]"
 			:ariaLabelCombobox="null"
 			:disabled="isEditing"
 			:inputLabel="t('cashbook', 'Timezone')"

@@ -373,7 +373,7 @@ final class ApiController extends OCSController {
 	 * @param ImportFormat $import The import format to use
 	 * @param ?string $timezone The timezone of the dates in the uploaded files and of the cashbook (IANA timezone ID, defaults to the timezone of the user)
 	 * @return DataResponse<Http::STATUS_OK, array{id: string}, array{}>
-	 * @throws OCSBadRequestException No files uploaded, unsupported import format or invalid files
+	 * @throws OCSBadRequestException No files uploaded, unsupported import format, invalid files or timezone
 	 *
 	 * 200: Cashbook imported
 	 */

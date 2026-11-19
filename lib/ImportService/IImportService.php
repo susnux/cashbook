@@ -23,7 +23,7 @@ interface IImportService {
 	 * @param array<string, string> $files The paths of the uploaded files by their name, the names are defined by the import service
 	 * @param array{timezone?: string} $options Import options, `timezone` is the timezone of dates without timezone information and of the imported cashbook
 	 * @return Cashbook The imported cashbook
-	 * @throws InvalidInputException If the files could not be imported
+	 * @throws InvalidInputException If the files could not be imported or the timezone is not supported
 	 * @throws \InvalidArgumentException If the options are invalid, or files are unknown or missing
 	 */
 	public function import(array $files, array $options = []): Cashbook;

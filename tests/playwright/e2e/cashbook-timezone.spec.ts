@@ -47,3 +47,21 @@ test.describe('Cashbook timezone', () => {
 		await expect(dialog.getByRole('combobox', { name: 'Timezone' })).toBeDisabled()
 	})
 })
+
+test.describe('Cashbook timezone of a browser with a fixed offset', () => {
+	test.use({ timezoneId: 'Etc/GMT-1' })
+
+	test.beforeEach(async ({ cashbookApp }) => {
+		await cashbookApp.open()
+	})
+
+	test('creates the cashbook in UTC by default', async ({ cashbookApp }) => {
+		await cashbookApp.navigation().getByRole('button', { name: 'New cashbook' }).click()
+		await expect(cashbookApp.newCashbookDialog().getByText('UTC', { exact: true })).toBeVisible()
+		await cashbookApp.newCashbookDialog().getByRole('button', { name: 'Cancel' }).click()
+
+		const response = await cashbookApp.createCashbook({ name: 'Shop register' })
+
+		expect((await response.json()).ocs.data.timezone).toBe('UTC')
+	})
+})
