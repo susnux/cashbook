@@ -13,6 +13,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import { createCashbook, updateCashbook } from '../api/cashbooks.ts'
 import { getCurrencyOptions } from '../utils/currencies.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
@@ -31,14 +32,18 @@ const newCashbook = ref<ICashbookData>({
 	currency: 'EUR',
 	name: '',
 	account: '',
+	timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 })
 
 watch(() => props.cashbook, () => {
 	if (props.cashbook) {
-		const { name, account, currency } = props.cashbook
-		newCashbook.value = { name, account, currency }
+		const { name, account, currency, timezone } = props.cashbook
+		newCashbook.value = { name, account, currency, timezone }
 	}
 }, { immediate: true })
+
+// Fixed ID as the dialog is mounted as a separate Vue app, so `useId()` would collide with IDs of the main app
+const timezonePickerId = 'cashbook-timezone'
 
 const currencyOptions = getCurrencyOptions()
 const selectedCurrency = computed({
@@ -124,6 +129,16 @@ function onUpdateOpen(open: boolean) {
 			:inputLabel="t('cashbook', 'Currency')"
 			:options="currencyOptions"
 			required />
+		<!-- The picker sets an `ariaLabelCombobox` that would replace the input label as accessible name -->
+		<NcTimezonePicker
+			v-model="newCashbook.timezone"
+			:ariaLabelCombobox="null"
+			:disabled="isEditing"
+			:inputLabel="t('cashbook', 'Timezone')"
+			:uid="timezonePickerId" />
+		<p :class="$style.timezoneHint">
+			{{ t('cashbook', 'The days of the cashbook follow this timezone. It can not be changed later.') }}
+		</p>
 		<NcNoteCard v-if="error" type="error" :text="error" />
 	</NcDialog>
 </template>
@@ -131,5 +146,9 @@ function onUpdateOpen(open: boolean) {
 <style lang="scss" module>
 .currencySelect {
 	width: 100%;
+}
+
+.timezoneHint {
+	color: var(--color-text-maxcontrast);
 }
 </style>

@@ -154,10 +154,15 @@ function onUpdateOpen(open: boolean) {
 				</NcButton>
 			</div>
 		</fieldset>
-		<label :class="$style.timezoneLabel" :for="`vs-${timezonePickerId}__combobox`">
-			{{ t('cashbook', 'Timezone of the export') }}
-		</label>
-		<NcTimezonePicker v-model="timezone" :uid="timezonePickerId" />
+		<!-- The picker sets an `ariaLabelCombobox` that would replace the input label as accessible name -->
+		<NcTimezonePicker
+			v-model="timezone"
+			:ariaLabelCombobox="null"
+			:inputLabel="t('cashbook', 'Timezone of the export and the cashbook')"
+			:uid="timezonePickerId" />
+		<p :class="$style.timezoneHint">
+			{{ t('cashbook', 'The dates of the export are read in this timezone. The days of the cashbook follow it, it can not be changed later.') }}
+		</p>
 		<NcNoteCard v-if="error" type="error" :text="error" />
 	</NcDialog>
 </template>
@@ -185,8 +190,7 @@ function onUpdateOpen(open: boolean) {
 	white-space: nowrap;
 }
 
-.timezoneLabel {
-	display: block;
-	margin-block-start: calc(2 * var(--default-grid-baseline));
+.timezoneHint {
+	color: var(--color-text-maxcontrast);
 }
 </style>

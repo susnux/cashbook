@@ -8,6 +8,8 @@ import type { Locator, Page, Response } from '@playwright/test'
 export interface NewCashbookOptions {
 	name: string
 	account?: string
+	/** The IANA timezone ID, the timezone of the browser is kept if not set */
+	timezone?: string
 }
 
 export interface ImportCashbookOptions {
@@ -113,8 +115,9 @@ export class CashbookAppPage {
 	 * Create a cashbook through the "New cashbook" dialog
 	 *
 	 * @param options - The values to enter into the dialog
+	 * @return The response of the create request
 	 */
-	async createCashbook({ name, account }: NewCashbookOptions): Promise<void> {
+	async createCashbook({ name, account, timezone }: NewCashbookOptions): Promise<Response> {
 		await this.navigation().getByRole('button', { name: 'New cashbook' }).click()
 
 		const dialog = this.newCashbookDialog()
@@ -122,11 +125,25 @@ export class CashbookAppPage {
 		if (account) {
 			await dialog.getByRole('textbox', { name: 'Account' }).fill(account)
 		}
+		if (timezone) {
+			await this.selectTimezone(dialog.getByRole('combobox', { name: 'Timezone' }), timezone)
+		}
 
 		const created = this.page.waitForResponse((response) => response.request().method() === 'POST'
 			&& response.url().includes('/apps/cashbook/api/v1/cashbooks'))
 		await dialog.getByRole('button', { name: 'Create cashbook' }).click()
-		await created
+		return await created
+	}
+
+	/**
+	 * Select a timezone with a timezone picker
+	 *
+	 * @param combobox - The combobox of the timezone picker
+	 * @param timezone - The IANA timezone ID
+	 */
+	async selectTimezone(combobox: Locator, timezone: string): Promise<void> {
+		await combobox.fill(timezone)
+		await combobox.press('Enter')
 	}
 
 	/**

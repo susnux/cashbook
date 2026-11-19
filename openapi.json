@@ -28,6 +28,7 @@
                     "account",
                     "currency",
                     "owner",
+                    "timezone",
                     "lastSequence",
                     "balance"
                 ],
@@ -45,6 +46,9 @@
                         "type": "string"
                     },
                     "owner": {
+                        "type": "string"
+                    },
+                    "timezone": {
                         "type": "string"
                     },
                     "lastSequence": {
@@ -288,6 +292,12 @@
                                         "type": "string",
                                         "default": "",
                                         "description": "The account the cashbook is kept for (up to 255 characters)"
+                                    },
+                                    "timezone": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "default": null,
+                                        "description": "The timezone of the cashbook (IANA timezone ID, defaults to the timezone of the user)"
                                     }
                                 }
                             }
@@ -338,7 +348,7 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid name, account or currency",
+                        "description": "Invalid name, account, currency or timezone",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -676,7 +686,7 @@
             "put": {
                 "operationId": "api-update-cashbook",
                 "summary": "Change the name and account of a cashbook",
-                "description": "The currency can not be changed.",
+                "description": "The currency and timezone can not be changed.",
                 "tags": [
                     "api"
                 ],
@@ -1291,7 +1301,7 @@
             "get": {
                 "operationId": "api-get-cashbook-entries-print",
                 "summary": "Get all entries of a cashbook within a date range, prepared for printing",
-                "description": "Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry. If the range starts or ends within an open day, the whole day is included.",
+                "description": "Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry. If the range starts or ends within an open day, the whole day is included. Dates without a time (`YYYY-MM-DD`) are the start of that day in the timezone of the cashbook.",
                 "tags": [
                     "api"
                 ],
@@ -1317,7 +1327,7 @@
                     {
                         "name": "begin",
                         "in": "query",
-                        "description": "Start of the date range (ISO 8601 date time, inclusive)",
+                        "description": "Start of the date range (ISO 8601 date or date time, inclusive)",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -1326,7 +1336,7 @@
                     {
                         "name": "end",
                         "in": "query",
-                        "description": "End of the date range (ISO 8601 date time, exclusive)",
+                        "description": "End of the date range (ISO 8601 date or date time, exclusive)",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -1501,7 +1511,7 @@
                                         "type": "string",
                                         "nullable": true,
                                         "default": null,
-                                        "description": "The timezone of the dates in the uploaded files (defaults to the timezone of the user)"
+                                        "description": "The timezone of the dates in the uploaded files and of the cashbook (IANA timezone ID, defaults to the timezone of the user)"
                                     }
                                 }
                             }

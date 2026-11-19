@@ -110,7 +110,7 @@ describe('ImportCashbookDialog', () => {
 	})
 
 	it('imports the cashbook export with the daily closing report and emits the cashbook', async () => {
-		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', lastSequence: 0, balance: '0.00' }
+		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', timezone: 'Europe/Berlin', lastSequence: 0, balance: '0.00' }
 		importSumupCashbook.mockResolvedValue(cashbook)
 		const wrapper = await mountDialog()
 

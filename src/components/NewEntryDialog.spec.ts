@@ -18,7 +18,7 @@ import { EntryReason } from '../models/CashbookEntry.ts'
 const { addEntry } = vi.hoisted(() => ({ addEntry: vi.fn() }))
 vi.mock('../api/cashbooks.ts', async (importOriginal) => ({ ...await importOriginal<typeof CashbooksApi>(), addEntry }))
 
-const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', lastSequence: 2, balance: '100.00' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', timezone: 'Europe/Berlin', lastSequence: 2, balance: '100.00' }
 
 /**
  * Mount the dialog for the test cashbook

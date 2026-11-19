@@ -18,6 +18,7 @@ use OCA\Cashbook\Db\EntryReason;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\Service\CashbookService;
 use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\IDateTimeZone;
 use OCP\IDBConnection;
 use OCP\IL10N;
 use OCP\Server;
@@ -27,6 +28,8 @@ use PHPUnit\Framework\TestCase;
 final class CashbookServiceTest extends TestCase {
 
 	private const string USER_ID = 'cashbook-service-test';
+	/** A user whose timezone is a fixed offset instead of an IANA timezone ID */
+	private const string USER_ID_OFFSET = 'cashbook-service-test-offset';
 
 	private CashbookService $service;
 	private CashbookMapper $cashbookMapper;
@@ -40,9 +43,14 @@ final class CashbookServiceTest extends TestCase {
 
 		$l10n = $this->createStub(IL10N::class);
 		$l10n->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => 'translated: ' . vsprintf($text, $parameters));
+		$dateTimeZone = $this->createStub(IDateTimeZone::class);
+		$dateTimeZone->method('getTimeZone')->willReturnCallback(
+			static fn (int|false $timestamp = false, ?string $userId = null): \DateTimeZone => new \DateTimeZone($userId === self::USER_ID_OFFSET ? '+02:00' : 'Europe/Berlin'),
+		);
 		$this->service = new CashbookService(
 			Server::get(IDBConnection::class),
 			$l10n,
+			$dateTimeZone,
 			$this->cashbookMapper,
 			$this->entryMapper,
 		);
@@ -52,6 +60,7 @@ final class CashbookServiceTest extends TestCase {
 	protected function tearDown(): void {
 		$this->service->deleteByOwner(self::USER_ID);
 		$this->service->deleteByOwner(self::USER_ID . '-other');
+		$this->service->deleteByOwner(self::USER_ID_OFFSET);
 		parent::tearDown();
 	}
 
@@ -83,7 +92,31 @@ final class CashbookServiceTest extends TestCase {
 		$this->assertSame('Shop', $stored->getName());
 		$this->assertSame('1000', $stored->getAccount());
 		$this->assertSame('USD', $stored->getCurrency());
+		$this->assertSame('Europe/Berlin', $stored->getTimezone());
 		$this->assertSame(self::USER_ID, $stored->getOwner());
+	}
+
+	public static function dataCreateWithTimezone(): array {
+		return [
+			'canonical' => ['America/New_York'],
+			'UTC' => ['UTC'],
+			'legacy name reported by browsers' => ['Europe/Kiev'],
+		];
+	}
+
+	#[DataProvider('dataCreateWithTimezone')]
+	public function testCreateWithTimezone(string $timezone): void {
+		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR', '', $timezone);
+
+		$stored = $this->cashbookMapper->getCashbook($cashbook->getId());
+		$this->assertSame($timezone, $stored->getTimezone());
+		$this->assertSame($timezone, $stored->getDateTimeZone()->getName());
+	}
+
+	public function testCreateDefaultsToUtcIfTheUserHasNoTimezoneId(): void {
+		$cashbook = $this->service->create(self::USER_ID_OFFSET, 'Shop', 'EUR');
+
+		$this->assertSame('UTC', $this->cashbookMapper->getCashbook($cashbook->getId())->getTimezone());
 	}
 
 	public function testBuildDoesNotStore(): void {
@@ -93,6 +126,7 @@ final class CashbookServiceTest extends TestCase {
 		$this->assertSame('Shop', $cashbook->getName());
 		$this->assertSame('1000', $cashbook->getAccount());
 		$this->assertSame('USD', $cashbook->getCurrency());
+		$this->assertSame('Europe/Berlin', $cashbook->getTimezone());
 		$this->assertSame(self::USER_ID, $cashbook->getOwner());
 		$this->assertSame([], $this->cashbookMapper->getCashbooksByOwner(self::USER_ID));
 	}
@@ -109,22 +143,30 @@ final class CashbookServiceTest extends TestCase {
 
 	public static function dataCreateInvalid(): array {
 		return [
-			'name too long' => [str_repeat('ä', 256), 'EUR', '', 'The name of the cashbook must not be longer than 255 characters.'],
-			'account too long' => ['Shop', 'EUR', str_repeat('a', 256), 'The account must not be longer than 255 characters.'],
-			'unknown currency' => ['Shop', 'ABC', '', 'Unknown currency.'],
-			'currency name' => ['Shop', 'Euro', '', 'Unknown currency.'],
+			'name too long' => [str_repeat('ä', 256), 'EUR', '', null, 'The name of the cashbook must not be longer than 255 characters.'],
+			'account too long' => ['Shop', 'EUR', str_repeat('a', 256), null, 'The account must not be longer than 255 characters.'],
+			'unknown currency' => ['Shop', 'ABC', '', null, 'Unknown currency.'],
+			'currency name' => ['Shop', 'Euro', '', null, 'Unknown currency.'],
+			'unknown timezone' => ['Shop', 'EUR', '', 'Mars/Olympus', 'Unknown timezone.'],
+			'timezone with wrong case' => ['Shop', 'EUR', '', 'europe/berlin', 'Unknown timezone.'],
+			'fixed offset' => ['Shop', 'EUR', '', '+02:00', 'Unknown timezone.'],
+			'empty timezone' => ['Shop', 'EUR', '', '', 'Unknown timezone.'],
 		];
 	}
 
 	#[DataProvider('dataCreateInvalid')]
-	public function testCreateInvalid(string $name, string $currency, string $account, string $message): void {
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage($message);
-		$this->service->create(self::USER_ID, $name, $currency, $account);
+	public function testCreateInvalid(string $name, string $currency, string $account, ?string $timezone, string $message): void {
+		try {
+			$this->service->create(self::USER_ID, $name, $currency, $account, $timezone);
+			$this->fail('Creating the cashbook should have failed');
+		} catch (\InvalidArgumentException $error) {
+			$this->assertSame($message, $error->getMessage());
+		}
+		$this->assertSame([], $this->cashbookMapper->getCashbooksByOwner(self::USER_ID));
 	}
 
 	public function testUpdate(): void {
-		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR', '1000');
+		$cashbook = $this->service->create(self::USER_ID, 'Shop', 'EUR', '1000', 'America/New_York');
 
 		$this->service->update($cashbook, ' Market ', ' 1200 ');
 
@@ -132,6 +174,7 @@ final class CashbookServiceTest extends TestCase {
 		$this->assertSame('Market', $stored->getName());
 		$this->assertSame('1200', $stored->getAccount());
 		$this->assertSame('EUR', $stored->getCurrency());
+		$this->assertSame('America/New_York', $stored->getTimezone());
 		$this->assertSame(self::USER_ID, $stored->getOwner());
 	}
 

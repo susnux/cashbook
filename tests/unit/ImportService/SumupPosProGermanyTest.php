@@ -65,14 +65,13 @@ final class SumupPosProGermanyTest extends TestCase {
 		$l10n->method('t')->willReturnCallback(static fn (string $text, array $parameters = []): string => 'translated: ' . vsprintf($text, $parameters));
 
 		return new SumupPosProGermany(
-			$timezone,
 			self::USER_ID,
 			$logger ?? $this->createStub(LoggerInterface::class),
 			$l10n,
 			$this->db,
 			$this->cashbookMapper,
 			$this->entryMapper,
-			Server::get(CashbookService::class),
+			new CashbookService($this->db, $l10n, $timezone, $this->cashbookMapper, $this->entryMapper),
 		);
 	}
 
@@ -242,16 +241,37 @@ final class SumupPosProGermanyTest extends TestCase {
 		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}
 
+	public function testImportUsesTimezoneOfUser(): void {
+		$cashbook = $this->createImporter()->import($this->files('Kassenbuch_basic.csv'));
+
+		$this->assertSame('Europe/Berlin', $cashbook->getTimezone());
+		$this->assertSame('Europe/Berlin', $this->cashbookMapper->getCashbook($cashbook->getId())->getTimezone());
+		$this->assertSame('2025-01-02T09:00:00+00:00', $this->getEntries($cashbook)[0]->getDatetime()->format(DATE_ATOM));
+	}
+
 	public function testImportWithTimezoneOption(): void {
 		$cashbook = $this->createImporter()->import($this->files('Kassenbuch_basic.csv'), ['timezone' => 'UTC']);
 
+		$this->assertSame('UTC', $this->cashbookMapper->getCashbook($cashbook->getId())->getTimezone());
 		$this->assertSame('2025-01-02T10:00:00+00:00', $this->getEntries($cashbook)[0]->getDatetime()->format(DATE_ATOM));
 	}
 
-	public function testInvalidTimezoneOption(): void {
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage('Invalid timezone option passed.');
-		$this->createImporter()->import($this->files('Kassenbuch_basic.csv'), ['timezone' => 'Mars/Olympus']);
+	public static function dataInvalidTimezoneOption(): array {
+		return [
+			'unknown timezone' => ['Mars/Olympus'],
+			'fixed offset' => ['+02:00'],
+		];
+	}
+
+	#[DataProvider('dataInvalidTimezoneOption')]
+	public function testInvalidTimezoneOption(string $timezone): void {
+		try {
+			$this->createImporter()->import($this->files('Kassenbuch_basic.csv'), ['timezone' => $timezone]);
+			$this->fail('Import should have failed');
+		} catch (\InvalidArgumentException $error) {
+			$this->assertSame('Unknown timezone.', $error->getMessage());
+		}
+		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}
 
 	public static function dataInvalidFiles(): array {

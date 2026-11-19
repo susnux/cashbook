@@ -186,10 +186,10 @@ export async function addEntry(cashbook: ICashbook, entry: NewEntryData): Promis
  * @return The newly created cashbook
  */
 export async function createCashbook(cashbook: ICashbookData): Promise<ICashbook> {
-	const { name, account, currency } = cashbook
+	const { name, account, currency, timezone } = cashbook
 	const { data } = await axios.post<OCSResponse<ICashbook>>(
 		generateApiRoute(API_ENDPOINT.Cashbook),
-		{ name, account, currency },
+		{ name, account, currency, timezone },
 	)
 
 	if (data.ocs.meta.status !== 'ok') {
@@ -200,7 +200,7 @@ export async function createCashbook(cashbook: ICashbookData): Promise<ICashbook
 }
 
 /**
- * Change the name and account of a cashbook, the currency can not be changed
+ * Change the name and account of a cashbook, the currency and timezone can not be changed
  *
  * @param id - The id of the cashbook to update
  * @param cashbook - The new name and account
@@ -226,7 +226,7 @@ export async function updateCashbook(id: string, cashbook: Pick<ICashbookData, '
  * @param files - The exported CSV files
  * @param files.cashbook - The cashbook export (`Kassenbuch_*.csv`)
  * @param files.report - The optional daily closing report to import the day openings and closings
- * @param timezone - The timezone of the dates in the export (IANA timezone ID)
+ * @param timezone - The timezone of the dates in the export and of the cashbook (IANA timezone ID)
  * @return The newly created cashbook
  */
 export async function importSumupCashbook(files: { cashbook: File, report?: File }, timezone: string): Promise<ICashbook> {

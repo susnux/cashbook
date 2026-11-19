@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import CashbookTable from './CashbookTable.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
 
-const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', lastSequence: 0, balance: '0.00' }
+const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: 'alice', timezone: 'Europe/Berlin', lastSequence: 0, balance: '0.00' }
 
 /**
  * Create a cashbook entry

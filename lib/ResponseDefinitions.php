@@ -13,6 +13,7 @@ namespace OCA\Cashbook;
  * Ids are Snowflake IDs, sent as strings as they exceed the safe integer range of JavaScript.
  * `lastSequence` and `balance` of a cashbook are the sequence number and the cash balance after its last entry,
  * `0` and zero for a cashbook without entries.
+ * `timezone` is the IANA timezone ID of the cashbook, its business days are calendar days in this timezone.
  *
  * @psalm-type CashbookCashbook = array{
  *     id: string,
@@ -20,6 +21,7 @@ namespace OCA\Cashbook;
  *     account: string,
  *     currency: string,
  *     owner: string,
+ *     timezone: string,
  *     lastSequence: int,
  *     balance: string,
  * }

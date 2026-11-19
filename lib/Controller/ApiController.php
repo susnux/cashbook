@@ -196,10 +196,11 @@ final class ApiController extends OCSController {
 	 *
 	 * Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry.
 	 * If the range starts or ends within an open day, the whole day is included.
+	 * Dates without a time (`YYYY-MM-DD`) are the start of that day in the timezone of the cashbook.
 	 *
 	 * @param string $id The id of the cashbook
-	 * @param string $begin Start of the date range (ISO 8601 date time, inclusive)
-	 * @param string $end End of the date range (ISO 8601 date time, exclusive)
+	 * @param string $begin Start of the date range (ISO 8601 date or date time, inclusive)
+	 * @param string $end End of the date range (ISO 8601 date or date time, exclusive)
 	 * @return DataResponse<Http::STATUS_OK, list<CashbookEntry>, array{}>
 	 * @throws OCSBadRequestException Invalid date passed or the range contains too many entries
 	 * @throws OCSNotFoundException Cashbook not found or not owned by the current user
@@ -210,20 +211,21 @@ final class ApiController extends OCSController {
 	#[ApiRoute(verb: 'GET', url: '/api/v1/cashbooks/{id}/entries/print', requirements: ['id' => '\d+'])]
 	public function getCashbookEntriesPrint(string $id, string $begin, string $end): DataResponse {
 		try {
-			$utcTimezone = new \DateTimeZone('Utc');
-			$dateBegin = (new \DateTimeImmutable($begin))->setTimezone($utcTimezone);
-			$dateEnd = (new \DateTimeImmutable($end))->setTimezone($utcTimezone);
-		} catch (Exception) {
-			throw new OCSBadRequestException('Invalid date param passed');
-		}
-
-		try {
 			$cashbook = $this->cashbookMapper->getCashbook($id);
 		} catch (DoesNotExistException) {
 			throw new OCSNotFoundException();
 		}
 		if ($this->userId !== $cashbook->getOwner()) {
 			throw new OCSNotFoundException();
+		}
+
+		try {
+			$timezone = $cashbook->getDateTimeZone();
+			$utcTimezone = new \DateTimeZone('UTC');
+			$dateBegin = (new \DateTimeImmutable($begin, $timezone))->setTimezone($utcTimezone);
+			$dateEnd = (new \DateTimeImmutable($end, $timezone))->setTimezone($utcTimezone);
+		} catch (Exception) {
+			throw new OCSBadRequestException('Invalid date param passed');
 		}
 
 		$entries = $this->entryMapper->getEntriesByDate($cashbook, $dateBegin, $dateEnd, self::MAX_PRINT_ENTRIES + 1);
@@ -292,8 +294,9 @@ final class ApiController extends OCSController {
 	 * @param string $name The name of the cashbook (1 to 255 characters)
 	 * @param string $currency The currency of the cashbook (ISO 4217 code)
 	 * @param string $account The account the cashbook is kept for (up to 255 characters)
+	 * @param ?string $timezone The timezone of the cashbook (IANA timezone ID, defaults to the timezone of the user)
 	 * @return DataResponse<Http::STATUS_OK, CashbookCashbook, array{}>
-	 * @throws OCSBadRequestException Invalid name, account or currency
+	 * @throws OCSBadRequestException Invalid name, account, currency or timezone
 	 * @throws OCSForbiddenException No user is logged in
 	 *
 	 * 200: Cashbook created
@@ -304,13 +307,14 @@ final class ApiController extends OCSController {
 		string $name,
 		string $currency,
 		string $account = '',
+		?string $timezone = null,
 	): DataResponse {
 		if ($this->userId === null) {
 			throw new OCSForbiddenException();
 		}
 
 		try {
-			$cashbook = $this->cashbookService->create($this->userId, $name, $currency, $account);
+			$cashbook = $this->cashbookService->create($this->userId, $name, $currency, $account, $timezone);
 		} catch (InvalidInputException $error) {
 			throw new OCSBadRequestException($error->getHint());
 		} catch (InvalidArgumentException $error) {
@@ -322,7 +326,7 @@ final class ApiController extends OCSController {
 	/**
 	 * Change the name and account of a cashbook
 	 *
-	 * The currency can not be changed.
+	 * The currency and timezone can not be changed.
 	 *
 	 * @param string $id The id of the cashbook
 	 * @param string $name The new name of the cashbook (1 to 255 characters)
@@ -367,7 +371,7 @@ final class ApiController extends OCSController {
 	 * and optionally the daily closing report as `files[report]`.
 	 *
 	 * @param ImportFormat $import The import format to use
-	 * @param ?string $timezone The timezone of the dates in the uploaded files (defaults to the timezone of the user)
+	 * @param ?string $timezone The timezone of the dates in the uploaded files and of the cashbook (IANA timezone ID, defaults to the timezone of the user)
 	 * @return DataResponse<Http::STATUS_OK, array{id: string}, array{}>
 	 * @throws OCSBadRequestException No files uploaded, unsupported import format or invalid files
 	 *
