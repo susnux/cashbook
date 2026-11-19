@@ -1468,7 +1468,7 @@
             "post": {
                 "operationId": "api-import-cashbook",
                 "summary": "Import a cashbook from uploaded files",
-                "description": "The files need to be uploaded as `files[]` form data.",
+                "description": "The files need to be uploaded as `files[<name>]` form data, the names depend on the import format. The `sumup-pos-pro-de` format expects the cashbook export as `files[cashbook]` and optionally the daily closing report as `files[report]`.",
                 "tags": [
                     "api"
                 ],

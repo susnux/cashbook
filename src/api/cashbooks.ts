@@ -223,16 +223,19 @@ export async function updateCashbook(id: string, cashbook: Pick<ICashbookData, '
 /**
  * Import a cashbook from a SumUp POS Pro (German) export.
  *
- * @param files - The cashbook CSV (`Kassenbuch_*.csv`) and optionally the daily closing report CSV
+ * @param files - The exported CSV files
+ * @param files.cashbook - The cashbook export (`Kassenbuch_*.csv`)
+ * @param files.report - The optional daily closing report to import the day openings and closings
  * @param timezone - The timezone of the dates in the export (IANA timezone ID)
  * @return The newly created cashbook
  */
-export async function importSumupCashbook(files: File[], timezone: string): Promise<ICashbook> {
+export async function importSumupCashbook(files: { cashbook: File, report?: File }, timezone: string): Promise<ICashbook> {
 	const formData = new FormData()
 	formData.append('import', 'sumup-pos-pro-de')
 	formData.append('timezone', timezone)
-	for (const file of files) {
-		formData.append('files[]', file)
+	formData.append('files[cashbook]', files.cashbook)
+	if (files.report) {
+		formData.append('files[report]', files.report)
 	}
 
 	const { data } = await axios.post<OCSResponse<{ id: string }>>(

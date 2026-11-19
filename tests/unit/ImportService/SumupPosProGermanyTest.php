@@ -33,6 +33,8 @@ final class SumupPosProGermanyTest extends TestCase {
 	private IDBConnection $db;
 	private CashbookMapper $cashbookMapper;
 	private EntryMapper $entryMapper;
+	/** @var list<string> */
+	private array $tempFiles = [];
 
 	#[\Override]
 	protected function setUp(): void {
@@ -52,6 +54,7 @@ final class SumupPosProGermanyTest extends TestCase {
 		$qb->delete('cashbook_cashbooks')
 			->where($qb->expr()->eq('owner', $qb->createNamedParameter(self::USER_ID)))
 			->executeStatement();
+		array_map(unlink(...), $this->tempFiles);
 		parent::tearDown();
 	}
 
@@ -74,13 +77,41 @@ final class SumupPosProGermanyTest extends TestCase {
 	}
 
 	/**
-	 * @return array{name: list<string>, tmp_name: list<string>}
+	 * @return array<string, string>
 	 */
-	private function files(string ...$names): array {
-		return [
-			'name' => $names,
-			'tmp_name' => array_map(static fn (string $name): string => self::FIXTURES . $name, $names),
-		];
+	private function files(string $cashbook, ?string $report = null): array {
+		$files = ['cashbook' => self::FIXTURES . $cashbook];
+		if ($report !== null) {
+			$files['report'] = self::FIXTURES . $report;
+		}
+		return $files;
+	}
+
+	/**
+	 * Create a temporary file which is removed after the test.
+	 *
+	 * @return string The path of the file
+	 */
+	private function createTempFile(string $content): string {
+		$file = tempnam(sys_get_temp_dir(), 'cashbook');
+		$this->assertIsString($file);
+		$this->tempFiles[] = $file;
+		file_put_contents($file, $content);
+		return $file;
+	}
+
+	/**
+	 * Create a temporary CSV file from the rows of the basic cashbook export, each row as list of columns.
+	 *
+	 * @param callable(list<string>): list<string> $mapRow Callback to change the columns of each row including the header
+	 * @return string The path of the file
+	 */
+	private function createCsv(callable $mapRow): string {
+		$rows = array_map(
+			static fn (string $line): string => implode(';', $mapRow(explode(';', $line))),
+			file(self::FIXTURES . 'Kassenbuch_basic.csv', FILE_IGNORE_NEW_LINES) ?: [],
+		);
+		return $this->createTempFile(implode("\n", $rows) . "\n");
 	}
 
 	/**
@@ -162,24 +193,51 @@ final class SumupPosProGermanyTest extends TestCase {
 		], $entries);
 	}
 
-	public function testImportTooManyRows(): void {
-		$file = tempnam(sys_get_temp_dir(), 'cashbook');
-		$this->assertIsString($file);
-		try {
-			$csv = fopen($file, 'w');
-			$this->assertIsResource($csv);
-			fwrite($csv, (string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0]);
-			$row = "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n";
-			fwrite($csv, str_repeat($row, SumupPosProGermany::MAX_ROWS + 1));
-			fclose($csv);
+	public function testImportWithoutUnreadColumns(): void {
+		// Without `Belegnummer` and `Betrag MwSt`
+		$file = $this->createCsv(static fn (array $columns): array => array_values(array_diff_key($columns, [3 => true, 10 => true])));
 
-			$this->createImporter()->import(['name' => ['Kassenbuch_large.csv'], 'tmp_name' => [$file]]);
+		$cashbook = $this->createImporter()->import(['cashbook' => $file]);
+
+		$this->assertSame(['1300.50', '1280.50', '1285.50'], array_map(
+			static fn (Entry $entry): string => (string)$entry->getBalance()->getAmount(),
+			$this->getEntries($cashbook),
+		));
+	}
+
+	public static function dataInvalidCsv(): array {
+		return [
+			'empty file' => [static fn (array $columns): array => []],
+			// `text` is the internal key of `Buchungstext`, so the mapped header contains it twice
+			'duplicate column after mapping' => [static fn (array $columns): array => [...$columns, $columns[0] === 'Geschäft' ? 'text' : '']],
+		];
+	}
+
+	/**
+	 * @param callable(list<string>): list<string> $mapRow
+	 */
+	#[DataProvider('dataInvalidCsv')]
+	public function testInvalidCsv(callable $mapRow): void {
+		try {
+			$this->createImporter()->import(['cashbook' => $this->createCsv($mapRow)]);
+			$this->fail('Import should have failed');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The selected cashbook export is not a valid SumUp cashbook export.', $error->getMessage());
+			$this->assertSame('translated: The selected cashbook export is not a valid SumUp cashbook export.', $error->getHint());
+		}
+		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
+	}
+
+	public function testImportTooManyRows(): void {
+		$row = "Test Shop;1234;02.01.2025 10:00:00;1;Sonstige Einnahme;;EUR;1,00;;19;0,16;1,00\n";
+		$file = $this->createTempFile((string)file(self::FIXTURES . 'Kassenbuch_basic.csv')[0] . str_repeat($row, SumupPosProGermany::MAX_ROWS + 1));
+
+		try {
+			$this->createImporter()->import(['cashbook' => $file]);
 			$this->fail('Import should have failed');
 		} catch (InvalidInputException $error) {
 			$this->assertSame('The selected files contain more than 100000 rows.', $error->getMessage());
 			$this->assertSame('translated: The selected files contain more than 100000 rows. Export a shorter period.', $error->getHint());
-		} finally {
-			unlink($file);
 		}
 		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}
@@ -196,29 +254,45 @@ final class SumupPosProGermanyTest extends TestCase {
 		$this->createImporter()->import($this->files('Kassenbuch_basic.csv'), ['timezone' => 'Mars/Olympus']);
 	}
 
-	public static function dataInvalidImport(): array {
+	public static function dataInvalidFiles(): array {
 		return [
-			'no cashbook file' => [['Tagesabschluss_report.csv'], [], 'No cashbook export'],
-			'unknown currency' => [['Kassenbuch_unknown_currency.csv'], [], 'unknown currency'],
-			'start balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_start.csv'], [], 'day opening of 02.01.2025 09:00:00'],
-			'opening does not match previous closing' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_next_opening.csv'], [], 'day opening of 03.01.2025 09:00:00'],
-			'closing balance mismatch' => [['Kassenbuch_report.csv', 'Tagesabschluss_wrong_closing.csv'], [], 'day closing of 03.01.2025 18:00:00'],
-			'invalid amount' => [['Kassenbuch_invalid_amount.csv'], [], 'invalid values'],
-			'empty store name' => [['Kassenbuch_empty_store.csv'], [], 'store name or ID'],
-			'store name too long' => [['Kassenbuch_long_store.csv'], [], 'store name or ID'],
-			'balance does not match previous balance' => [['Kassenbuch_balance_mismatch.csv'], [], 'entry of 02.01.2025 11:00:00 does not match the previous cash balance'],
-			'negative balance' => [['Kassenbuch_negative_balance.csv'], [], 'negative after the entry of 02.01.2025 11:00:00'],
+			'no cashbook export' => [['report' => 'Tagesabschluss_report.csv'], 'No cashbook export passed.'],
+			'unnamed file' => [['Kassenbuch_basic.csv'], 'Unknown files passed: 0'],
+			'unknown file' => [['cashbook' => 'Kassenbuch_basic.csv', 'receipts' => 'Kassenbuch_basic.csv'], 'Unknown files passed: receipts'],
 		];
 	}
 
 	/**
-	 * @param list<string> $files
-	 * @param array{timezone?: string} $options
+	 * @param array<array-key, string> $files
 	 */
+	#[DataProvider('dataInvalidFiles')]
+	public function testInvalidFiles(array $files, string $message): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage($message);
+		/** @psalm-suppress ArgumentTypeCoercion Unnamed files are passed on purpose */
+		$this->createImporter()->import(array_map(static fn (string $name): string => self::FIXTURES . $name, $files));
+	}
+
+	public static function dataInvalidImport(): array {
+		return [
+			'report as cashbook export' => ['Tagesabschluss_report.csv', null, 'not a valid SumUp cashbook export'],
+			'cashbook export as report' => ['Kassenbuch_report.csv', 'Kassenbuch_report.csv', 'not a valid SumUp daily closing report'],
+			'unknown currency' => ['Kassenbuch_unknown_currency.csv', null, 'unknown currency'],
+			'start balance mismatch' => ['Kassenbuch_report.csv', 'Tagesabschluss_wrong_start.csv', 'day opening of 02.01.2025 09:00:00'],
+			'opening does not match previous closing' => ['Kassenbuch_report.csv', 'Tagesabschluss_wrong_next_opening.csv', 'day opening of 03.01.2025 09:00:00'],
+			'closing balance mismatch' => ['Kassenbuch_report.csv', 'Tagesabschluss_wrong_closing.csv', 'day closing of 03.01.2025 18:00:00'],
+			'invalid amount' => ['Kassenbuch_invalid_amount.csv', null, 'invalid values'],
+			'empty store name' => ['Kassenbuch_empty_store.csv', null, 'store name or ID'],
+			'store name too long' => ['Kassenbuch_long_store.csv', null, 'store name or ID'],
+			'balance does not match previous balance' => ['Kassenbuch_balance_mismatch.csv', null, 'entry of 02.01.2025 11:00:00 does not match the previous cash balance'],
+			'negative balance' => ['Kassenbuch_negative_balance.csv', null, 'negative after the entry of 02.01.2025 11:00:00'],
+		];
+	}
+
 	#[DataProvider('dataInvalidImport')]
-	public function testInvalidImportLeavesNoData(array $files, array $options, string $message): void {
+	public function testInvalidImportLeavesNoData(string $cashbook, ?string $report, string $message): void {
 		try {
-			$this->createImporter()->import($this->files(...$files), $options);
+			$this->createImporter()->import($this->files($cashbook, $report));
 			$this->fail('Import should have failed');
 		} catch (InvalidInputException $error) {
 			$this->assertStringContainsString($message, $error->getMessage());

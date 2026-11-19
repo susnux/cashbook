@@ -362,7 +362,9 @@ final class ApiController extends OCSController {
 	/**
 	 * Import a cashbook from uploaded files
 	 *
-	 * The files need to be uploaded as `files[]` form data.
+	 * The files need to be uploaded as `files[<name>]` form data, the names depend on the import format.
+	 * The `sumup-pos-pro-de` format expects the cashbook export as `files[cashbook]`
+	 * and optionally the daily closing report as `files[report]`.
 	 *
 	 * @param ImportFormat $import The import format to use
 	 * @param ?string $timezone The timezone of the dates in the uploaded files (defaults to the timezone of the user)
@@ -393,28 +395,36 @@ final class ApiController extends OCSController {
 	}
 
 	/**
-	 * Get the successfully uploaded files of a multi-file field (`files[]`), a single file field is accepted as well.
+	 * Get the successfully uploaded files of a field with named files (`files[<name>]`), empty file inputs are skipped.
 	 *
-	 * @return array{name: list<string>, tmp_name: list<string>}
-	 * @throws InvalidArgumentException If no file was uploaded
+	 * @return array<string, string> The paths of the uploaded files by their name
+	 * @throws InvalidArgumentException If no file was uploaded or the files are not named
 	 * @throws InvalidInputException If an upload failed
 	 */
 	private function getUploadedFiles(string $field): array {
 		$upload = $this->request->getUploadedFile($field);
-		if (!is_array($upload) || !isset($upload['name'], $upload['tmp_name'], $upload['error'])) {
+		if (!is_array($upload) || !isset($upload['tmp_name'], $upload['error'])) {
 			throw new InvalidArgumentException('No files provided');
 		}
 
-		$names = array_values((array)$upload['name']);
-		$tmpNames = array_values((array)$upload['tmp_name']);
-		$errors = array_values((array)$upload['error']);
-		if ($names === [] || count($names) !== count($tmpNames) || count($names) !== count($errors)) {
-			throw new InvalidArgumentException('No files provided');
+		$tmpNames = is_array($upload['tmp_name']) ? $upload['tmp_name'] : null;
+		$errors = is_array($upload['error']) ? $upload['error'] : null;
+		$uploads = [];
+		if ($tmpNames !== null && $errors !== null && array_keys($tmpNames) === array_keys($errors)) {
+			foreach (array_keys($errors) as $name) {
+				if (is_string($name) && is_string($tmpNames[$name]) && is_int($errors[$name])) {
+					$uploads[$name] = ['tmpName' => $tmpNames[$name], 'error' => $errors[$name]];
+				}
+			}
+		}
+		if ($errors === null || count($uploads) !== count($errors)) {
+			throw new InvalidArgumentException(sprintf('Files need to be uploaded as %s[<name>]', $field));
 		}
 
-		foreach ($errors as $error) {
+		$files = [];
+		foreach ($uploads as $name => ['tmpName' => $tmpName, 'error' => $error]) {
 			if ($error === UPLOAD_ERR_NO_FILE) {
-				throw new InvalidArgumentException('No files provided');
+				continue;
 			}
 			if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
 				throw new InvalidInputException('The uploaded file is too large.', $this->l10n->t('The uploaded file is too large.'));
@@ -422,11 +432,12 @@ final class ApiController extends OCSController {
 			if ($error !== UPLOAD_ERR_OK) {
 				throw new InvalidInputException('The upload of the files failed.', $this->l10n->t('The upload of the files failed.'));
 			}
+			$files[$name] = $tmpName;
 		}
 
-		return [
-			'name' => array_map(strval(...), $names),
-			'tmp_name' => array_map(strval(...), $tmpNames),
-		];
+		if ($files === []) {
+			throw new InvalidArgumentException('No files provided');
+		}
+		return $files;
 	}
 }

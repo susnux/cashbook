@@ -177,22 +177,16 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$this->assertSame(400, $response->getStatusCode());
 	}
 
-	public static function dataImportCashbook(): array {
-		return [
-			'multi-file field' => ['files[]'],
-			'single file field' => ['files'],
-		];
-	}
-
-	#[DataProvider('dataImportCashbook')]
-	public function testImportCashbook(string $field): void {
+	public function testImportCashbook(): void {
 		$alice = $this->createUser();
 
 		$result = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/import', [
 			RequestOptions::MULTIPART => [
 				['name' => 'import', 'contents' => 'sumup-pos-pro-de'],
 				['name' => 'timezone', 'contents' => 'UTC'],
-				['name' => $field, 'contents' => fopen(self::FIXTURES . 'Kassenbuch_basic.csv', 'r'), 'filename' => 'Kassenbuch_basic.csv'],
+				['name' => 'files[cashbook]', 'contents' => fopen(self::FIXTURES . 'Kassenbuch_basic.csv', 'r'), 'filename' => 'Kassenbuch_basic.csv'],
+				// An empty optional file input is sent as file upload with an empty file name
+				self::emptyFileInput('files[report]'),
 			],
 		]));
 		$this->assertIsString($result['id']);
@@ -202,16 +196,60 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$this->assertSame(['1300.50', '1280.50', '1285.50'], array_column($entries, 'balance'));
 	}
 
-	public function testImportCashbookWithoutFile(): void {
+	public function testImportCashbookWithReport(): void {
 		$alice = $this->createUser();
 
-		$this->assertOcsResponse(400, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/import', [
+		$result = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/import', [
 			RequestOptions::MULTIPART => [
 				['name' => 'import', 'contents' => 'sumup-pos-pro-de'],
-				// An empty file input is sent without a file name
-				['name' => 'files[]', 'contents' => '', 'filename' => ''],
+				['name' => 'timezone', 'contents' => 'UTC'],
+				// The file names do not matter, the files are identified by their field
+				['name' => 'files[report]', 'contents' => fopen(self::FIXTURES . 'Tagesabschluss_report.csv', 'r'), 'filename' => 'report.csv'],
+				['name' => 'files[cashbook]', 'contents' => fopen(self::FIXTURES . 'Kassenbuch_report.csv', 'r'), 'filename' => 'cashbook.csv'],
 			],
 		]));
+
+		$entries = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $result['id'] . '/entries'));
+		$this->assertSame(
+			['income-sales', 'day-opening', 'income-sales', 'expense-misc', 'day-closing', 'day-opening', 'income-sales', 'day-closing', 'income-sales'],
+			array_column($entries, 'reason'),
+		);
+	}
+
+	/**
+	 * Multipart element of a file input without a selected file.
+	 *
+	 * Guzzle omits an empty file name, so the header is set explicitly to send it as file upload.
+	 */
+	private static function emptyFileInput(string $field): array {
+		return ['name' => $field, 'contents' => '', 'headers' => ['Content-Disposition' => sprintf('form-data; name="%s"; filename=""', $field)]];
+	}
+
+	public static function dataImportCashbookInvalidFiles(): array {
+		return [
+			'no file' => ['files[cashbook]', null, 'No files provided'],
+			// Only rejected as unnamed if the empty input reaches the server as file upload
+			'unnamed empty file input' => ['files[]', null, 'Files need to be uploaded as files[<name>]'],
+			'unnamed file' => ['files[]', 'Kassenbuch_basic.csv', 'Files need to be uploaded as files[<name>]'],
+			'only the report' => ['files[report]', 'Tagesabschluss_report.csv', 'No cashbook export passed.'],
+			'report as cashbook export' => ['files[cashbook]', 'Tagesabschluss_report.csv', 'The selected cashbook export is not a valid SumUp cashbook export.'],
+		];
+	}
+
+	#[DataProvider('dataImportCashbookInvalidFiles')]
+	public function testImportCashbookInvalidFiles(string $field, ?string $fixture, string $message): void {
+		$alice = $this->createUser();
+
+		$response = $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/import', [
+			RequestOptions::MULTIPART => [
+				['name' => 'import', 'contents' => 'sumup-pos-pro-de'],
+				$fixture === null
+					? self::emptyFileInput($field)
+					: ['name' => $field, 'contents' => fopen(self::FIXTURES . $fixture, 'r'), 'filename' => $fixture],
+			],
+		]);
+		$this->assertOcsResponse(400, $response);
+		$this->assertSame($message, json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
 		$this->assertSame([], $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks')));
 	}
 
