@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-16 15:36+0100\n"
-"PO-Revision-Date: 2026-11-16 16:00+0100\n"
+"POT-Creation-Date: 2026-11-19 23:42+0100\n"
+"PO-Revision-Date: 2026-11-19 23:43+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: de\n"
@@ -18,35 +18,57 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.5\n"
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:116
-msgid "No cashbook export (Kassenbuch_….csv) was selected."
-msgstr "Es wurde kein Kassenbuch-Export (Kassenbuch_….csv) ausgewählt."
+#: cashbook/lib/Controller/ApiController.php:233
+#, php-format
+msgid "The period contains more than %s entries. Choose a shorter period."
+msgstr ""
+"Der Zeitraum enthält mehr als %s Einträge. Wähle einen kürzeren Zeitraum."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:123
-msgid "The selected files are not valid CSV files."
-msgstr "Die ausgewählten Dateien sind keine gültigen CSV-Dateien."
+#: cashbook/lib/Controller/ApiController.php:434
+msgid "The uploaded file is too large."
+msgstr "Die hochgeladene Datei ist zu groß."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:127
+#: cashbook/lib/Controller/ApiController.php:437
+msgid "The upload of the files failed."
+msgstr "Das Hochladen der Dateien ist fehlgeschlagen."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:122
+msgid "The selected cashbook export is not a valid SumUp cashbook export."
+msgstr ""
+"Der ausgewählte Kassenbuch-Export ist kein gültiger SumUp-Kassenbuch-Export."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:128
+msgid ""
+"The selected daily closing report is not a valid SumUp daily closing report."
+msgstr ""
+"Der ausgewählte Tagesabschlussbericht ist kein gültiger SumUp-"
+"Tagesabschlussbericht."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:132
 msgid "The cashbook export does not contain any entries."
 msgstr "Der Kassenbuch-Export enthält keine Einträge."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:142
+#: cashbook/lib/ImportService/SumupPosProGermany.php:147
 msgid "The cashbook export contains invalid values."
 msgstr "Der Kassenbuch-Export enthält ungültige Werte."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:172
+#: cashbook/lib/ImportService/SumupPosProGermany.php:166
 msgid "The cashbook export uses an unknown currency."
 msgstr "Der Kassenbuch-Export verwendet eine unbekannte Währung."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:184
-msgid ""
-"The cash balance of the cashbook export does not match the daily closing "
-"report."
-msgstr ""
-"Der Kassenbestand des Kassenbuch-Exports stimmt nicht mit dem "
-"Tagesabschlussbericht überein."
+#: cashbook/lib/ImportService/SumupPosProGermany.php:172
+msgid "The store name or ID of the cashbook export is invalid."
+msgstr "Der Name oder die ID der Filiale im Kassenbuch-Export ist ungültig."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:224
+#: cashbook/lib/ImportService/SumupPosProGermany.php:201
+#, php-format
+msgid ""
+"The cash balance at the day opening of %s does not match the cashbook export."
+msgstr ""
+"Der Kassenbestand bei der Tageseröffnung vom %s stimmt nicht mit dem "
+"Kassenbuch-Export überein."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:222
 #, php-format
 msgid ""
 "The cash balance at the day closing of %s does not match the cashbook export."
@@ -54,13 +76,41 @@ msgstr ""
 "Der Kassenbestand beim Tagesabschluss vom %s stimmt nicht mit dem Kassenbuch-"
 "Export überein."
 
+#: cashbook/lib/ImportService/SumupPosProGermany.php:265
+#, php-format
+msgid ""
+"The cash balance of the entry of %s does not match the previous cash balance."
+msgstr ""
+"Der Kassenbestand des Eintrags vom %s stimmt nicht mit dem vorherigen "
+"Kassenbestand überein."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:271
+#, php-format
+msgid "The cash balance is negative after the entry of %s."
+msgstr "Nach dem Eintrag vom %s ist der Kassenbestand negativ."
+
 #: cashbook/lib/ImportService/SumupPosProGermany.php:329
+#, php-format
+msgid "The selected files contain more than %s rows. Export a shorter period."
+msgstr ""
+"Die ausgewählten Dateien enthalten mehr als %s Zeilen. Exportiere einen "
+"kürzeren Zeitraum."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:376
 msgid "Unexpected end of the CSV file."
 msgstr "Unerwartetes Ende der CSV-Datei."
 
-#: cashbook/lib/Service/CashbookService.php:79
+#: cashbook/lib/Service/CashbookService.php:87
+msgid "The selected timezone is not supported."
+msgstr "Die ausgewählte Zeitzone wird nicht unterstützt."
+
+#: cashbook/lib/Service/CashbookService.php:165
 msgid "The name of the cashbook must not be empty."
 msgstr "Der Name des Kassenbuchs darf nicht leer sein."
+
+#: cashbook/lib/Service/EntryService.php:103
+msgid "The expense exceeds the cash balance."
+msgstr "Die Ausgabe übersteigt den Kassenbestand."
 
 #. TRANSLATORS src/CashbookApp.vue:19
 #: cashbook/specialAppInfoFakeDummyForL10nScript.php:2
@@ -77,6 +127,8 @@ msgid ""
 "Keep the cashbook of your shop or association in Nextcloud.\n"
 "\n"
 "- Create cashbooks in any currency\n"
+"- Add income and expenses with reason, text, tax rate, receipt number and "
+"receipt date\n"
 "- Browse the entries of a cashbook by month, quarter, year or a custom date "
 "range, grouped by business day\n"
 "- Print the cashbook of a period\n"
@@ -85,6 +137,8 @@ msgstr ""
 "Führe das Kassenbuch deines Geschäfts oder Vereins in Nextcloud.\n"
 "\n"
 "- Lege Kassenbücher in beliebiger Währung an\n"
+"- Erfasse Einnahmen und Ausgaben mit Grund, Text, Steuersatz, Belegnummer "
+"und Belegdatum\n"
 "- Zeige die Einträge eines Kassenbuchs nach Monat, Quartal, Jahr oder einem "
 "eigenen Zeitraum an, gruppiert nach Geschäftstag\n"
 "- Drucke das Kassenbuch eines Zeitraums\n"
@@ -92,157 +146,169 @@ msgstr ""
 "exportiert wurden"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:36
-#: cashbook/specialVueFakeDummyForL10nScript.js:57
+#: cashbook/specialVueFakeDummyForL10nScript.js:60
 msgid "Totals of the period"
 msgstr "Summen des Zeitraums"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:41
-#: cashbook/specialVueFakeDummyForL10nScript.js:59
+#: cashbook/specialVueFakeDummyForL10nScript.js:62
 msgid "Opening balance"
 msgstr "Anfangsbestand"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:45
-#: cashbook/specialVueFakeDummyForL10nScript.js:61
-#: cashbook/specialVueFakeDummyForL10nScript.js:71
+#. TRANSLATORS src/components/NewEntryDialog.vue:152
+#: cashbook/specialVueFakeDummyForL10nScript.js:64
+#: cashbook/specialVueFakeDummyForL10nScript.js:74
+#: cashbook/specialVueFakeDummyForL10nScript.js:618
 msgid "Income"
 msgstr "Einnahmen"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:49
-#: cashbook/specialVueFakeDummyForL10nScript.js:63
-#: cashbook/specialVueFakeDummyForL10nScript.js:73
+#: cashbook/specialVueFakeDummyForL10nScript.js:66
+#: cashbook/specialVueFakeDummyForL10nScript.js:76
 msgid "Expenses"
 msgstr "Ausgaben"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:55
-#: cashbook/specialVueFakeDummyForL10nScript.js:65
+#: cashbook/specialVueFakeDummyForL10nScript.js:68
 msgid "Closing balance"
 msgstr "Endbestand"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:61
-#: cashbook/specialVueFakeDummyForL10nScript.js:67
+#: cashbook/specialVueFakeDummyForL10nScript.js:70
 msgid "Taxes per rate"
 msgstr "Steuern nach Steuersatz"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:65
-#: cashbook/specialVueFakeDummyForL10nScript.js:69
+#: cashbook/specialVueFakeDummyForL10nScript.js:72
 msgid "Tax rate"
 msgstr "Steuersatz"
 
 #. TRANSLATORS Amount including tax */ }} (src/components/CashbookSummary.vue:77)
-#: cashbook/specialVueFakeDummyForL10nScript.js:75
+#: cashbook/specialVueFakeDummyForL10nScript.js:78
 msgid "Gross"
 msgstr "Brutto"
 
 #. TRANSLATORS Amount excluding tax */ }} (src/components/CashbookSummary.vue:80)
-#: cashbook/specialVueFakeDummyForL10nScript.js:77
+#: cashbook/specialVueFakeDummyForL10nScript.js:80
 msgid "Net"
 msgstr "Netto"
 
 #. TRANSLATORS A short form for sales tax */ }} (src/components/CashbookSummary.vue:83)
-#. TRANSLATORS A short form for sales tax */ }}</span> (src/components/CashbookTable.vue:83)
-#: cashbook/specialVueFakeDummyForL10nScript.js:79
-#: cashbook/specialVueFakeDummyForL10nScript.js:152
+#. TRANSLATORS A short form for sales tax */ }}</span> (src/components/CashbookTable.vue:80)
+#: cashbook/specialVueFakeDummyForL10nScript.js:82
+#: cashbook/specialVueFakeDummyForL10nScript.js:151
 msgid "Tax"
 msgstr "USt."
 
 #. TRANSLATORS src/components/CashbookSummary.vue:91
-#: cashbook/specialVueFakeDummyForL10nScript.js:81
+#: cashbook/specialVueFakeDummyForL10nScript.js:84
 msgid "No tax rate"
 msgstr "Ohne Steuersatz"
 
 #. TRANSLATORS src/components/CashbookSummary.vue:104
-#: cashbook/specialVueFakeDummyForL10nScript.js:83
+#: cashbook/specialVueFakeDummyForL10nScript.js:86
 msgid "Total"
 msgstr "Gesamt"
 
-#. TRANSLATORS src/components/CashbookTable.vue:74
-#: cashbook/specialVueFakeDummyForL10nScript.js:146
+#. TRANSLATORS src/components/CashbookTable.vue:68
+#: cashbook/specialVueFakeDummyForL10nScript.js:143
 msgid "Date"
 msgstr "Datum"
 
-#. TRANSLATORS The reason for this entry e.g. "sales" or "purchase of goods" */ }}</span> (src/components/CashbookTable.vue:77)
-#: cashbook/specialVueFakeDummyForL10nScript.js:148
+#. TRANSLATORS The reason for this entry e.g. "sales" or "purchase of goods" */ }}</span> (src/components/CashbookTable.vue:71)
+#. TRANSLATORS src/components/NewEntryDialog.vue:159
+#: cashbook/specialVueFakeDummyForL10nScript.js:145
+#: cashbook/specialVueFakeDummyForL10nScript.js:622
 msgid "Reason"
 msgstr "Grund"
 
-#. TRANSLATORS src/components/CashbookTable.vue:80
-#: cashbook/specialVueFakeDummyForL10nScript.js:150
+#. TRANSLATORS src/components/CashbookTable.vue:74
+#. TRANSLATORS src/components/NewEntryDialog.vue:182
+#: cashbook/specialVueFakeDummyForL10nScript.js:147
+#: cashbook/specialVueFakeDummyForL10nScript.js:628
 msgid "Text"
 msgstr "Text"
 
-#. TRANSLATORS The income side of the cashbook */ }}</span> (src/components/CashbookTable.vue:86)
-#: cashbook/specialVueFakeDummyForL10nScript.js:154
+#. TRANSLATORS The number and date of the receipt of an entry */ }}</span> (src/components/CashbookTable.vue:77)
+#: cashbook/specialVueFakeDummyForL10nScript.js:149
+msgid "Receipt"
+msgstr "Beleg"
+
+#. TRANSLATORS The income side of the cashbook */ }}</span> (src/components/CashbookTable.vue:83)
+#: cashbook/specialVueFakeDummyForL10nScript.js:153
 msgid "Debit"
 msgstr "Einnahmen"
 
-#. TRANSLATORS The expenses side of the cashbook */ }}</span> (src/components/CashbookTable.vue:89)
-#: cashbook/specialVueFakeDummyForL10nScript.js:156
+#. TRANSLATORS The expenses side of the cashbook */ }}</span> (src/components/CashbookTable.vue:86)
+#: cashbook/specialVueFakeDummyForL10nScript.js:155
 msgid "Credit"
 msgstr "Ausgaben"
 
-#. TRANSLATORS The current balance of the cashbook */ }}</span> (src/components/CashbookTable.vue:92)
-#: cashbook/specialVueFakeDummyForL10nScript.js:158
+#. TRANSLATORS The current balance of the cashbook */ }}</span> (src/components/CashbookTable.vue:89)
+#: cashbook/specialVueFakeDummyForL10nScript.js:157
 msgid "Balance"
 msgstr "Bestand"
 
-#. TRANSLATORS src/components/CashbookTable.vue:102
-#: cashbook/specialVueFakeDummyForL10nScript.js:160
+#. TRANSLATORS src/components/CashbookTable.vue:99
+#: cashbook/specialVueFakeDummyForL10nScript.js:159
 msgid "Date:"
 msgstr "Datum:"
 
-#. TRANSLATORS src/components/CashbookTable.vue:114
-#: cashbook/specialVueFakeDummyForL10nScript.js:162
+#. TRANSLATORS src/components/CashbookTable.vue:111
+#: cashbook/specialVueFakeDummyForL10nScript.js:161
 msgid "Opened:"
 msgstr "Eröffnet:"
 
-#. TRANSLATORS src/components/CashbookTable.vue:120
-#: cashbook/specialVueFakeDummyForL10nScript.js:164
+#. TRANSLATORS src/components/CashbookTable.vue:117
+#: cashbook/specialVueFakeDummyForL10nScript.js:163
 msgid "Closed:"
 msgstr "Geschlossen:"
 
-#. TRANSLATORS src/components/CashbookTable.vue:125
-#: cashbook/specialVueFakeDummyForL10nScript.js:166
+#. TRANSLATORS src/components/CashbookTable.vue:122
+#: cashbook/specialVueFakeDummyForL10nScript.js:165
 msgid "Z-number:"
 msgstr "Z-Bon:"
 
-#. TRANSLATORS src/components/CashbookTable.vue:134
-#: cashbook/specialVueFakeDummyForL10nScript.js:168
+#. TRANSLATORS src/components/CashbookTable.vue:131
+#: cashbook/specialVueFakeDummyForL10nScript.js:167
 msgid "Initial cash:"
 msgstr "Eröffnungsbestand:"
 
-#. TRANSLATORS src/components/CashbookTable.vue:142
-#: cashbook/specialVueFakeDummyForL10nScript.js:170
+#. TRANSLATORS src/components/CashbookTable.vue:139
+#: cashbook/specialVueFakeDummyForL10nScript.js:169
 msgid "Closing cash:"
 msgstr "Endbestand:"
 
-#. TRANSLATORS src/components/CashbookTable.vue:158
-#: cashbook/specialVueFakeDummyForL10nScript.js:172
+#. TRANSLATORS src/components/CashbookTable.vue:155
+#: cashbook/specialVueFakeDummyForL10nScript.js:171
 msgid "Total of the day"
 msgstr "Tagessumme"
 
-#. TRANSLATORS src/components/CashbookTable.vue:172
-#: cashbook/specialVueFakeDummyForL10nScript.js:174
+#. TRANSLATORS src/components/CashbookTable.vue:169
+#: cashbook/specialVueFakeDummyForL10nScript.js:173
 msgid "Included tax"
 msgstr "Enthaltene USt."
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:201
-#: cashbook/specialVueFakeDummyForL10nScript.js:268
-#: cashbook/specialVueFakeDummyForL10nScript.js:366
+#: cashbook/specialVueFakeDummyForL10nScript.js:200
+#: cashbook/specialVueFakeDummyForL10nScript.js:300
+#: cashbook/specialVueFakeDummyForL10nScript.js:424
+#: cashbook/specialVueFakeDummyForL10nScript.js:554
 msgid "Cancel"
 msgstr "Abbrechen"
 
 #. TRANSLATORS src/components/DeleteCashbookDialog.vue:73
-#: cashbook/specialVueFakeDummyForL10nScript.js:205
-#: cashbook/specialVueFakeDummyForL10nScript.js:239
+#: cashbook/specialVueFakeDummyForL10nScript.js:204
+#: cashbook/specialVueFakeDummyForL10nScript.js:238
 msgid "Delete cashbook"
 msgstr "Kassenbuch löschen"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:222
+#: cashbook/specialVueFakeDummyForL10nScript.js:221
 msgid "Could not delete the cashbook."
 msgstr "Das Kassenbuch konnte nicht gelöscht werden."
 
 #. TRANSLATORS src/components/DeleteCashbookDialog.vue:76
-#: cashbook/specialVueFakeDummyForL10nScript.js:241
+#: cashbook/specialVueFakeDummyForL10nScript.js:240
 msgid ""
 "Do you really want to delete the cashbook \"{name}\" including all of its "
 "entries? This cannot be undone."
@@ -250,13 +316,44 @@ msgstr ""
 "Möchtest du das Kassenbuch „{name}“ samt aller Einträge wirklich löschen? "
 "Dies kann nicht rückgängig gemacht werden."
 
+#: cashbook/specialVueFakeDummyForL10nScript.js:278
+msgid "Cashbook export"
+msgstr "Kassenbuch-Export"
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:279
+msgid "The export of the cash register book (Kassenbuch_….csv)."
+msgstr "Der Export des Kassenbuchs (Kassenbuch_….csv)."
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:280
+msgid "Select cashbook export"
+msgstr "Kassenbuch-Export auswählen"
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:284
+msgid "Daily closing report (optional)"
+msgstr "Tagesabschlussbericht (optional)"
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:285
+msgid ""
+"The export of the daily closings to import the day openings and closings."
+msgstr ""
+"Der Export der Tagesabschlüsse, um die Tageseröffnungen und -abschlüsse zu "
+"importieren."
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:286
+msgid "Select daily closing report"
+msgstr "Tagesabschlussbericht auswählen"
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:287
+msgid "Remove daily closing report"
+msgstr "Tagesabschlussbericht entfernen"
+
 #. TRANSLATORS src/views/AppNavigation.vue:121
-#: cashbook/specialVueFakeDummyForL10nScript.js:272
-#: cashbook/specialVueFakeDummyForL10nScript.js:576
+#: cashbook/specialVueFakeDummyForL10nScript.js:304
+#: cashbook/specialVueFakeDummyForL10nScript.js:799
 msgid "Import cashbook"
 msgstr "Kassenbuch importieren"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:288
+#: cashbook/specialVueFakeDummyForL10nScript.js:325
 msgid ""
 "Could not import the cashbook. Please make sure you selected the cashbook "
 "export (Kassenbuch_….csv) and optionally the matching daily closing report."
@@ -265,193 +362,280 @@ msgstr ""
 "den Kassenbuch-Export (Kassenbuch_….csv) und optional den passenden "
 "Tagesabschlussbericht ausgewählt hast."
 
-#. TRANSLATORS src/components/ImportCashbookDialog.vue:70
-#: cashbook/specialVueFakeDummyForL10nScript.js:303
+#. TRANSLATORS src/components/ImportCashbookDialog.vue:121
+#: cashbook/specialVueFakeDummyForL10nScript.js:353
 msgid "Import SumUp cashbook"
 msgstr "SumUp-Kassenbuch importieren"
 
-#. TRANSLATORS src/components/ImportCashbookDialog.vue:73
-#: cashbook/specialVueFakeDummyForL10nScript.js:305
+#. TRANSLATORS src/components/ImportCashbookDialog.vue:124
+#: cashbook/specialVueFakeDummyForL10nScript.js:355
+msgid "Select the CSV exports of the SumUp POS Pro."
+msgstr "Wähle die CSV-Exporte aus SumUp POS Pro aus."
+
+#. TRANSLATORS src/components/ImportCashbookDialog.vue:145
+#: cashbook/specialVueFakeDummyForL10nScript.js:357
+msgid "No file selected"
+msgstr "Keine Datei ausgewählt"
+
+#. TRANSLATORS src/components/ImportCashbookDialog.vue:163
+#: cashbook/specialVueFakeDummyForL10nScript.js:359
+msgid "Timezone of the export and the cashbook"
+msgstr "Zeitzone des Exports und des Kassenbuchs"
+
+#. TRANSLATORS src/components/ImportCashbookDialog.vue:166
+#: cashbook/specialVueFakeDummyForL10nScript.js:361
 msgid ""
-"Select the cashbook CSV export of the SumUp POS Pro. Optionally also select "
-"the daily closing report to import the day openings and closings."
+"The dates of the export are read in this timezone. The days of the cashbook "
+"follow it, it can not be changed later."
 msgstr ""
-"Wähle den CSV-Export des Kassenbuchs aus SumUp POS Pro aus. Optional kannst "
-"du auch den Tagesabschlussbericht auswählen, um die Tageseröffnungen und "
-"-abschlüsse zu importieren."
+"Die Datumsangaben des Exports werden in dieser Zeitzone gelesen. Die Tage "
+"des Kassenbuchs richten sich nach ihr, sie kann später nicht geändert werden."
 
-#. TRANSLATORS src/components/ImportCashbookDialog.vue:77
-#: cashbook/specialVueFakeDummyForL10nScript.js:307
-msgid "Select files"
-msgstr "Dateien auswählen"
-
-#. TRANSLATORS src/components/ImportCashbookDialog.vue:86
-#: cashbook/specialVueFakeDummyForL10nScript.js:309
-msgid "Timezone of the export"
-msgstr "Zeitzone des Exports"
-
-#: cashbook/specialVueFakeDummyForL10nScript.js:371
+#: cashbook/specialVueFakeDummyForL10nScript.js:429
 msgid "Save"
 msgstr "Speichern"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:371
+#: cashbook/specialVueFakeDummyForL10nScript.js:429
 msgid "Create cashbook"
 msgstr "Kassenbuch anlegen"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:390
+#: cashbook/specialVueFakeDummyForL10nScript.js:448
 msgid "Could not save the cashbook."
 msgstr "Das Kassenbuch konnte nicht gespeichert werden."
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:391
+#: cashbook/specialVueFakeDummyForL10nScript.js:449
 msgid "Could not create the cashbook."
 msgstr "Das Kassenbuch konnte nicht angelegt werden."
 
-#. TRANSLATORS src/components/NewCashbookDialog.vue:108
-#: cashbook/specialVueFakeDummyForL10nScript.js:408
+#. TRANSLATORS src/components/NewCashbookDialog.vue:115
+#: cashbook/specialVueFakeDummyForL10nScript.js:466
 msgid "Edit cashbook"
 msgstr "Kassenbuch bearbeiten"
 
 #. TRANSLATORS src/views/AppNavigation.vue:92
-#: cashbook/specialVueFakeDummyForL10nScript.js:408
-#: cashbook/specialVueFakeDummyForL10nScript.js:568
+#: cashbook/specialVueFakeDummyForL10nScript.js:466
+#: cashbook/specialVueFakeDummyForL10nScript.js:791
 msgid "New cashbook"
 msgstr "Neues Kassenbuch"
 
-#. TRANSLATORS src/components/NewCashbookDialog.vue:114
-#: cashbook/specialVueFakeDummyForL10nScript.js:410
+#. TRANSLATORS src/components/NewCashbookDialog.vue:121
+#: cashbook/specialVueFakeDummyForL10nScript.js:468
 msgid "Cashbook name"
 msgstr "Kassenbuchname"
 
-#. TRANSLATORS src/components/NewCashbookDialog.vue:118
-#: cashbook/specialVueFakeDummyForL10nScript.js:412
+#. TRANSLATORS src/components/NewCashbookDialog.vue:125
+#: cashbook/specialVueFakeDummyForL10nScript.js:470
 msgid "Account"
 msgstr "Konto"
 
-#. TRANSLATORS src/components/NewCashbookDialog.vue:124
-#: cashbook/specialVueFakeDummyForL10nScript.js:414
+#. TRANSLATORS src/components/NewCashbookDialog.vue:131
+#: cashbook/specialVueFakeDummyForL10nScript.js:472
 msgid "Currency"
 msgstr "Währung"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:430
+#. TRANSLATORS src/components/NewCashbookDialog.vue:141
+#: cashbook/specialVueFakeDummyForL10nScript.js:474
+msgid "Timezone"
+msgstr "Zeitzone"
+
+#. TRANSLATORS src/components/NewCashbookDialog.vue:144
+#: cashbook/specialVueFakeDummyForL10nScript.js:476
+msgid ""
+"The days of the cashbook follow this timezone. It can not be changed later."
+msgstr ""
+"Die Tage des Kassenbuchs richten sich nach dieser Zeitzone. Sie kann später "
+"nicht geändert werden."
+
+#. TRANSLATORS src/views/CashbookView.vue:160
+#: cashbook/specialVueFakeDummyForL10nScript.js:559
+#: cashbook/specialVueFakeDummyForL10nScript.js:899
+msgid "Add entry"
+msgstr "Eintrag hinzufügen"
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:595
+msgid "Could not add the entry."
+msgstr "Der Eintrag konnte nicht hinzugefügt werden."
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:145
+#: cashbook/specialVueFakeDummyForL10nScript.js:612
+msgid "New entry"
+msgstr "Neuer Eintrag"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:149
+#: cashbook/specialVueFakeDummyForL10nScript.js:614
+msgid "Cash balance: {balance}"
+msgstr "Kassenbestand: {balance}"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:151
+#: cashbook/specialVueFakeDummyForL10nScript.js:616
+msgid "Entry type"
+msgstr "Art des Eintrags"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:153
+#: cashbook/specialVueFakeDummyForL10nScript.js:620
+msgid "Expense"
+msgstr "Ausgabe"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:169
+#: cashbook/specialVueFakeDummyForL10nScript.js:624
+msgid "Amount ({currency})"
+msgstr "Betrag ({currency})"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:176
+#: cashbook/specialVueFakeDummyForL10nScript.js:626
+msgid "Tax rate (%)"
+msgstr "Steuersatz (%)"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:187
+#: cashbook/specialVueFakeDummyForL10nScript.js:630
+msgid "Receipt number"
+msgstr "Belegnummer"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:193
+#: cashbook/specialVueFakeDummyForL10nScript.js:632
+msgid "Receipt date"
+msgstr "Belegdatum"
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:195
+#: cashbook/specialVueFakeDummyForL10nScript.js:634
+msgid "Entries can not be changed or deleted once they are added."
+msgstr ""
+"Einträge können nach dem Hinzufügen nicht mehr geändert oder gelöscht werden."
+
+#. TRANSLATORS src/components/NewEntryDialog.vue:199
+#: cashbook/specialVueFakeDummyForL10nScript.js:636
+msgid ""
+"The cashbook was changed in the meantime. Check the cash balance and add the "
+"entry again."
+msgstr ""
+"Das Kassenbuch wurde zwischenzeitlich geändert. Prüfe den Kassenbestand und "
+"füge den Eintrag erneut hinzu."
+
+#: cashbook/specialVueFakeDummyForL10nScript.js:652
 msgid "Month"
 msgstr "Monat"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:431
+#: cashbook/specialVueFakeDummyForL10nScript.js:653
 msgid "Quarter"
 msgstr "Quartal"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:432
+#: cashbook/specialVueFakeDummyForL10nScript.js:654
 msgid "Year"
 msgstr "Jahr"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:433
+#: cashbook/specialVueFakeDummyForL10nScript.js:655
 msgid "Custom range"
 msgstr "Eigener Zeitraum"
 
-#. TRANSLATORS src/components/PeriodSelector.vue:70
-#: cashbook/specialVueFakeDummyForL10nScript.js:475
+#. TRANSLATORS src/components/PeriodSelector.vue:71
+#: cashbook/specialVueFakeDummyForL10nScript.js:698
 msgid "Previous period"
 msgstr "Vorheriger Zeitraum"
 
-#. TRANSLATORS src/components/PeriodSelector.vue:80
-#: cashbook/specialVueFakeDummyForL10nScript.js:477
+#. TRANSLATORS src/components/PeriodSelector.vue:81
+#: cashbook/specialVueFakeDummyForL10nScript.js:700
 msgid "Next period"
 msgstr "Nächster Zeitraum"
 
-#. TRANSLATORS src/components/PeriodSelector.vue:93
-#: cashbook/specialVueFakeDummyForL10nScript.js:479
+#. TRANSLATORS src/components/PeriodSelector.vue:94
+#: cashbook/specialVueFakeDummyForL10nScript.js:702
 msgid "Period"
 msgstr "Zeitraum"
 
-#. TRANSLATORS src/components/PeriodSelector.vue:101
-#: cashbook/specialVueFakeDummyForL10nScript.js:481
+#. TRANSLATORS src/components/PeriodSelector.vue:102
+#: cashbook/specialVueFakeDummyForL10nScript.js:704
 msgid "From"
 msgstr "Von"
 
-#. TRANSLATORS src/components/PeriodSelector.vue:106
-#: cashbook/specialVueFakeDummyForL10nScript.js:483
+#. TRANSLATORS src/components/PeriodSelector.vue:107
+#: cashbook/specialVueFakeDummyForL10nScript.js:706
 msgid "To"
 msgstr "Bis"
 
 #. TRANSLATORS src/views/AppNavigation.vue:96
-#: cashbook/specialVueFakeDummyForL10nScript.js:570
+#: cashbook/specialVueFakeDummyForL10nScript.js:793
 msgid "Your cashbooks"
 msgstr "Deine Kassenbücher"
 
 #. TRANSLATORS src/views/AppNavigation.vue:108
-#: cashbook/specialVueFakeDummyForL10nScript.js:572
+#: cashbook/specialVueFakeDummyForL10nScript.js:795
 msgid "Edit"
 msgstr "Bearbeiten"
 
 #. TRANSLATORS src/views/AppNavigation.vue:114
-#: cashbook/specialVueFakeDummyForL10nScript.js:574
+#: cashbook/specialVueFakeDummyForL10nScript.js:797
 msgid "Delete"
 msgstr "Löschen"
 
-#. TRANSLATORS src/views/CashbookView.vue:66
-#: cashbook/specialVueFakeDummyForL10nScript.js:633
+#. TRANSLATORS src/views/CashbookView.vue:95
+#: cashbook/specialVueFakeDummyForL10nScript.js:885
 msgid "Could not load the cashbooks"
 msgstr "Die Kassenbücher konnten nicht geladen werden"
 
-#. TRANSLATORS src/views/CashbookView.vue:75
-#: cashbook/specialVueFakeDummyForL10nScript.js:635
-#: cashbook/specialVueFakeDummyForL10nScript.js:649
+#. TRANSLATORS src/views/CashbookView.vue:104
+#: cashbook/specialVueFakeDummyForL10nScript.js:887
+#: cashbook/specialVueFakeDummyForL10nScript.js:905
 msgid "Retry"
 msgstr "Erneut versuchen"
 
-#. TRANSLATORS src/views/CashbookView.vue:83
-#: cashbook/specialVueFakeDummyForL10nScript.js:637
+#. TRANSLATORS src/views/CashbookView.vue:112
+#: cashbook/specialVueFakeDummyForL10nScript.js:889
 msgid "Loading cashbook"
 msgstr "Lade Kassenbuch"
 
-#. TRANSLATORS src/views/CashbookView.vue:96
-#: cashbook/specialVueFakeDummyForL10nScript.js:639
+#. TRANSLATORS src/views/CashbookView.vue:125
+#: cashbook/specialVueFakeDummyForL10nScript.js:891
 msgid "Account: {account}"
 msgstr "Konto: {account}"
 
-#. TRANSLATORS src/views/CashbookView.vue:109
-#: cashbook/specialVueFakeDummyForL10nScript.js:641
+#. TRANSLATORS src/views/CashbookView.vue:128
+#: cashbook/specialVueFakeDummyForL10nScript.js:893
+msgid "Timezone: {timezone}"
+msgstr "Zeitzone: {timezone}"
+
+#. TRANSLATORS src/views/CashbookView.vue:141
+#: cashbook/specialVueFakeDummyForL10nScript.js:895
 msgid "Print"
 msgstr "Drucken"
 
-#. TRANSLATORS src/views/CashbookView.vue:119
-#: cashbook/specialVueFakeDummyForL10nScript.js:643
+#. TRANSLATORS src/views/CashbookView.vue:151
+#: cashbook/specialVueFakeDummyForL10nScript.js:897
 msgid "Export"
 msgstr "Exportieren"
 
-#. TRANSLATORS src/views/CashbookView.vue:127
-#: cashbook/specialVueFakeDummyForL10nScript.js:645
+#. TRANSLATORS src/views/CashbookView.vue:169
+#: cashbook/specialVueFakeDummyForL10nScript.js:901
 msgid "Loading entries"
 msgstr "Lade Einträge"
 
-#. TRANSLATORS src/views/CashbookView.vue:136
-#: cashbook/specialVueFakeDummyForL10nScript.js:647
+#. TRANSLATORS src/views/CashbookView.vue:178
+#: cashbook/specialVueFakeDummyForL10nScript.js:903
 msgid "Could not load the entries"
 msgstr "Die Einträge konnten nicht geladen werden"
 
-#. TRANSLATORS src/views/CashbookView.vue:153
-#: cashbook/specialVueFakeDummyForL10nScript.js:651
+#. TRANSLATORS src/views/CashbookView.vue:196
+#: cashbook/specialVueFakeDummyForL10nScript.js:907
 msgid "No entries"
 msgstr "Keine Einträge"
 
-#. TRANSLATORS src/views/CashbookView.vue:154
-#: cashbook/specialVueFakeDummyForL10nScript.js:653
+#. TRANSLATORS src/views/CashbookView.vue:197
+#: cashbook/specialVueFakeDummyForL10nScript.js:909
 msgid "There are no entries in this period."
 msgstr "In diesem Zeitraum gibt es keine Einträge."
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:666
+#: cashbook/specialVueFakeDummyForL10nScript.js:922
 msgid "Cashbook not found"
 msgstr "Kassenbuch nicht gefunden"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:667
+#: cashbook/specialVueFakeDummyForL10nScript.js:923
 msgid "No cashbook selected"
 msgstr "Kein Kassenbuch ausgewählt"
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:670
+#: cashbook/specialVueFakeDummyForL10nScript.js:926
 msgid "Select a cashbook from the menu or create a new one."
 msgstr "Wähle ein Kassenbuch oder lege ein neues an."
 
-#: cashbook/specialVueFakeDummyForL10nScript.js:671
+#: cashbook/specialVueFakeDummyForL10nScript.js:927
 msgid ""
 "The cashbook you were looking for does not exist anymore or was unshared "
 "from you."
@@ -511,6 +695,6 @@ msgstr "Löhne"
 msgid "Tips"
 msgstr "Trinkgeldauszahlung"
 
-#: cashbook/src/utils/period.ts:77
+#: cashbook/src/utils/period.ts:116
 msgid "Q{quarter} {year}"
 msgstr "Q{quarter} {year}"
