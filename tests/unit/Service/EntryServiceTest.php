@@ -162,6 +162,9 @@ final class EntryServiceTest extends TestCase {
 		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::IncomeSales, '1', tax: 0.07);
 		$this->assertSame('7/100', $entry->getTaxRaw());
 
+		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::IncomeSales, '1', tax: 0.075);
+		$this->assertSame('3/40', $entry->getTaxRaw());
+
 		$entry = $this->service->add($this->cashbook, self::USER_ID, $this->lastSequence(), EntryReason::IncomeSales, '1', tax: 0.0);
 		$this->assertSame(0.0, $entry->jsonSerialize()['tax']);
 	}

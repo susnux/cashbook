@@ -289,7 +289,7 @@ final class ApiControllerTest extends TestCase {
 		$cashbook = $this->createCashbook('alice');
 		$entries = [
 			[null, '10.00', '19/100'],
-			['', '5.00', '19/100'],
+			['', '5.00', '190/1000'],
 			[null, '1.00', '7/100'],
 			['Voucher', '2.00', '7/100'],
 			[null, '-3.00', null],
