@@ -99,24 +99,24 @@ export async function fetchEntries(cashbook: ICashbook, { offset, limit }: Fetch
 }
 
 type FetchEntryByDateOption = {
-	begin: Date
-	end: Date
+	begin: string
+	end: string
 	signal?: AbortSignal
 }
 
 /**
- * Fetch all entries of a cashbook within a date range
+ * Fetch all entries of a cashbook within a range of days, the days are in the timezone of the cashbook
  *
  * @param cashbook - The cashbook to fetch the entries for
- * @param options - The date range to fetch
- * @param options.begin - Start of the date range (inclusive)
- * @param options.end - End of the date range (exclusive)
+ * @param options - The days to fetch
+ * @param options.begin - First day of the range (`YYYY-MM-DD`, inclusive)
+ * @param options.end - First day after the range (`YYYY-MM-DD`, exclusive)
  * @param options.signal - Signal to abort the request
  */
 export async function fetchEntriesByDate(cashbook: ICashbook, { begin, end, signal }: FetchEntryByDateOption): Promise<ICashbookEntry[]> {
 	const { data } = await axios.get<OCSResponse<RawCashbookEntry[]>>(
 		generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries/print`),
-		{ params: { begin: begin.toISOString(), end: end.toISOString() }, signal },
+		{ params: { begin, end }, signal },
 	)
 	if (data.ocs.meta.status !== 'ok') {
 		throw new Error(data.ocs.meta.message, { cause: data.ocs })

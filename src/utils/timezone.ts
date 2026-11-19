@@ -20,3 +20,33 @@ export function getBrowserTimezone(): string {
 		? timezone
 		: UTC_TIMEZONE.timezoneId
 }
+
+/**
+ * Get the calendar day of a date in a timezone
+ *
+ * @param date - The date
+ * @param timeZone - The IANA timezone ID, the timezone of the browser if not set
+ * @return The day as `YYYY-MM-DD`
+ */
+export function getDay(date: Date, timeZone?: string): string {
+	const parts = new Intl.DateTimeFormat('en-US', {
+		timeZone,
+		calendar: 'gregory',
+		numberingSystem: 'latn',
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+	}).formatToParts(date)
+	const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((entry) => entry.type === type)!.value
+	return `${part('year').padStart(4, '0')}-${part('month')}-${part('day')}`
+}
+
+/**
+ * Get the current calendar day in a timezone
+ *
+ * @param timeZone - The IANA timezone ID, the timezone of the browser if not set
+ * @return The day as `YYYY-MM-DD`
+ */
+export function getToday(timeZone?: string): string {
+	return getDay(new Date(), timeZone)
+}

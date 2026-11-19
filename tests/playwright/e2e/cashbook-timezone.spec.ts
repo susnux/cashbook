@@ -5,9 +5,12 @@
 
 import { join } from 'node:path'
 import { expect, test } from '../support/fixtures/cashbook-app.ts'
-import { SUMUP_FIXTURES } from '../support/utils/import.ts'
+import { importReportFixture, SUMUP_FIXTURES } from '../support/utils/import.ts'
 
 test.use({ timezoneId: 'Europe/Berlin', locale: 'en-US' })
+
+/** Only the first day of the report fixture, 2 January in Auckland is 1 January in Berlin */
+const SECOND_OF_JANUARY = 'period=custom&from=2025-01-02&to=2025-01-02'
 
 test.describe('Cashbook timezone', () => {
 	test.beforeEach(async ({ cashbookApp }) => {
@@ -46,6 +49,30 @@ test.describe('Cashbook timezone', () => {
 		await expect(dialog.getByText('Berlin', { exact: true })).toBeVisible()
 		await expect(dialog.getByRole('combobox', { name: 'Timezone' })).toBeDisabled()
 	})
+
+	for (const page of ['app', 'export'] as const) {
+		test(`shows the days and times of the cashbook timezone on the ${page} page`, async ({ page: browserPage }) => {
+			const cashbookId = await importReportFixture(browserPage.request, 'Pacific/Auckland')
+			await browserPage.goto(`apps/cashbook/${cashbookId}${page === 'export' ? '/export' : ''}?${SECOND_OF_JANUARY}`)
+
+			const main = browserPage.getByRole('main')
+			await expect(main.getByText('Timezone: Pacific/Auckland', { exact: true })).toBeVisible()
+			const table = main.getByRole('table').first()
+			const days = table.getByRole('columnheader', { name: /^Opened:/ })
+			await expect(days).toHaveCount(1)
+			await expect(days).toHaveAccessibleName(/^Opened: Jan 2, 2025, 9:00\sAM Closed: Jan 2, 2025, 6:00\sPM Z-number: Z-1 /)
+			await expect(table.getByRole('cell', { name: /^Jan 2, 2025, (9:30|10:00)\sAM$/ })).toHaveCount(2)
+		})
+
+		test(`opens the current month of the cashbook timezone on the ${page} page`, async ({ page: browserPage }) => {
+			const cashbookId = await importReportFixture(browserPage.request, 'Pacific/Auckland')
+			// 1 February in Auckland, still 31 January in Berlin
+			await browserPage.clock.install({ time: new Date('2025-01-31T12:00:00Z') })
+			await browserPage.goto(`apps/cashbook/${cashbookId}${page === 'export' ? '/export' : ''}`)
+
+			await expect(browserPage.getByRole('main').getByText('February 2025', { exact: true })).toBeVisible()
+		})
+	}
 })
 
 test.describe('Cashbook timezone of a browser with a fixed offset', () => {

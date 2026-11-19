@@ -23,6 +23,7 @@ import PeriodSelector from '../components/PeriodSelector.vue'
 import { useCashbookEntries } from '../composables/useCashbookEntries.ts'
 import { useCashbookStore } from '../store/cashbookStore.ts'
 import { getPeriod, periodFromQuery, periodToQuery } from '../utils/period.ts'
+import { getDay, getToday } from '../utils/timezone.ts'
 
 const props = defineProps<{
 	cashbookId: string
@@ -36,11 +37,14 @@ const store = useCashbookStore()
 
 const cashbook = computed(() => store.cashbooks.find((cb) => cb.id === props.cashbookId))
 const period = computed<Period>({
-	get: () => periodFromQuery(route.query),
+	get: () => periodFromQuery(route.query, getToday(cashbook.value?.timezone)),
 	set: (value) => router.replace({ query: { ...route.query, ...periodToQuery(value) } }),
 })
 
 const { entries, loading, failed, errorMessage, reload } = useCashbookEntries(cashbook, period)
+
+/** The timezone is always printed, in the app it is only shown if it differs from the timezone of the browser */
+const showTimezone = computed(() => props.isExport || cashbook.value?.timezone !== Intl.DateTimeFormat().resolvedOptions().timeZone)
 
 const exportUrl = computed(() => router.resolve({
 	name: 'cashbook-export',
@@ -63,8 +67,9 @@ async function onAddEntry() {
 	}
 
 	store.updateCashbook({ ...cashbook.value!, lastSequence: entry.sequence, balance: entry.balance })
-	if (entry.date < period.value.begin || entry.date >= period.value.end) {
-		period.value = getPeriod(period.value.type, entry.date)
+	const day = getDay(entry.date, cashbook.value!.timezone)
+	if (day < period.value.begin || day >= period.value.end) {
+		period.value = getPeriod(period.value.type, day)
 	}
 }
 
@@ -117,6 +122,9 @@ watchEffect(() => {
 				</h2>
 				<p v-if="isExport && cashbook.account">
 					{{ t('cashbook', 'Account: {account}', { account: cashbook.account }) }}
+				</p>
+				<p v-if="showTimezone">
+					{{ t('cashbook', 'Timezone: {timezone}', { timezone: cashbook.timezone }) }}
 				</p>
 			</div>
 			<div :class="$style.headerActions">

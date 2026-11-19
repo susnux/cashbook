@@ -35,8 +35,8 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 		[
 			() => toValue(cashbook)?.id,
 			() => toValue(cashbook)?.lastSequence,
-			() => toValue(period).begin.getTime(),
-			() => toValue(period).end.getTime(),
+			() => toValue(period).begin,
+			() => toValue(period).end,
 			reloadCounter,
 		],
 		async (_, __, onCleanup) => {

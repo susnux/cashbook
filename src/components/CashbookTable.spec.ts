@@ -78,9 +78,9 @@ describe('CashbookTable', () => {
 	})
 
 	it('groups entries outside of days by calendar day', () => {
-		const first = { ...entry(1, EntryReason.IncomeSales, 1), date: new Date(2025, 0, 2, 23, 59) }
-		const second = { ...entry(2, EntryReason.IncomeSales, 2), date: new Date(2025, 0, 3, 0, 1) }
-		const third = { ...entry(3, EntryReason.IncomeSales, 3), date: new Date(2025, 0, 3, 12, 0) }
+		const first = { ...entry(1, EntryReason.IncomeSales, 1), date: new Date('2025-01-02T23:59:00+01:00') }
+		const second = { ...entry(2, EntryReason.IncomeSales, 2), date: new Date('2025-01-03T00:01:00+01:00') }
+		const third = { ...entry(3, EntryReason.IncomeSales, 3), date: new Date('2025-01-03T12:00:00+01:00') }
 		const wrapper = mount(CashbookTable, { props: { cashbook, entries: [first, second, third] } })
 
 		const sections = wrapper.findAll('tbody')
@@ -88,6 +88,28 @@ describe('CashbookTable', () => {
 			['1'],
 			['2', '3'],
 		])
+	})
+
+	it('groups and shows the entries in the timezone of the cashbook', () => {
+		// midnight in Auckland (UTC+13 in January) is 11:00 UTC of the previous day
+		const first = { ...entry(1, EntryReason.IncomeSales, 1), date: new Date('2025-01-01T10:59:00Z') }
+		const second = { ...entry(2, EntryReason.IncomeSales, 2), date: new Date('2025-01-01T11:00:00Z') }
+		const third = { ...entry(3, EntryReason.IncomeSales, 3), date: new Date('2025-01-02T10:00:00Z') }
+		const wrapper = mount(CashbookTable, {
+			props: { cashbook: { ...cashbook, timezone: 'Pacific/Auckland' }, entries: [first, second, third] },
+		})
+
+		const sections = wrapper.findAll('tbody')
+		expect(sections.map((section) => entryRows(section).map((row) => row.get('td').text()))).toEqual([
+			['1'],
+			['2', '3'],
+		])
+		expect(sections.map((section) => section.get('th').text().replace(/\s+/g, ' '))).toEqual([
+			'Date:Jan 1, 2025',
+			'Date:Jan 2, 2025',
+		])
+		const times = entryRows(wrapper).map((row) => row.findAll('td')[1]!.text().replace(/\s+/g, ' '))
+		expect(times).toEqual(['Jan 1, 2025, 11:59 PM', 'Jan 2, 2025, 12:00 AM', 'Jan 2, 2025, 11:00 PM'])
 	})
 
 	it('spans the day header over all columns', () => {

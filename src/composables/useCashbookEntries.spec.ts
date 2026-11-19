@@ -35,7 +35,7 @@ describe('useCashbookEntries', () => {
 
 	it('loads the entries of the period', async () => {
 		fetchEntriesByDate.mockResolvedValue([{ id: 1 }])
-		const period = getPeriod('month', new Date(2025, 0, 1))
+		const period = getPeriod('month', '2025-01-01')
 
 		const scope = effectScope()
 		const { entries, loading } = scope.run(() => useCashbookEntries(cashbookA, period))!
@@ -53,7 +53,7 @@ describe('useCashbookEntries', () => {
 		const cashbook = ref(cashbookA)
 
 		const scope = effectScope()
-		const { entries } = scope.run(() => useCashbookEntries(cashbook, getPeriod('month', new Date())))!
+		const { entries } = scope.run(() => useCashbookEntries(cashbook, getPeriod('month', '2025-06-15')))!
 		await flushPromises()
 		cashbook.value = { ...cashbookA, name: 'Renamed' }
 		await flushPromises()
@@ -73,7 +73,7 @@ describe('useCashbookEntries', () => {
 		const cashbook = ref(cashbookA)
 
 		const scope = effectScope()
-		const { entries } = scope.run(() => useCashbookEntries(cashbook, getPeriod('month', new Date())))!
+		const { entries } = scope.run(() => useCashbookEntries(cashbook, getPeriod('month', '2025-06-15')))!
 		cashbook.value = cashbookB
 		await nextTick()
 
@@ -91,7 +91,7 @@ describe('useCashbookEntries', () => {
 		fetchEntriesByDate.mockRejectedValueOnce(new Error('Network error')).mockResolvedValueOnce([])
 
 		const scope = effectScope()
-		const { failed, loading, reload } = scope.run(() => useCashbookEntries(cashbookA, getPeriod('month', new Date())))!
+		const { failed, loading, reload } = scope.run(() => useCashbookEntries(cashbookA, getPeriod('month', '2025-06-15')))!
 		await flushPromises()
 		expect(failed.value).toBe(true)
 		expect(loading.value).toBe(false)
@@ -111,7 +111,7 @@ describe('useCashbookEntries', () => {
 		fetchEntriesByDate.mockRejectedValueOnce(error).mockResolvedValueOnce([])
 
 		const scope = effectScope()
-		const { errorMessage, reload } = scope.run(() => useCashbookEntries(cashbookA, getPeriod('month', new Date())))!
+		const { errorMessage, reload } = scope.run(() => useCashbookEntries(cashbookA, getPeriod('month', '2025-06-15')))!
 		await flushPromises()
 		expect(errorMessage.value).toBe('Too many entries')
 

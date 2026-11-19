@@ -9,35 +9,77 @@ import { getCanonicalLocale, t } from '@nextcloud/l10n'
 
 export type PeriodType = 'month' | 'quarter' | 'year' | 'custom'
 
+/**
+ * A range of calendar days, independent of any timezone.
+ * The server resolves the days in the timezone of the cashbook.
+ */
 export interface Period {
 	type: PeriodType
-	/** First day of the period (local midnight) */
-	begin: Date
-	/** First day after the period (local midnight, exclusive) */
-	end: Date
+	/** First day of the period (`YYYY-MM-DD`) */
+	begin: string
+	/** First day after the period (`YYYY-MM-DD`, exclusive) */
+	end: string
 }
 
 const PERIOD_TYPES: readonly PeriodType[] = ['month', 'quarter', 'year', 'custom']
 
 /**
- * Get the period of the given type that contains the given date
+ * Get the day of a date in UTC, the calendar arithmetic of days is done in UTC to be free of daylight saving time.
+ *
+ * @param year - The full year
+ * @param month - The month (0-based), overflowing values roll over into the next or previous year
+ * @param day - The day of the month, overflowing values roll over into the next or previous month
+ */
+function utcDay(year: number, month: number, day: number): string {
+	const date = new Date(0)
+	date.setUTCFullYear(year, month, day)
+	return date.toISOString().slice(0, 10)
+}
+
+/**
+ * Get a day as UTC midnight
+ *
+ * @param day - The day (`YYYY-MM-DD`)
+ */
+function toUtcDate(day: string): Date {
+	const [year, month, date] = day.split('-').map(Number) as [number, number, number]
+	const result = new Date(0)
+	result.setUTCFullYear(year, month - 1, date)
+	return result
+}
+
+/**
+ * Add a number of days to a day
+ *
+ * @param day - The day (`YYYY-MM-DD`)
+ * @param days - The number of days to add, negative to subtract
+ */
+export function addDays(day: string, days: number): string {
+	const date = toUtcDate(day)
+	return utcDay(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days)
+}
+
+/**
+ * Get the period of the given type that contains the given day
  *
  * @param type - The type of the period, a custom period is a single day
- * @param date - A date within the period
+ * @param day - A day within the period (`YYYY-MM-DD`)
  */
-export function getPeriod(type: PeriodType, date: Date): Period {
-	const year = date.getFullYear()
+export function getPeriod(type: PeriodType, day: string): Period {
+	const date = toUtcDate(day)
+	const year = date.getUTCFullYear()
+	const month = date.getUTCMonth()
 	switch (type) {
 		case 'year':
-			return { type, begin: new Date(year, 0, 1), end: new Date(year + 1, 0, 1) }
+			return { type, begin: utcDay(year, 0, 1), end: utcDay(year + 1, 0, 1) }
 		case 'quarter': {
-			const month = date.getMonth() - date.getMonth() % 3
-			return { type, begin: new Date(year, month, 1), end: new Date(year, month + 3, 1) }
+			const first = month - month % 3
+			return { type, begin: utcDay(year, first, 1), end: utcDay(year, first + 3, 1) }
 		}
 		case 'month':
-			return { type, begin: new Date(year, date.getMonth(), 1), end: new Date(year, date.getMonth() + 1, 1) }
+			return { type, begin: utcDay(year, month, 1), end: utcDay(year, month + 1, 1) }
 		case 'custom':
-			return { type, begin: new Date(year, date.getMonth(), date.getDate()), end: new Date(year, date.getMonth(), date.getDate() + 1) }
+			return { type, begin: day, end: addDays(day, 1) }
 	}
 }
 
@@ -51,16 +93,12 @@ export function getPeriod(type: PeriodType, date: Date): Period {
  */
 export function shiftPeriod(period: Period, direction: -1 | 1): Period {
 	if (period.type === 'custom') {
-		const days = Math.round((period.end.getTime() - period.begin.getTime()) / 86400000)
-		const begin = new Date(period.begin.getFullYear(), period.begin.getMonth(), period.begin.getDate() + direction * days)
-		const end = new Date(begin.getFullYear(), begin.getMonth(), begin.getDate() + days)
-		return { type: 'custom', begin, end }
+		const days = Math.round((toUtcDate(period.end).getTime() - toUtcDate(period.begin).getTime()) / 86400000)
+		const begin = addDays(period.begin, direction * days)
+		return { type: 'custom', begin, end: addDays(begin, days) }
 	}
 
-	const reference = direction === 1
-		? period.end
-		: new Date(period.begin.getFullYear(), period.begin.getMonth(), period.begin.getDate() - 1)
-	return getPeriod(period.type, reference)
+	return getPeriod(period.type, direction === 1 ? period.end : addDays(period.begin, -1))
 }
 
 /**
@@ -70,20 +108,20 @@ export function shiftPeriod(period: Period, direction: -1 | 1): Period {
  * @param locale - The locale to format dates in
  */
 export function formatPeriod(period: Period, locale: string = getCanonicalLocale()): string {
+	const begin = toUtcDate(period.begin)
 	switch (period.type) {
 		case 'year':
-			return String(period.begin.getFullYear())
+			return String(begin.getUTCFullYear())
 		case 'quarter':
 			return t('cashbook', 'Q{quarter} {year}', {
-				quarter: Math.floor(period.begin.getMonth() / 3) + 1,
-				year: period.begin.getFullYear(),
+				quarter: Math.floor(begin.getUTCMonth() / 3) + 1,
+				year: begin.getUTCFullYear(),
 			})
 		case 'month':
-			return period.begin.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
-		case 'custom': {
-			const lastDay = new Date(period.end.getFullYear(), period.end.getMonth(), period.end.getDate() - 1)
-			return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).formatRange(period.begin, lastDay)
-		}
+			return begin.toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' })
+		case 'custom':
+			return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' })
+				.formatRange(begin, toUtcDate(addDays(period.end, -1)))
 	}
 }
 
@@ -115,34 +153,42 @@ export function parseDay(value: unknown): Date | undefined {
 }
 
 /**
+ * Validate a `YYYY-MM-DD` day, days outside of the month roll over (e.g. `2025-02-30` is `2025-03-02`)
+ *
+ * @param value - The value to validate
+ */
+function normalizeDay(value: unknown): string | undefined {
+	return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? addDays(value, 0) : undefined
+}
+
+/**
  * Serialize a period as route query (`to` is the last day of the period)
  *
  * @param period - The period to serialize
  */
 export function periodToQuery(period: Period): Record<string, string> {
-	const lastDay = new Date(period.end.getFullYear(), period.end.getMonth(), period.end.getDate() - 1)
-	return { period: period.type, from: formatDay(period.begin), to: formatDay(lastDay) }
+	return { period: period.type, from: period.begin, to: addDays(period.end, -1) }
 }
 
 /**
  * Get the period from the route query, falling back to the current month
  *
  * @param query - The route query
- * @param now - The current date
+ * @param today - The current day (`YYYY-MM-DD`)
  */
-export function periodFromQuery(query: LocationQuery, now: Date = new Date()): Period {
+export function periodFromQuery(query: LocationQuery, today: string): Period {
 	const type = PERIOD_TYPES.find((value) => value === query.period)
-	const from = parseDay(query.from)
+	const from = normalizeDay(query.from)
 	if (!type || !from) {
-		return getPeriod('month', now)
+		return getPeriod('month', today)
 	}
 	if (type !== 'custom') {
 		return getPeriod(type, from)
 	}
 
-	const to = parseDay(query.to)
+	const to = normalizeDay(query.to)
 	if (!to || to < from) {
 		return getPeriod('custom', from)
 	}
-	return { type, begin: from, end: new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1) }
+	return { type, begin: from, end: addDays(to, 1) }
 }

@@ -13,6 +13,7 @@ import NcDateTime from '@nextcloud/vue/components/NcDateTime'
 import CashbookEntry from './CashbookEntry.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
 import { formatCurrency, formatTaxRate } from '../utils/formatter.ts'
+import { getDay } from '../utils/timezone.ts'
 import { calculateTotals } from '../utils/totals.ts'
 
 const props = defineProps<{
@@ -42,7 +43,7 @@ const sections = computed(() => {
 			current.end = entry
 		} else if (current?.start && !current.end) {
 			current.entries.push(entry)
-		} else if (current && !current.start && isSameDay(current.entries[0]!.date, entry.date)) {
+		} else if (current && !current.start && getDay(current.entries[0]!.date, props.cashbook.timezone) === getDay(entry.date, props.cashbook.timezone)) {
 			current.entries.push(entry)
 		} else {
 			list.push({ entries: [entry] })
@@ -54,15 +55,8 @@ const sections = computed(() => {
 	}))
 })
 
-/**
- * Check if two dates are on the same local calendar day
- *
- * @param a - The first date
- * @param b - The second date
- */
-function isSameDay(a: Date, b: Date): boolean {
-	return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-}
+const dayFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 'medium', timeZone: props.cashbook.timezone }))
+const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 'medium', timeStyle: 'short', timeZone: props.cashbook.timezone }))
 </script>
 
 <template>
@@ -104,7 +98,7 @@ function isSameDay(a: Date, b: Date): boolean {
 							<span :class="$style.textBold">
 								{{ t('cashbook', 'Date:') }}
 							</span>
-							<NcDateTime :relativeTime="false" :timestamp="section.entries[0]!.date" :format="{ dateStyle: 'medium' }" />
+							<NcDateTime :relativeTime="false" :timestamp="section.entries[0]!.date" :format="dayFormat" />
 						</div>
 					</div>
 				</th>
@@ -116,13 +110,13 @@ function isSameDay(a: Date, b: Date): boolean {
 							<span :class="$style.textBold">
 								{{ t('cashbook', 'Opened:') }}
 							</span>
-							<NcDateTime :relativeTime="false" :timestamp="section.start.date" :format="{ dateStyle: 'medium', timeStyle: 'short' }" />
+							<NcDateTime :relativeTime="false" :timestamp="section.start.date" :format="dateTimeFormat" />
 						</div>
 						<div v-if="section.end">
 							<span :class="$style.textBold">
 								{{ t('cashbook', 'Closed:') }}
 							</span>
-							<NcDateTime :relativeTime="false" :timestamp="section.end.date" :format="{ dateStyle: 'medium', timeStyle: 'short' }" />
+							<NcDateTime :relativeTime="false" :timestamp="section.end.date" :format="dateTimeFormat" />
 							<template v-if="section.end.reference">
 								<span :class="$style.textBold">
 									{{ t('cashbook', 'Z-number:') }}

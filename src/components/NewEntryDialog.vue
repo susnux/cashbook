@@ -22,7 +22,8 @@ import { getCurrencyStep } from '../utils/currencies.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import { formatCurrency } from '../utils/formatter.ts'
 import logger from '../utils/logger.ts'
-import { formatDay } from '../utils/period.ts'
+import { formatDay, parseDay } from '../utils/period.ts'
+import { getToday } from '../utils/timezone.ts'
 
 interface ReasonOption {
 	value: EntryReason
@@ -67,7 +68,8 @@ const currentCashbook = ref(props.cashbook)
 const formattedBalance = computed(() => formatCurrency(currentCashbook.value.balance, currentCashbook.value.currency))
 
 const amountStep = computed(() => getCurrencyStep(props.cashbook.currency))
-const today = new Date()
+/** The current day of the cashbook as local date for the date picker */
+const today = parseDay(getToday(props.cashbook.timezone))
 
 const fieldsElement = useTemplateRef<HTMLDivElement>('fields')
 const saved = ref<ICashbookEntry>()

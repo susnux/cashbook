@@ -33,7 +33,7 @@ function lastEmitted(wrapper: ReturnType<typeof mountSelector>) {
 
 describe('PeriodSelector', () => {
 	it('shows the period and navigates to the previous and next period', async () => {
-		const wrapper = mountSelector(getPeriod('month', new Date(2025, 0, 15)))
+		const wrapper = mountSelector(getPeriod('month', '2025-01-15'))
 		expect(wrapper.text()).toContain('January 2025')
 
 		await wrapper.get('button[aria-label="Previous period"]').trigger('click')
@@ -44,13 +44,13 @@ describe('PeriodSelector', () => {
 	})
 
 	it('changes the period type', async () => {
-		const wrapper = mountSelector(getPeriod('month', new Date(2025, 4, 15)))
+		const wrapper = mountSelector(getPeriod('month', '2025-05-15'))
 		await wrapper.getComponent(NcSelect).vm.$emit('update:modelValue', { value: 'quarter', label: 'Quarter' })
 		expect(lastEmitted(wrapper)).toEqual({ period: 'quarter', from: '2025-04-01', to: '2025-06-30' })
 	})
 
 	it('allows picking a custom range', async () => {
-		const wrapper = mountSelector({ ...getPeriod('month', new Date(2025, 4, 15)), type: 'custom' })
+		const wrapper = mountSelector({ ...getPeriod('month', '2025-05-15'), type: 'custom' })
 		const [from, to] = wrapper.findAllComponents(NcDateTimePickerNative)
 
 		await to!.vm.$emit('update:modelValue', new Date(2025, 4, 10))

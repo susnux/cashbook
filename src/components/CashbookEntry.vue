@@ -19,7 +19,7 @@ const props = defineProps<{
 	modelValue: ICashbookEntry
 }>()
 
-const formattedTime = useFormatTime(() => props.modelValue.date, { format: { dateStyle: 'medium', timeStyle: 'short' } })
+const formattedTime = useFormatTime(() => props.modelValue.date, () => ({ format: { dateStyle: 'medium', timeStyle: 'short', timeZone: props.cashbook.timezone } }))
 const receiptDate = computed(() => parseDay(props.modelValue.referenceDate))
 const formattedTax = computed(() => props.modelValue.tax === null ? '' : formatTaxRate(props.modelValue.tax))
 const formattedReason = computed(() => props.modelValue.reason ? EntryReasonReadable[props.modelValue.reason] : '')
