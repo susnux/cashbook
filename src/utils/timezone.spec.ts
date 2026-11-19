@@ -4,7 +4,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getBrowserTimezone, getDay, getToday } from './timezone.ts'
+import { getBrowserTimezone, getDay, getToday, toBrowserTimezoneId } from './timezone.ts'
 
 describe('getBrowserTimezone', () => {
 	afterEach(() => {
@@ -31,6 +31,17 @@ describe('getBrowserTimezone', () => {
 	it.each(['Etc/GMT-1', 'Etc/UTC', 'UTC'])('falls back to UTC for %s', (timezone) => {
 		mockBrowserTimezone(timezone)
 		expect(getBrowserTimezone()).toBe('UTC')
+	})
+})
+
+describe('toBrowserTimezoneId', () => {
+	it.each([
+		['Asia/Kolkata', 'Asia/Calcutta'],
+		['Europe/Kyiv', 'Europe/Kiev'],
+		['Europe/Berlin', 'Europe/Berlin'],
+		['UTC', 'UTC'],
+	])('%s is %s', (timezone, expected) => {
+		expect(toBrowserTimezoneId(timezone)).toBe(expected)
 	})
 })
 

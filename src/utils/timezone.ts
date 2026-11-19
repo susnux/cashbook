@@ -22,6 +22,16 @@ export function getBrowserTimezone(): string {
 }
 
 /**
+ * Get the ID the browser uses for a timezone, which is the ID the timezone pickers offer.
+ * Browsers use legacy names for some timezones, e.g. `Asia/Calcutta` for the canonical ID `Asia/Kolkata` the server stores.
+ *
+ * @param timezone - The IANA timezone ID
+ */
+export function toBrowserTimezoneId(timezone: string): string {
+	return new Intl.DateTimeFormat('en-US', { timeZone: timezone }).resolvedOptions().timeZone
+}
+
+/**
  * Get the calendar day of a date in a timezone
  *
  * @param date - The date

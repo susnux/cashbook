@@ -23,7 +23,7 @@ import PeriodSelector from '../components/PeriodSelector.vue'
 import { useCashbookEntries } from '../composables/useCashbookEntries.ts'
 import { useCashbookStore } from '../store/cashbookStore.ts'
 import { getPeriod, periodFromQuery, periodToQuery } from '../utils/period.ts'
-import { getDay, getToday } from '../utils/timezone.ts'
+import { getDay, getToday, toBrowserTimezoneId } from '../utils/timezone.ts'
 
 const props = defineProps<{
 	cashbookId: string
@@ -44,7 +44,8 @@ const period = computed<Period>({
 const { entries, loading, failed, errorMessage, reload } = useCashbookEntries(cashbook, period)
 
 /** The timezone is always printed, in the app it is only shown if it differs from the timezone of the browser */
-const showTimezone = computed(() => props.isExport || cashbook.value?.timezone !== Intl.DateTimeFormat().resolvedOptions().timeZone)
+const showTimezone = computed(() => props.isExport
+	|| (cashbook.value !== undefined && toBrowserTimezoneId(cashbook.value.timezone) !== Intl.DateTimeFormat().resolvedOptions().timeZone))
 
 const exportUrl = computed(() => router.resolve({
 	name: 'cashbook-export',

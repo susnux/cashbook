@@ -93,6 +93,14 @@ describe('NewCashbookDialog', () => {
 		expect(wrapper.emitted('close')).toBeUndefined()
 	})
 
+	it('shows the canonical timezone of an existing cashbook with the ID of the browser', async () => {
+		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'INR', owner: 'alice', timezone: 'Asia/Kolkata', lastSequence: 0, balance: '0.00' }
+		const wrapper = mount(NewCashbookDialog, { attachTo: document.body, props: { cashbook } })
+		await flushPromises()
+
+		expect(wrapper.findComponent(NcTimezonePicker).props('modelValue')).toBe('Asia/Calcutta')
+	})
+
 	it('updates the name and account of an existing cashbook', async () => {
 		const cashbook = { id: '1', name: 'Shop', account: '1000', currency: 'USD', owner: 'alice', timezone: 'Europe/Berlin', lastSequence: 0, balance: '0.00' }
 		const updated = { ...cashbook, name: 'Market', account: '1200' }

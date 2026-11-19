@@ -46,6 +46,15 @@ final class ApiControllerTest extends IntegrationTestCase {
 		);
 	}
 
+	public function testCreateCashbookWithLegacyTimezone(): void {
+		$alice = $this->createUser();
+
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR', 'timezone' => 'Asia/Calcutta'],
+		]));
+		$this->assertSame('Asia/Kolkata', $cashbook['timezone']);
+	}
+
 	public function testCreateCashbookDefaultsToTimezoneOfUser(): void {
 		$alice = $this->createUser();
 
