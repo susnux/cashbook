@@ -75,6 +75,19 @@ describe('ImportCashbookDialog', () => {
 		expect(pickers.map((picker) => picker.props('multiple'))).toEqual([false, false])
 	})
 
+	it('describes each file field with its hint and the selected file', async () => {
+		const wrapper = await mountDialog()
+		await pickFile(wrapper, 0, cashbookFile)
+
+		const descriptions = [...document.querySelectorAll('fieldset')].map((fieldset) => fieldset.getAttribute('aria-describedby')!
+			.split(' ')
+			.map((id) => document.getElementById(id)!.textContent!.trim()))
+		expect(descriptions).toEqual([
+			['The export of the cash register book (Kassenbuch_….csv).', 'Kassenbuch_2025.csv'],
+			['The export of the daily closings to import the day openings and closings.', 'No file selected'],
+		])
+	})
+
 	it('requires the cashbook export', async () => {
 		const wrapper = await mountDialog()
 		expect(getButton('Import cashbook').disabled).toBe(true)

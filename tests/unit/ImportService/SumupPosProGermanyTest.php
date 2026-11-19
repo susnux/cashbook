@@ -33,6 +33,8 @@ final class SumupPosProGermanyTest extends TestCase {
 	private IDBConnection $db;
 	private CashbookMapper $cashbookMapper;
 	private EntryMapper $entryMapper;
+	/** @var list<string> */
+	private array $tempFiles = [];
 
 	#[\Override]
 	protected function setUp(): void {
@@ -52,6 +54,7 @@ final class SumupPosProGermanyTest extends TestCase {
 		$qb->delete('cashbook_cashbooks')
 			->where($qb->expr()->eq('owner', $qb->createNamedParameter(self::USER_ID)))
 			->executeStatement();
+		array_map(unlink(...), $this->tempFiles);
 		parent::tearDown();
 	}
 
@@ -82,6 +85,24 @@ final class SumupPosProGermanyTest extends TestCase {
 			$files['report'] = self::FIXTURES . $report;
 		}
 		return $files;
+	}
+
+	/**
+	 * Create a temporary CSV file from the rows of the basic cashbook export, each row as list of columns.
+	 *
+	 * @param callable(list<string>): list<string> $mapRow Callback to change the columns of each row including the header
+	 * @return string The path of the file
+	 */
+	private function createCsv(callable $mapRow): string {
+		$rows = array_map(
+			static fn (string $line): string => implode(';', $mapRow(explode(';', $line))),
+			file(self::FIXTURES . 'Kassenbuch_basic.csv', FILE_IGNORE_NEW_LINES) ?: [],
+		);
+		$file = tempnam(sys_get_temp_dir(), 'cashbook');
+		$this->assertIsString($file);
+		$this->tempFiles[] = $file;
+		file_put_contents($file, implode("\n", $rows) . "\n");
+		return $file;
 	}
 
 	/**
@@ -161,6 +182,53 @@ final class SumupPosProGermanyTest extends TestCase {
 			// Entry after the last closing is imported as well
 			[9, EntryReason::IncomeSales, '1.00', '126.00'],
 		], $entries);
+	}
+
+	public function testImportWithoutUnreadColumns(): void {
+		// Without `Belegnummer` and `Betrag MwSt`
+		$file = $this->createCsv(static fn (array $columns): array => array_values(array_diff_key($columns, [3 => true, 10 => true])));
+
+		$cashbook = $this->createImporter()->import(['cashbook' => $file]);
+
+		$this->assertSame(['1300.50', '1280.50', '1285.50'], array_map(
+			static fn (Entry $entry): string => (string)$entry->getBalance()->getAmount(),
+			$this->getEntries($cashbook),
+		));
+	}
+
+	public function testImportTwiceWithTheSameImporter(): void {
+		$importer = $this->createImporter();
+		$importer->import($this->files('Kassenbuch_report.csv', 'Tagesabschluss_report.csv'), ['timezone' => 'UTC']);
+		$cashbook = $importer->import($this->files('Kassenbuch_report.csv'));
+
+		$entries = $this->getEntries($cashbook);
+		$this->assertSame([1, 2, 3, 4, 5], array_map(static fn (Entry $entry): int => $entry->getSequence(), $entries));
+		$this->assertNotContains(EntryReason::DayOpening, array_map(static fn (Entry $entry): ?EntryReason => $entry->getReason(), $entries));
+		// The default timezone (Europe/Berlin) is used again
+		$this->assertSame('2025-01-01T17:00:00+00:00', $entries[0]->getDatetime()->format(DATE_ATOM));
+	}
+
+	public static function dataInvalidCsv(): array {
+		return [
+			'empty file' => [static fn (array $columns): array => []],
+			// `text` is the internal key of `Buchungstext`, so the mapped header contains it twice
+			'duplicate column after mapping' => [static fn (array $columns): array => [...$columns, $columns[0] === 'Geschäft' ? 'text' : '']],
+		];
+	}
+
+	/**
+	 * @param callable(list<string>): list<string> $mapRow
+	 */
+	#[DataProvider('dataInvalidCsv')]
+	public function testInvalidCsv(callable $mapRow): void {
+		try {
+			$this->createImporter()->import(['cashbook' => $this->createCsv($mapRow)]);
+			$this->fail('Import should have failed');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The selected cashbook export is not a valid SumUp cashbook export.', $error->getMessage());
+			$this->assertSame('translated: The selected cashbook export is not a valid SumUp cashbook export.', $error->getHint());
+		}
+		$this->assertSame(0, $this->countImportedRows('cashbook_cashbooks', 'owner'));
 	}
 
 	public function testImportTooManyRows(): void {

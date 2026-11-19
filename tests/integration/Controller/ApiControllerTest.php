@@ -185,8 +185,8 @@ final class ApiControllerTest extends IntegrationTestCase {
 				['name' => 'import', 'contents' => 'sumup-pos-pro-de'],
 				['name' => 'timezone', 'contents' => 'UTC'],
 				['name' => 'files[cashbook]', 'contents' => fopen(self::FIXTURES . 'Kassenbuch_basic.csv', 'r'), 'filename' => 'Kassenbuch_basic.csv'],
-				// An empty optional file input is sent without a file name
-				['name' => 'files[report]', 'contents' => '', 'filename' => ''],
+				// An empty optional file input is sent as file upload with an empty file name
+				self::emptyFileInput('files[report]'),
 			],
 		]));
 		$this->assertIsString($result['id']);
@@ -216,24 +216,36 @@ final class ApiControllerTest extends IntegrationTestCase {
 		);
 	}
 
+	/**
+	 * Multipart element of a file input without a selected file.
+	 *
+	 * Guzzle omits an empty file name, so the header is set explicitly to send it as file upload.
+	 */
+	private static function emptyFileInput(string $field): array {
+		return ['name' => $field, 'contents' => '', 'headers' => ['Content-Disposition' => sprintf('form-data; name="%s"; filename=""', $field)]];
+	}
+
 	public static function dataImportCashbookInvalidFiles(): array {
 		return [
-			// An empty file input is sent without a file name
-			'no file' => ['files[cashbook]', '', '', 'No files provided'],
-			'unnamed file' => ['files[]', 'Kassenbuch_basic.csv', 'Kassenbuch_basic.csv', 'Files need to be uploaded as files[<name>]'],
-			'only the report' => ['files[report]', 'Tagesabschluss_report.csv', 'Tagesabschluss_report.csv', 'No cashbook export passed.'],
-			'report as cashbook export' => ['files[cashbook]', 'Tagesabschluss_report.csv', 'Tagesabschluss_report.csv', 'The selected cashbook export is not a valid SumUp cashbook export.'],
+			'no file' => ['files[cashbook]', null, 'No files provided'],
+			// Only rejected as unnamed if the empty input reaches the server as file upload
+			'unnamed empty file input' => ['files[]', null, 'Files need to be uploaded as files[<name>]'],
+			'unnamed file' => ['files[]', 'Kassenbuch_basic.csv', 'Files need to be uploaded as files[<name>]'],
+			'only the report' => ['files[report]', 'Tagesabschluss_report.csv', 'No cashbook export passed.'],
+			'report as cashbook export' => ['files[cashbook]', 'Tagesabschluss_report.csv', 'The selected cashbook export is not a valid SumUp cashbook export.'],
 		];
 	}
 
 	#[DataProvider('dataImportCashbookInvalidFiles')]
-	public function testImportCashbookInvalidFiles(string $field, string $fixture, string $filename, string $message): void {
+	public function testImportCashbookInvalidFiles(string $field, ?string $fixture, string $message): void {
 		$alice = $this->createUser();
 
 		$response = $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/import', [
 			RequestOptions::MULTIPART => [
 				['name' => 'import', 'contents' => 'sumup-pos-pro-de'],
-				['name' => $field, 'contents' => $fixture === '' ? '' : fopen(self::FIXTURES . $fixture, 'r'), 'filename' => $filename],
+				$fixture === null
+					? self::emptyFileInput($field)
+					: ['name' => $field, 'contents' => fopen(self::FIXTURES . $fixture, 'r'), 'filename' => $fixture],
 			],
 		]);
 		$this->assertOcsResponse(400, $response);

@@ -8,7 +8,7 @@ import type { ICashbook } from '../models/Cashbook.ts'
 
 import { mdiClose } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
@@ -29,6 +29,10 @@ const cashbookFile = ref<File>()
 const reportFile = ref<File>()
 const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone)
 const timezonePickerId = 'cashbook-import-timezone'
+const cashbookHintId = useId()
+const cashbookFileNameId = useId()
+const reportHintId = useId()
+const reportFileNameId = useId()
 const error = ref('')
 const imported = ref<ICashbook>()
 
@@ -82,34 +86,38 @@ function onUpdateOpen(open: boolean) {
 		<p>
 			{{ t('cashbook', 'Select the CSV exports of the SumUp POS Pro.') }}
 		</p>
-		<fieldset :class="$style.fileField">
+		<fieldset :class="$style.fileField" :aria-describedby="`${cashbookHintId} ${cashbookFileNameId}`">
 			<legend :class="$style.fileLegend">
 				{{ t('cashbook', 'Cashbook export') }}
 			</legend>
-			<p>{{ t('cashbook', 'The export of the cash register book (Kassenbuch_….csv).') }}</p>
+			<p :id="cashbookHintId">
+				{{ t('cashbook', 'The export of the cash register book (Kassenbuch_….csv).') }}
+			</p>
 			<div :class="$style.fileSelection">
 				<NcFilePicker
 					:accept="CSV_TYPES"
 					:label="t('cashbook', 'Select cashbook export')"
 					variant="secondary"
 					@pick="cashbookFile = $event[0]" />
-				<span :class="$style.fileName">
+				<span :id="cashbookFileNameId" :class="$style.fileName">
 					{{ cashbookFile?.name ?? t('cashbook', 'No file selected') }}
 				</span>
 			</div>
 		</fieldset>
-		<fieldset :class="$style.fileField">
+		<fieldset :class="$style.fileField" :aria-describedby="`${reportHintId} ${reportFileNameId}`">
 			<legend :class="$style.fileLegend">
 				{{ t('cashbook', 'Daily closing report (optional)') }}
 			</legend>
-			<p>{{ t('cashbook', 'The export of the daily closings to import the day openings and closings.') }}</p>
+			<p :id="reportHintId">
+				{{ t('cashbook', 'The export of the daily closings to import the day openings and closings.') }}
+			</p>
 			<div :class="$style.fileSelection">
 				<NcFilePicker
 					:accept="CSV_TYPES"
 					:label="t('cashbook', 'Select daily closing report')"
 					variant="secondary"
 					@pick="reportFile = $event[0]" />
-				<span :class="$style.fileName">
+				<span :id="reportFileNameId" :class="$style.fileName">
 					{{ reportFile?.name ?? t('cashbook', 'No file selected') }}
 				</span>
 				<NcButton

@@ -416,7 +416,7 @@ final class ApiController extends OCSController {
 
 		$files = [];
 		foreach ($errors as $name => $error) {
-			if (!is_string($name)) {
+			if (!is_string($name) || !is_int($error)) {
 				throw new InvalidArgumentException($notNamedMessage);
 			}
 			if ($error === UPLOAD_ERR_NO_FILE) {
