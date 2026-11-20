@@ -322,7 +322,7 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 		$amount = $this->getAmount();
 		if ($this->getSupersededId() !== null) {
 			// A reversal is shown on the side of the reversed entry with a negative amount
-			if ($this->getReason()?->isExpense() === true) {
+			if ($amount->isPositive()) {
 				$data['credit'] = (string)$amount->negated()->getAmount();
 			} else {
 				$data['debit'] = (string)$amount->getAmount();

@@ -121,8 +121,13 @@ const reversalLink = computed(() => {
 	}
 }
 
+tr > td.actionsColumn {
+	width: var(--default-clickable-area);
+	padding-inline: 0;
+}
+
 @media print {
-	.actionsColumn {
+	tr > td.actionsColumn {
 		display: none;
 	}
 }

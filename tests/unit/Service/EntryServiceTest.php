@@ -343,6 +343,30 @@ final class EntryServiceTest extends TestCase {
 		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
 	}
 
+	public function testReverseEntryWithoutAmount(): void {
+		$this->insertEntry('2026-03-01 10:00', '20', '20');
+		$entry = $this->insertEntry('2026-03-01 11:00', '0', '20');
+
+		try {
+			$this->service->reverse($this->cashbook, self::USER_ID, 2, $entry->getId(), 'Typo');
+			$this->fail('Entries without an amount can not be reversed');
+		} catch (InvalidArgumentException $error) {
+			$this->assertSame('Entries without an amount can not be reversed.', $error->getMessage());
+		}
+		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public function testReverseNegativeIncome(): void {
+		$this->insertEntry('2026-03-01 10:00', '20', '20');
+		$entry = $this->insertEntry('2026-03-01 11:00', '-5', '15');
+
+		$data = $this->service->reverse($this->cashbook, self::USER_ID, 2, $entry->getId(), 'Typo')->jsonSerialize();
+
+		$this->assertSame('20.00', $data['balance']);
+		$this->assertSame('-5.00', $data['credit']);
+		$this->assertArrayNotHasKey('debit', $data);
+	}
+
 	public function testReverseReversal(): void {
 		$sale = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10');
 		$reversal = $this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), 'Typo');

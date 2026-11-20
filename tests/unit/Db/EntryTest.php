@@ -121,6 +121,19 @@ final class EntryTest extends TestCase {
 		$this->assertArrayNotHasKey('debit', $data);
 	}
 
+	public function testReversalOfNegativeIncomeIsNegativeCredit(): void {
+		// An imported income can be negative, it is shown as credit
+		$original = $this->createEntry('-5', '0');
+		$this->assertSame('5.00', $original->jsonSerialize()['credit']);
+
+		$reversal = Entry::createReversal($original->getCashbook(), $original, 8, 'alice', new \DateTimeImmutable(), 'Text', Money::of('5', 'EUR'));
+
+		$data = $reversal->jsonSerialize();
+		$this->assertSame('income-sales', $data['reason']);
+		$this->assertSame('-5.00', $data['credit']);
+		$this->assertArrayNotHasKey('debit', $data);
+	}
+
 	public function testLinkedSequencesAreNotStored(): void {
 		$original = $this->createEntry('10', '10');
 		$reversal = Entry::createReversal($original->getCashbook(), $original, 8, 'alice', new \DateTimeImmutable(), 'Text', Money::of('0', 'EUR'));

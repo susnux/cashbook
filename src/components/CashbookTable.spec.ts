@@ -203,7 +203,8 @@ describe('CashbookTable', () => {
 					entry(5, null, 1),
 					{ ...entry(6, EntryReason.IncomeMisc, 3), reversedBy: 7 },
 					{ ...entry(7, EntryReason.IncomeMisc), debit: '-3.00', reverses: 6 },
-					entry(8, EntryReason.DayClosing),
+					entry(8, EntryReason.IncomeSales),
+					entry(9, EntryReason.DayClosing),
 				],
 			},
 		})
@@ -215,6 +216,7 @@ describe('CashbookTable', () => {
 			['5', false],
 			['6', false],
 			['7', false],
+			['8', false],
 		])
 	})
 

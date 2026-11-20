@@ -30,17 +30,21 @@ final class Version000004Date20261120120000 extends SimpleMigrationStep {
 	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options): ?ISchemaWrapper {
 		$schema = $schemaClosure();
 		$table = $schema->getTable(EntryMapper::TABLE_NAME);
-		if ($table->hasColumn('superseded_id')) {
+		if ($table->hasColumn('superseded_id') && $table->hasIndex('cashbook_entries_supersede_uniq')) {
 			return null;
 		}
 
-		$table->addColumn('superseded_id', Types::BIGINT, [
-			'notnull' => false,
-			'length' => 20,
-			'unsigned' => true,
-		]);
-		// An entry can only be reversed once, entries that reverse nothing are NULL
-		$table->addUniqueIndex(['superseded_id'], 'cashbook_entries_supersede_uniq');
+		if (!$table->hasColumn('superseded_id')) {
+			$table->addColumn('superseded_id', Types::BIGINT, [
+				'notnull' => false,
+				'length' => 20,
+				'unsigned' => true,
+			]);
+		}
+		if (!$table->hasIndex('cashbook_entries_supersede_uniq')) {
+			// An entry can only be reversed once, entries that reverse nothing are NULL
+			$table->addUniqueIndex(['superseded_id'], 'cashbook_entries_supersede_uniq');
+		}
 		return $schema;
 	}
 }

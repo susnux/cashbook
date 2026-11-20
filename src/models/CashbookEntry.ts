@@ -95,12 +95,13 @@ interface CreditEntry extends BaseEntry {
 export type ICashbookEntry = DebitEntry | CreditEntry | BaseEntry
 
 /**
- * Check if an entry can be reversed: only income and expense entries that are neither a reversal nor reversed
+ * Check if an entry can be reversed: only income and expense entries with an amount that are neither a reversal nor reversed
  *
  * @param entry - The entry to check
  */
 export function isReversible(entry: ICashbookEntry): boolean {
 	return entry.reason !== null
+		&& ('debit' in entry || 'credit' in entry)
 		&& (IncomeReasons.includes(entry.reason) || ExpenseReasons.includes(entry.reason))
 		&& entry.reverses === null
 		&& entry.reversedBy === null

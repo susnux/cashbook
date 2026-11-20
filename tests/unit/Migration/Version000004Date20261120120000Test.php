@@ -35,4 +35,18 @@ final class Version000004Date20261120120000Test extends TestCase {
 
 		$this->assertNull($migration->changeSchema($this->createStub(IOutput::class), static fn () => $schema, []));
 	}
+
+	public function testAddsMissingIndex(): void {
+		// The schema is only changed in memory, the database is not migrated
+		$schema = new SchemaWrapper(Server::get(Connection::class));
+		$schema->getTable(EntryMapper::TABLE_NAME)->dropIndex('cashbook_entries_supersede_uniq');
+
+		$migration = new Version000004Date20261120120000();
+		$result = $migration->changeSchema($this->createStub(IOutput::class), static fn () => $schema, []);
+
+		$this->assertSame($schema, $result);
+		$index = $schema->getTable(EntryMapper::TABLE_NAME)->getIndex('cashbook_entries_supersede_uniq');
+		$this->assertTrue($index->isUnique());
+		$this->assertSame(['superseded_id'], $index->getColumns());
+	}
 }
