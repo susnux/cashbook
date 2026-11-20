@@ -317,7 +317,8 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 
 			/* The text gets the remaining width, the sequence number is printed as reversals refer to it */
 			&:nth-of-type(1) {
-				width: 13mm;
+				/* Five digits in any font, plus the padding */
+				width: calc(5ch + 2mm);
 			}
 			&:nth-of-type(2) {
 				width: 22mm;
