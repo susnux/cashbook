@@ -1301,7 +1301,7 @@
             "get": {
                 "operationId": "api-get-cashbook-entries-print",
                 "summary": "Get all entries of a cashbook within a date range, prepared for printing",
-                "description": "Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry. If the range starts or ends within an open day, the whole day is included. Dates without a time (`YYYY-MM-DD`) are the start of that day in the timezone of the cashbook.",
+                "description": "If the range starts or ends within an open day, the whole day is included. Dates without a time (`YYYY-MM-DD`) are the start of that day in the timezone of the cashbook.",
                 "tags": [
                     "api"
                 ],

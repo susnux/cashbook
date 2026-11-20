@@ -194,7 +194,6 @@ final class ApiController extends OCSController {
 	/**
 	 * Get all entries of a cashbook within a date range, prepared for printing
 	 *
-	 * Consecutive sales entries with the same tax rate and without a text are collapsed into a single entry.
 	 * If the range starts or ends within an open day, the whole day is included.
 	 * Dates without a time (`YYYY-MM-DD`) are the start of that day in the timezone of the cashbook.
 	 *
@@ -233,31 +232,8 @@ final class ApiController extends OCSController {
 			throw new OCSBadRequestException($this->l10n->t('The period contains more than %s entries. Choose a shorter period.', [self::MAX_PRINT_ENTRIES]));
 		}
 
-		/** @var list<Entry> $collapsedEntries */
-		$collapsedEntries = [];
-		foreach ($entries as $entry) {
-			$last = end($collapsedEntries);
-			if ($last === false
-				|| $entry->getReason() !== EntryReason::IncomeSales
-				|| $last->getReason() !== $entry->getReason()
-				|| $last->getTaxRaw() !== $entry->getTaxRaw()
-				|| ($last->getText() ?? '') !== ''
-				|| ($entry->getText() ?? '') !== '') {
-				$collapsedEntries[] = $entry;
-				continue;
-			}
-
-			$last->setAmount(
-				$last->getAmount()->plus($entry->getAmount())
-			);
-			$last->setBalance(
-				$last->getBalance()->plus($entry->getAmount())
-			);
-			$last->setDatetime($entry->getDatetime());
-		}
-
 		return new DataResponse(
-			array_map(static fn (Entry $entry): array => $entry->jsonSerialize(), $collapsedEntries)
+			array_map(static fn (Entry $entry): array => $entry->jsonSerialize(), $entries)
 		);
 	}
 
