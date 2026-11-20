@@ -15,6 +15,7 @@ use OCA\Cashbook\Db\CashbookMapper;
 use OCA\Cashbook\Db\Entry;
 use OCA\Cashbook\Db\EntryMapper;
 use OCA\Cashbook\Db\EntryReason;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\Exception;
 use OCP\IDBConnection;
 use OCP\Server;
@@ -58,8 +59,8 @@ final class EntryMapperTest extends TestCase {
 	/**
 	 * @param ?int $sequence The sequence number, defaults to the next one
 	 */
-	private function insertEntry(string $datetime, ?EntryReason $reason, string $text, ?int $sequence = null): void {
-		$this->entryMapper->insert(Entry::create(
+	private function insertEntry(string $datetime, ?EntryReason $reason, string $text, ?int $sequence = null): Entry {
+		return $this->entryMapper->insert(Entry::create(
 			$this->cashbook,
 			$sequence ?? ++$this->sequence,
 			self::USER_ID,
@@ -69,6 +70,30 @@ final class EntryMapperTest extends TestCase {
 			Money::of('1', 'EUR'),
 			Money::of('1', 'EUR'),
 		));
+	}
+
+	private function insertReversal(string $datetime, Entry $original, string $text): Entry {
+		return $this->entryMapper->insert(Entry::createReversal(
+			$this->cashbook,
+			$original,
+			++$this->sequence,
+			self::USER_ID,
+			new \DateTimeImmutable($datetime, new \DateTimeZone('UTC')),
+			$text,
+			Money::of('0', 'EUR'),
+		));
+	}
+
+	/**
+	 * @param list<Entry> $entries
+	 * @return array<string, array{?int, ?int}> The sequence numbers of the reversed entry and of the reversal by entry text
+	 */
+	private function links(array $entries): array {
+		$links = [];
+		foreach ($entries as $entry) {
+			$links[$entry->getText() ?? ''] = [$entry->getSupersededSequence(), $entry->getSupersededBySequence()];
+		}
+		return $links;
 	}
 
 	/**
@@ -116,6 +141,73 @@ final class EntryMapperTest extends TestCase {
 			$this->fail('A duplicate sequence number must be rejected.');
 		} catch (Exception $error) {
 			$this->assertSame(Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION, $error->getReason());
+		}
+	}
+
+	public function testGetEntriesLinksReversalsAcrossPeriods(): void {
+		$sale = $this->insertEntry('2025-01-10 10:00', EntryReason::IncomeSales, 'sale');
+		$this->insertEntry('2025-01-11 10:00', EntryReason::IncomeSales, 'other sale');
+		$this->insertReversal('2025-02-03 10:00', $sale, 'reversal');
+
+		$january = $this->entryMapper->getEntriesByDate(
+			$this->cashbook,
+			new \DateTimeImmutable('2025-01-01', new \DateTimeZone('UTC')),
+			new \DateTimeImmutable('2025-02-01', new \DateTimeZone('UTC')),
+		);
+		$this->assertSame(['sale' => [null, 3], 'other sale' => [null, null]], $this->links($january));
+
+		$february = $this->entryMapper->getEntriesByDate(
+			$this->cashbook,
+			new \DateTimeImmutable('2025-02-01', new \DateTimeZone('UTC')),
+			new \DateTimeImmutable('2025-03-01', new \DateTimeZone('UTC')),
+		);
+		$this->assertSame(['reversal' => [1, null]], $this->links($february));
+		$this->assertSame($sale->getId(), $february[0]->getSupersededId());
+
+		$all = $this->entryMapper->getEntries($this->cashbook);
+		$this->assertSame(['sale', 'other sale', 'reversal'], $this->texts($all));
+		$this->assertSame(['sale' => [null, 3], 'other sale' => [null, null], 'reversal' => [1, null]], $this->links($all));
+		$this->assertSame(['reversal'], $this->texts($this->entryMapper->getEntries($this->cashbook, 2, 2)));
+	}
+
+	public function testEntryCanOnlyBeReversedOnce(): void {
+		$sale = $this->insertEntry('2025-01-10 10:00', EntryReason::IncomeSales, 'sale');
+		$this->insertReversal('2025-01-10 11:00', $sale, 'reversal');
+
+		try {
+			$this->insertReversal('2025-01-10 12:00', $sale, 'second reversal');
+			$this->fail('A second reversal of the same entry must be rejected.');
+		} catch (Exception $error) {
+			$this->assertSame(Exception::REASON_UNIQUE_CONSTRAINT_VIOLATION, $error->getReason());
+		}
+		$this->assertSame(['sale', 'reversal'], $this->texts($this->entryMapper->getEntries($this->cashbook)));
+	}
+
+	public function testGetEntry(): void {
+		$sale = $this->insertEntry('2025-01-10 10:00', EntryReason::IncomeSales, 'sale');
+		$reversal = $this->insertReversal('2025-01-10 11:00', $sale, 'reversal');
+
+		$loaded = $this->entryMapper->getEntry($this->cashbook, $sale->getId());
+		$this->assertSame('sale', $loaded->getText());
+		$this->assertSame($this->cashbook, $loaded->getCashbook());
+		$this->assertSame(2, $loaded->getSupersededBySequence());
+		$this->assertSame(1, $this->entryMapper->getEntry($this->cashbook, $reversal->getId())->getSupersededSequence());
+	}
+
+	public function testGetEntryOfOtherCashbook(): void {
+		$sale = $this->insertEntry('2025-01-10 10:00', EntryReason::IncomeSales, 'sale');
+		$other = new Cashbook();
+		$other->setName('Other');
+		$other->setAccount('');
+		$other->setCurrency('EUR');
+		$other->setOwner(self::USER_ID);
+		$other = $this->cashbookMapper->insert($other);
+
+		try {
+			$this->expectException(DoesNotExistException::class);
+			$this->entryMapper->getEntry($other, $sale->getId());
+		} finally {
+			$this->cashbookMapper->delete($other);
 		}
 	}
 

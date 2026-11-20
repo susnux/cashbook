@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 
 final class EntryTest extends TestCase {
 
-	private function createEntry(string $amount, string $balance, ?string $text = 'Text'): Entry {
+	private function createEntry(string $amount, string $balance, ?string $text = 'Text', EntryReason $reason = EntryReason::IncomeSales): Entry {
 		$cashbook = new Cashbook();
 		$cashbook->setCurrency('EUR');
 
@@ -29,7 +29,7 @@ final class EntryTest extends TestCase {
 			'alice',
 			new \DateTimeImmutable('2025-01-02 10:00', new \DateTimeZone('UTC')),
 			'',
-			EntryReason::IncomeSales,
+			$reason,
 			Money::of($amount, 'EUR'),
 			Money::of($balance, 'EUR'),
 			BigRational::of('19/100'),
@@ -52,6 +52,8 @@ final class EntryTest extends TestCase {
 			'reference' => 'R-1',
 			'referenceDate' => null,
 			'tax' => 0.19,
+			'reverses' => null,
+			'reversedBy' => null,
 			'debit' => '0.10',
 		], $entry->jsonSerialize());
 	}
@@ -75,6 +77,66 @@ final class EntryTest extends TestCase {
 	public function testJsonSerializeAmountSides(string $amount, array $expected): void {
 		$data = $this->createEntry($amount, '100')->jsonSerialize();
 		$this->assertSame($expected, array_intersect_key($data, ['debit' => true, 'credit' => true]));
+	}
+
+	public function testCreateReversal(): void {
+		$original = $this->createEntry('10', '10');
+		$reversal = Entry::createReversal(
+			$original->getCashbook(),
+			$original,
+			9,
+			'bob',
+			new \DateTimeImmutable('2025-02-03 10:00', new \DateTimeZone('UTC')),
+			'Wrong amount',
+			Money::of('5', 'EUR'),
+			'S-1',
+		);
+		$reversal->generateId();
+
+		$this->assertSame($original->getId(), $reversal->getSupersededId());
+		$this->assertSame('bob', $reversal->getUserId());
+		$this->assertSame([
+			'id' => $reversal->getId(),
+			'sequence' => 9,
+			'balance' => '5.00',
+			'text' => 'Wrong amount',
+			'date' => '2025-02-03T10:00:00+00:00',
+			'reason' => 'income-sales',
+			'reference' => 'S-1',
+			'referenceDate' => null,
+			'tax' => 0.19,
+			'reverses' => 7,
+			'reversedBy' => null,
+			'debit' => '-10.00',
+		], $reversal->jsonSerialize());
+	}
+
+	public function testReversalOfExpenseIsNegativeCredit(): void {
+		$original = $this->createEntry('-12.5', '0', reason: EntryReason::ExpenseGoods);
+		$reversal = Entry::createReversal($original->getCashbook(), $original, 8, 'alice', new \DateTimeImmutable(), 'Text', Money::of('12.5', 'EUR'));
+
+		$this->assertSame('12.50', (string)$reversal->getAmount()->getAmount());
+		$data = $reversal->jsonSerialize();
+		$this->assertSame('-12.50', $data['credit']);
+		$this->assertArrayNotHasKey('debit', $data);
+	}
+
+	public function testLinkedSequencesAreNotStored(): void {
+		$original = $this->createEntry('10', '10');
+		$reversal = Entry::createReversal($original->getCashbook(), $original, 8, 'alice', new \DateTimeImmutable(), 'Text', Money::of('0', 'EUR'));
+		$reversal->setSupersededBySequence(9);
+
+		$fields = $reversal->getUpdatedFields();
+		$this->assertArrayHasKey('supersededId', $fields);
+		$this->assertArrayNotHasKey('supersededSequence', $fields);
+		$this->assertArrayNotHasKey('supersededBySequence', $fields);
+	}
+
+	public function testFromRowLoadsLinks(): void {
+		$entry = Entry::fromRow(['superseded_id' => 7_000_000_000_000_000_001, 'superseded_sequence' => '3', 'superseded_by_sequence' => null]);
+		$this->assertSame('7000000000000000001', $entry->getSupersededId());
+		$this->assertSame(3, $entry->getSupersededSequence());
+		$this->assertNull($entry->getSupersededBySequence());
 	}
 
 	public function testJsonSerializeWithoutText(): void {

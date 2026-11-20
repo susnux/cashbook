@@ -20,6 +20,7 @@ use OCA\Cashbook\Exception\ConflictException;
 use OCA\Cashbook\Exception\InvalidInputException;
 use OCA\Cashbook\Service\CashbookService;
 use OCA\Cashbook\Service\EntryService;
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\IDBConnection;
 use OCP\IL10N;
@@ -63,14 +64,14 @@ final class EntryServiceTest extends TestCase {
 		parent::tearDown();
 	}
 
-	private function insertEntry(string $datetime, string $amount, string $balance): void {
-		$this->entryMapper->insert(Entry::create(
+	private function insertEntry(string $datetime, string $amount, string $balance, ?EntryReason $reason = EntryReason::IncomeSales): Entry {
+		return $this->entryMapper->insert(Entry::create(
 			$this->cashbook,
 			++$this->sequence,
 			self::USER_ID,
 			new \DateTimeImmutable($datetime, new \DateTimeZone('UTC')),
 			'',
-			EntryReason::IncomeSales,
+			$reason,
 			Money::of($amount, 'EUR'),
 			Money::of($balance, 'EUR'),
 		));
@@ -103,6 +104,8 @@ final class EntryServiceTest extends TestCase {
 			'reference' => 'R-1',
 			'referenceDate' => '2026-03-01',
 			'tax' => 0.19,
+			'reverses' => null,
+			'reversedBy' => null,
 			'debit' => '150.50',
 		], $entry->jsonSerialize());
 
@@ -245,5 +248,158 @@ final class EntryServiceTest extends TestCase {
 			reference: str_repeat('ü', 127),
 		);
 		$this->assertSame(str_repeat('9', 18) . '.99', $entry->jsonSerialize()['balance']);
+	}
+
+	public function testReverseSale(): void {
+		$sale = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10', 'Coffee', 0.19, 'R-1', '2026-03-01');
+		$this->service->add($this->cashbook, self::USER_ID, 1, EntryReason::IncomeMisc, '5');
+
+		$reversal = $this->service->reverse($this->cashbook, 'bob', 2, $sale->getId(), ' Wrong amount ', ' S-1 ');
+
+		$this->assertSame([
+			'id' => $reversal->getId(),
+			'sequence' => 3,
+			'balance' => '5.00',
+			'text' => 'Wrong amount',
+			'date' => '2026-03-04T09:00:00+00:00',
+			'reason' => 'income-sales',
+			'reference' => 'S-1',
+			'referenceDate' => null,
+			'tax' => 0.19,
+			'reverses' => 1,
+			'reversedBy' => null,
+			'debit' => '-10.00',
+		], $reversal->jsonSerialize());
+		$this->assertSame('bob', $reversal->getUserId());
+		$this->assertSame('-10.00', $reversal->getAmountRaw());
+
+		$stored = $this->entryMapper->getEntries($this->cashbook);
+		$this->assertSame([3, null, null], array_map(static fn (Entry $entry): ?int => $entry->getSupersededBySequence(), $stored));
+		$this->assertSame($reversal->jsonSerialize(), $stored[2]->jsonSerialize());
+	}
+
+	public function testReverseExpense(): void {
+		$this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeMisc, '50');
+		$expense = $this->service->add($this->cashbook, self::USER_ID, 1, EntryReason::ExpenseGoods, '20', 'Paper', 0.07);
+
+		$data = $this->service->reverse($this->cashbook, self::USER_ID, 2, $expense->getId(), 'Returned')->jsonSerialize();
+
+		$this->assertSame('50.00', $data['balance']);
+		$this->assertSame('-20.00', $data['credit']);
+		$this->assertArrayNotHasKey('debit', $data);
+		$this->assertSame('expense-goods', $data['reason']);
+		$this->assertSame(0.07, $data['tax']);
+		$this->assertNull($data['reference']);
+	}
+
+	public function testReverseIncomeExceedingBalance(): void {
+		$income = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeMisc, '10');
+		$this->service->add($this->cashbook, self::USER_ID, 1, EntryReason::ExpenseMisc, '5');
+
+		try {
+			$this->service->reverse($this->cashbook, self::USER_ID, 2, $income->getId(), 'Typo');
+			$this->fail('A reversal exceeding the balance should be rejected');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The reversal exceeds the cash balance.', $error->getMessage());
+			$this->assertSame('translated: The reversal exceeds the cash balance.', $error->getHint());
+		}
+		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public function testReverseAlreadyReversed(): void {
+		$sale = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10');
+		$this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), 'Typo');
+
+		try {
+			$this->service->reverse($this->cashbook, self::USER_ID, 2, $sale->getId(), 'Typo again');
+			$this->fail('An entry can only be reversed once');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The entry was already reversed.', $error->getMessage());
+			$this->assertSame('translated: This entry was already reversed.', $error->getHint());
+		}
+		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public static function dataReverseNotReversible(): array {
+		return [
+			'day opening' => [EntryReason::DayOpening],
+			'day closing' => [EntryReason::DayClosing],
+			'adjusting entry' => [EntryReason::Correction],
+			'no reason' => [null],
+		];
+	}
+
+	#[DataProvider('dataReverseNotReversible')]
+	public function testReverseNotReversible(?EntryReason $reason): void {
+		$this->insertEntry('2026-03-01 10:00', '20', '20');
+		$entry = $this->insertEntry('2026-03-01 11:00', '5', '25', $reason);
+
+		try {
+			$this->service->reverse($this->cashbook, self::USER_ID, 2, $entry->getId(), 'Typo');
+			$this->fail('Only income and expense entries can be reversed');
+		} catch (InvalidArgumentException $error) {
+			$this->assertSame('Only income and expense entries can be reversed.', $error->getMessage());
+		}
+		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public function testReverseReversal(): void {
+		$sale = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10');
+		$reversal = $this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), 'Typo');
+
+		$this->expectException(InvalidArgumentException::class);
+		$this->expectExceptionMessage('Only income and expense entries can be reversed.');
+		$this->service->reverse($this->cashbook, self::USER_ID, 2, $reversal->getId(), 'Undo');
+	}
+
+	public function testReverseRequiresText(): void {
+		$sale = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10');
+
+		try {
+			$this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), " \t ");
+			$this->fail('A reversal without a text should be rejected');
+		} catch (InvalidInputException $error) {
+			$this->assertSame('The reason for the reversal is missing.', $error->getMessage());
+			$this->assertSame('translated: Enter the reason for the reversal.', $error->getHint());
+		}
+		$this->assertCount(1, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public static function dataReverseInvalid(): array {
+		return [
+			'too long text' => [str_repeat('a', 1001), null, 'The text must not be longer than 1000 characters.'],
+			'too long reference' => ['Typo', str_repeat('a', 128), 'The reference must not be longer than 127 characters.'],
+		];
+	}
+
+	#[DataProvider('dataReverseInvalid')]
+	public function testReverseInvalid(string $text, ?string $reference, string $message): void {
+		$sale = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10');
+
+		$this->expectException(InvalidArgumentException::class);
+		$this->expectExceptionMessage($message);
+		$this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), $text, $reference);
+	}
+
+	public function testReverseConflict(): void {
+		$sale = $this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10');
+		$this->service->add($this->cashbook, self::USER_ID, 1, EntryReason::IncomeSales, '5');
+
+		try {
+			$this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), 'Typo');
+			$this->fail('A reversal based on a different last entry should be rejected');
+		} catch (ConflictException $error) {
+			$this->assertSame('The cashbook was changed in the meantime.', $error->getMessage());
+		}
+		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public function testReverseEntryOfOtherCashbook(): void {
+		$other = Server::get(CashbookService::class)->create(self::USER_ID, 'Other', 'EUR');
+		$sale = $this->service->add($other, self::USER_ID, 0, EntryReason::IncomeSales, '10');
+		$this->service->add($this->cashbook, self::USER_ID, 0, EntryReason::IncomeSales, '10');
+
+		$this->expectException(DoesNotExistException::class);
+		$this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), 'Typo');
 	}
 }

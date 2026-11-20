@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace OCA\Cashbook\Db;
 
+use OCP\AppFramework\Db\DoesNotExistException;
+use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -33,13 +35,11 @@ final class EntryMapper extends QBMapper {
 	 * @return list<Entry>
 	 */
 	public function getEntries(Cashbook $cashbook, int $offset = 0, int $limit = 50): array {
-		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')
-			->from($this->tableName)
-			->where(
-				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId())),
-			)
-			->orderBy('sequence', 'ASC')
+		$qb = $this->selectWithLinks();
+		$qb->where(
+			$qb->expr()->eq('e.cashbook_id', $qb->createNamedParameter($cashbook->getId())),
+		)
+			->orderBy('e.sequence', 'ASC')
 			->setMaxResults($limit)
 			->setFirstResult($offset);
 		return $this->findCashbookEntities($cashbook, $qb);
@@ -60,26 +60,41 @@ final class EntryMapper extends QBMapper {
 			$begin = $opening;
 		}
 
-		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')
-			->from($this->tableName)
-			->where(
-				$qb->expr()->eq('cashbook_id', $qb->createNamedParameter($cashbook->getId())),
-				$qb->expr()->gte('datetime', $qb->createNamedParameter($begin, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)),
-			)
-			->orderBy('sequence', 'ASC');
+		$qb = $this->selectWithLinks();
+		$qb->where(
+			$qb->expr()->eq('e.cashbook_id', $qb->createNamedParameter($cashbook->getId())),
+			$qb->expr()->gte('e.datetime', $qb->createNamedParameter($begin, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)),
+		)
+			->orderBy('e.sequence', 'ASC');
 
 		$closing = $this->findBoundary($cashbook, EntryReason::DayClosing, 'gte', $end, 'ASC');
 		if ($closing !== null && $this->findBoundary($cashbook, EntryReason::DayOpening, 'gte', $end, 'ASC', $closing) === null) {
-			$qb->andWhere($qb->expr()->lte('datetime', $qb->createNamedParameter($closing, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)));
+			$qb->andWhere($qb->expr()->lte('e.datetime', $qb->createNamedParameter($closing, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)));
 		} else {
-			$qb->andWhere($qb->expr()->lt('datetime', $qb->createNamedParameter($end, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)));
+			$qb->andWhere($qb->expr()->lt('e.datetime', $qb->createNamedParameter($end, IQueryBuilder::PARAM_DATETIME_IMMUTABLE)));
 		}
 		if ($limit !== null) {
 			$qb->setMaxResults($limit);
 		}
 
 		return $this->findCashbookEntities($cashbook, $qb);
+	}
+
+	/**
+	 * Get an entry of a cashbook by its id.
+	 *
+	 * @throws DoesNotExistException If the cashbook has no entry with this id
+	 * @throws MultipleObjectsReturnedException
+	 */
+	public function getEntry(Cashbook $cashbook, string $id): Entry {
+		$qb = $this->selectWithLinks();
+		$qb->where(
+			$qb->expr()->eq('e.id', $qb->createNamedParameter($id)),
+			$qb->expr()->eq('e.cashbook_id', $qb->createNamedParameter($cashbook->getId())),
+		);
+		$entry = $this->findEntity($qb);
+		$entry->setCashbook($cashbook);
+		return $entry;
 	}
 
 	/**
@@ -147,6 +162,22 @@ final class EntryMapper extends QBMapper {
 			return null;
 		}
 		return new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+	}
+
+	/**
+	 * Select entries (alias `e`) with the sequence numbers of the entry they reverse and of the entry reversing them.
+	 *
+	 * The linked entries are joined regardless of their date, so links to entries outside of a loaded period are kept.
+	 */
+	private function selectWithLinks(): IQueryBuilder {
+		$qb = $this->db->getQueryBuilder();
+		$qb->select('e.*')
+			->selectAlias('o.sequence', 'superseded_sequence')
+			->selectAlias('r.sequence', 'superseded_by_sequence')
+			->from($this->tableName, 'e')
+			->leftJoin('e', $this->tableName, 'o', $qb->expr()->eq('o.id', 'e.superseded_id'))
+			->leftJoin('e', $this->tableName, 'r', $qb->expr()->eq('r.superseded_id', 'e.id'));
+		return $qb;
 	}
 
 	/**

@@ -71,7 +71,9 @@
                     "reason",
                     "reference",
                     "referenceDate",
-                    "tax"
+                    "tax",
+                    "reverses",
+                    "reversedBy"
                 ],
                 "properties": {
                     "id": {
@@ -115,6 +117,16 @@
                     "tax": {
                         "type": "number",
                         "format": "double",
+                        "nullable": true
+                    },
+                    "reverses": {
+                        "type": "integer",
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "reversedBy": {
+                        "type": "integer",
+                        "format": "int64",
                         "nullable": true
                     }
                 }
@@ -1240,6 +1252,234 @@
                     },
                     "404": {
                         "description": "Cashbook not found or not owned by the current user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Current user is not logged in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ocs/v2.php/apps/cashbook/api/v1/cashbooks/{id}/entries/{entryId}/reverse": {
+            "post": {
+                "operationId": "api-reverse-cashbook-entry",
+                "summary": "Reverse an income or expense entry of a cashbook",
+                "description": "Adds an entry after the last entry of the cashbook that negates the amount of the reversed entry and keeps its reason and tax rate. The reversed entry stays unchanged. Day openings and closings, adjusting entries and reversals can not be reversed, and every entry can only be reversed once. If the cashbook was changed since `lastSequence` was loaded, the reversal is rejected with the current cashbook.",
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "bearer_auth": []
+                    },
+                    {
+                        "basic_auth": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "lastSequence",
+                                    "text"
+                                ],
+                                "properties": {
+                                    "lastSequence": {
+                                        "type": "integer",
+                                        "format": "int64",
+                                        "description": "The sequence number of the last entry of the cashbook",
+                                        "minimum": 0
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "description": "The reason for the reversal (1 to 1000 characters)"
+                                    },
+                                    "reference": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "default": null,
+                                        "description": "The receipt number of the reversal (up to 127 characters)"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the cashbook",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^\\d+$"
+                        }
+                    },
+                    {
+                        "name": "entryId",
+                        "in": "path",
+                        "description": "The id of the entry to reverse",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^\\d+$"
+                        }
+                    },
+                    {
+                        "name": "OCS-APIRequest",
+                        "in": "header",
+                        "description": "Required to be true for the API request to pass",
+                        "required": true,
+                        "schema": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reversal added",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {
+                                                    "$ref": "#/components/schemas/Entry"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The last entry is not `lastSequence`, the current cashbook is returned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {
+                                                    "$ref": "#/components/schemas/Cashbook"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The entry can not be reversed, invalid values or the reversal exceeds the cash balance",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "ocs"
+                                    ],
+                                    "properties": {
+                                        "ocs": {
+                                            "type": "object",
+                                            "required": [
+                                                "meta",
+                                                "data"
+                                            ],
+                                            "properties": {
+                                                "meta": {
+                                                    "$ref": "#/components/schemas/OCSMeta"
+                                                },
+                                                "data": {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Cashbook or entry not found or not owned by the current user",
                         "content": {
                             "application/json": {
                                 "schema": {

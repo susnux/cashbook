@@ -237,6 +237,128 @@ final class ApiControllerTest extends IntegrationTestCase {
 		$this->assertSame(400, $response->getStatusCode());
 	}
 
+	/**
+	 * @return array{string, string} The cashbook id and the id of a sale of 10 with 19% tax followed by an income of 5
+	 */
+	private function createCashbookWithSale(string $userId): array {
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($userId, 'POST', 'api/v1/cashbooks', [
+			RequestOptions::JSON => ['name' => 'Shop', 'currency' => 'EUR'],
+		]));
+		$path = 'api/v1/cashbooks/' . $cashbook['id'] . '/entries';
+		$sale = $this->assertOcsResponse(200, $this->ocsRequest($userId, 'POST', $path, [
+			RequestOptions::JSON => ['lastSequence' => 0, 'reason' => 'income-sales', 'amount' => '10', 'tax' => 0.19, 'text' => 'Coffee'],
+		]));
+		$this->assertOcsResponse(200, $this->ocsRequest($userId, 'POST', $path, [
+			RequestOptions::JSON => ['lastSequence' => 1, 'reason' => 'income-misc', 'amount' => '5'],
+		]));
+		return [$cashbook['id'], $sale['id']];
+	}
+
+	public function testReverseCashbookEntry(): void {
+		$alice = $this->createUser();
+		[$cashbookId, $saleId] = $this->createCashbookWithSale($alice);
+
+		$reversal = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/' . $cashbookId . '/entries/' . $saleId . '/reverse', [
+			RequestOptions::JSON => ['lastSequence' => 2, 'text' => 'Wrong amount', 'reference' => 'S-1'],
+		]));
+		$this->assertSame(3, $reversal['sequence']);
+		$this->assertSame('-10.00', $reversal['debit']);
+		$this->assertArrayNotHasKey('credit', $reversal);
+		$this->assertSame('5.00', $reversal['balance']);
+		$this->assertSame('income-sales', $reversal['reason']);
+		$this->assertSame(0.19, $reversal['tax']);
+		$this->assertSame('Wrong amount', $reversal['text']);
+		$this->assertSame('S-1', $reversal['reference']);
+		$this->assertSame(1, $reversal['reverses']);
+		$this->assertNull($reversal['reversedBy']);
+
+		$cashbook = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbookId));
+		$this->assertSame(3, $cashbook['lastSequence']);
+		$this->assertSame('5.00', $cashbook['balance']);
+
+		$entries = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbookId . '/entries'));
+		$this->assertSame([null, null, 1], array_column($entries, 'reverses'));
+		$this->assertSame([3, null, null], array_column($entries, 'reversedBy'));
+		$this->assertSame($reversal, $entries[2]);
+
+		$printed = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbookId . '/entries/print', [
+			RequestOptions::QUERY => ['begin' => '2000-01-01', 'end' => '2100-01-01'],
+		]));
+		$this->assertSame($entries, $printed);
+	}
+
+	public function testReverseCashbookEntryConflict(): void {
+		$alice = $this->createUser();
+		[$cashbookId, $saleId] = $this->createCashbookWithSale($alice);
+
+		$current = $this->assertOcsResponse(409, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/' . $cashbookId . '/entries/' . $saleId . '/reverse', [
+			RequestOptions::JSON => ['lastSequence' => 1, 'text' => 'Typo'],
+		]));
+		$this->assertSame(2, $current['lastSequence']);
+		$this->assertSame('15.00', $current['balance']);
+	}
+
+	public function testReverseCashbookEntryInvalid(): void {
+		$alice = $this->createUser();
+		[$cashbookId, $saleId] = $this->createCashbookWithSale($alice);
+		$path = 'api/v1/cashbooks/' . $cashbookId . '/entries/' . $saleId . '/reverse';
+
+		$response = $this->ocsRequest($alice, 'POST', $path, [RequestOptions::JSON => ['lastSequence' => 2, 'text' => ' ']]);
+		$this->assertOcsResponse(400, $response);
+		$this->assertSame('Enter the reason for the reversal.', json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
+
+		$this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', $path, [RequestOptions::JSON => ['lastSequence' => 2, 'text' => 'Typo']]));
+		$response = $this->ocsRequest($alice, 'POST', $path, [RequestOptions::JSON => ['lastSequence' => 3, 'text' => 'Typo']]);
+		$this->assertOcsResponse(400, $response);
+		$this->assertSame('This entry was already reversed.', json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
+
+		$this->assertCount(3, $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbookId . '/entries')));
+	}
+
+	public function testReverseDayOpeningAndClosingIsRejected(): void {
+		$alice = $this->createUser();
+		$result = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/import', [
+			RequestOptions::MULTIPART => [
+				['name' => 'import', 'contents' => 'sumup-pos-pro-de'],
+				['name' => 'timezone', 'contents' => 'UTC'],
+				['name' => 'files[report]', 'contents' => fopen(self::FIXTURES . 'Tagesabschluss_report.csv', 'r'), 'filename' => 'report.csv'],
+				['name' => 'files[cashbook]', 'contents' => fopen(self::FIXTURES . 'Kassenbuch_report.csv', 'r'), 'filename' => 'cashbook.csv'],
+			],
+		]));
+		$path = 'api/v1/cashbooks/' . $result['id'];
+		$entries = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path . '/entries', [RequestOptions::QUERY => ['limit' => 50]]));
+		$lastSequence = $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path))['lastSequence'];
+
+		$days = array_values(array_filter($entries, static fn (array $entry): bool => in_array($entry['reason'], ['day-opening', 'day-closing'], true)));
+		$this->assertSame(['day-opening', 'day-closing'], array_values(array_unique(array_column($days, 'reason'))));
+		foreach ($days as $entry) {
+			$response = $this->ocsRequest($alice, 'POST', $path . '/entries/' . $entry['id'] . '/reverse', [
+				RequestOptions::JSON => ['lastSequence' => $lastSequence, 'text' => 'Typo'],
+			]);
+			$this->assertOcsResponse(400, $response);
+			$this->assertSame('Only income and expense entries can be reversed.', json_decode((string)$response->getBody(), true)['ocs']['meta']['message']);
+		}
+		$this->assertSame($lastSequence, $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', $path))['lastSequence']);
+	}
+
+	public function testReverseCashbookEntryNotFound(): void {
+		$alice = $this->createUser();
+		$bob = $this->createUser();
+		[$cashbookId, $saleId] = $this->createCashbookWithSale($alice);
+		[$otherCashbookId] = $this->createCashbookWithSale($alice);
+		$body = [RequestOptions::JSON => ['lastSequence' => 2, 'text' => 'Typo']];
+
+		// cashbook of another user
+		$this->assertSame(404, $this->ocsRequest($bob, 'POST', 'api/v1/cashbooks/' . $cashbookId . '/entries/' . $saleId . '/reverse', $body)->getStatusCode());
+		// entry of another cashbook
+		$this->assertSame(404, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/' . $otherCashbookId . '/entries/' . $saleId . '/reverse', $body)->getStatusCode());
+		// unknown entry
+		$this->assertSame(404, $this->ocsRequest($alice, 'POST', 'api/v1/cashbooks/' . $cashbookId . '/entries/1/reverse', $body)->getStatusCode());
+
+		$this->assertSame(2, $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $cashbookId))['lastSequence']);
+		$this->assertSame(2, $this->assertOcsResponse(200, $this->ocsRequest($alice, 'GET', 'api/v1/cashbooks/' . $otherCashbookId))['lastSequence']);
+	}
+
 	public function testImportCashbook(): void {
 		$alice = $this->createUser();
 

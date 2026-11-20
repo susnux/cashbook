@@ -192,6 +192,58 @@ final class ApiController extends OCSController {
 	}
 
 	/**
+	 * Reverse an income or expense entry of a cashbook
+	 *
+	 * Adds an entry after the last entry of the cashbook that negates the amount of the reversed entry
+	 * and keeps its reason and tax rate. The reversed entry stays unchanged.
+	 * Day openings and closings, adjusting entries and reversals can not be reversed, and every entry can only be reversed once.
+	 * If the cashbook was changed since `lastSequence` was loaded, the reversal is rejected with the current cashbook.
+	 *
+	 * @param string $id The id of the cashbook
+	 * @param string $entryId The id of the entry to reverse
+	 * @param int<0, max> $lastSequence The sequence number of the last entry of the cashbook
+	 * @param string $text The reason for the reversal (1 to 1000 characters)
+	 * @param ?string $reference The receipt number of the reversal (up to 127 characters)
+	 * @return DataResponse<Http::STATUS_OK, CashbookEntry, array{}>|DataResponse<Http::STATUS_CONFLICT, CashbookCashbook, array{}>
+	 * @throws OCSBadRequestException The entry can not be reversed, invalid values or the reversal exceeds the cash balance
+	 * @throws OCSNotFoundException Cashbook or entry not found or not owned by the current user
+	 *
+	 * 200: Reversal added
+	 * 409: The last entry is not `lastSequence`, the current cashbook is returned
+	 */
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/cashbooks/{id}/entries/{entryId}/reverse', requirements: ['id' => '\d+', 'entryId' => '\d+'])]
+	public function reverseCashbookEntry(
+		string $id,
+		string $entryId,
+		int $lastSequence,
+		string $text,
+		?string $reference = null,
+	): DataResponse {
+		try {
+			$cashbook = $this->cashbookMapper->getCashbook($id);
+		} catch (DoesNotExistException) {
+			throw new OCSNotFoundException();
+		}
+		if ($this->userId === null || $this->userId !== $cashbook->getOwner()) {
+			throw new OCSNotFoundException();
+		}
+
+		try {
+			$entry = $this->entryService->reverse($cashbook, $this->userId, $lastSequence, $entryId, $text, $reference);
+		} catch (ConflictException) {
+			return new DataResponse($this->cashbookMapper->getCashbook($id)->jsonSerialize(), Http::STATUS_CONFLICT);
+		} catch (DoesNotExistException) {
+			throw new OCSNotFoundException();
+		} catch (InvalidInputException $error) {
+			throw new OCSBadRequestException($error->getHint());
+		} catch (InvalidArgumentException $error) {
+			throw new OCSBadRequestException($error->getMessage());
+		}
+		return new DataResponse($entry->jsonSerialize());
+	}
+
+	/**
 	 * Get all entries of a cashbook within a date range, prepared for printing
 	 *
 	 * If the range starts or ends within an open day, the whole day is included.

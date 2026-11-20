@@ -32,6 +32,9 @@ namespace OCA\Cashbook;
  * `debit` is set for income and `credit` for expenses, both are omitted for entries without an amount.
  * `referenceDate` is the date of the receipt (`YYYY-MM-DD`).
  * `sequence` is the gapless number of the entry within its cashbook, starting at 1.
+ * A reversal negates the amount of the entry it reverses and is shown on the same side with a negative amount
+ * (e.g. `debit: "-10.00"` for a reversed sale). `reverses` is the sequence number of the reversed entry
+ * and `reversedBy` the sequence number of the reversal, both are null for entries without a reversal.
  *
  * @psalm-type CashbookEntry = array{
  *     id: string,
@@ -45,6 +48,8 @@ namespace OCA\Cashbook;
  *     reference: ?string,
  *     referenceDate: ?string,
  *     tax: ?float,
+ *     reverses: ?int,
+ *     reversedBy: ?int,
  * }
  *
  * @psalm-suppress UnusedClass Only used as a container for the response type definitions
