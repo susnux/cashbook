@@ -45,6 +45,12 @@ use RuntimeException;
  * @method void setReference(?string $reference)
  * @method ?\DateTimeImmutable getReferenceDate()
  * @method void setReferenceDate(?\DateTimeImmutable $referenceDate)
+ * @method ?string getSupersededId()
+ * @method void setSupersededId(?string $supersededId)
+ * @method ?int getSupersededSequence()
+ * @method void setSupersededSequence(?int $supersededSequence)
+ * @method ?int getSupersededBySequence()
+ * @method void setSupersededBySequence(?int $supersededBySequence)
  */
 final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 
@@ -73,16 +79,22 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 	protected $userId;
 
 	/**
-	 * The entry this one supersedes
-	 * @var int
+	 * The id of the entry this one reverses
+	 * @var ?string
 	 */
 	protected $supersededId;
 
 	/**
-	 * The entry that supersedes this one
-	 * @var int
+	 * The sequence number of the entry this one reverses, only loaded by `EntryMapper`
+	 * @var ?int
 	 */
-	protected $supersededBy;
+	protected $supersededSequence;
+
+	/**
+	 * The sequence number of the entry that reverses this one, only loaded by `EntryMapper`
+	 * @var ?int
+	 */
+	protected $supersededBySequence;
 
 	/**
 	 * The associated tax rate
@@ -131,6 +143,9 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 	) {
 		$this->addType('cashbookId', Types::STRING);
 		$this->addType('sequence', Types::BIGINT);
+		$this->addType('supersededId', Types::STRING);
+		$this->addType('supersededSequence', Types::BIGINT);
+		$this->addType('supersededBySequence', Types::BIGINT);
 		$this->addType('datetime', Types::DATETIME_IMMUTABLE);
 		$this->addType('referenceDate', Types::DATE_IMMUTABLE);
 	}
@@ -159,6 +174,36 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 		$entry->setReason($reason);
 		$entry->setReference($reference);
 		$entry->setReferenceDate($referenceDate);
+		return $entry;
+	}
+
+	/**
+	 * Create an entry that reverses `$original` by negating its amount, keeping its reason and tax rate.
+	 */
+	public static function createReversal(
+		Cashbook $cashbook,
+		Entry $original,
+		int $sequence,
+		string $userId,
+		\DateTimeImmutable $datetime,
+		string $text,
+		Money $balance,
+		?string $reference = null,
+	): self {
+		$entry = self::create(
+			$cashbook,
+			$sequence,
+			$userId,
+			$datetime,
+			$text,
+			$original->getReason(),
+			$original->getAmount()->negated(),
+			$balance,
+			$original->getTax(),
+			$reference,
+		);
+		$entry->setSupersededId($original->getId());
+		$entry->setSupersededSequence($original->getSequence());
 		return $entry;
 	}
 
@@ -251,7 +296,8 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 		if ($this->cashbook !== null && $this->cashbook->getId() !== $this->cashbookId) {
 			$this->markFieldUpdated('cashbookId');
 		}
-		return parent::getUpdatedFields();
+		// Loaded from the linked entries, they have no column
+		return array_diff_key(parent::getUpdatedFields(), ['supersededSequence' => true, 'supersededBySequence' => true]);
 	}
 
 	/**
@@ -269,9 +315,21 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 			'reference' => $this->getReference(),
 			'referenceDate' => $this->getReferenceDate()?->format('Y-m-d'),
 			'tax' => $this->getTax()?->toFloat(),
+			'reverses' => $this->getSupersededSequence(),
+			'reversedBy' => $this->getSupersededBySequence(),
 		];
 
 		$amount = $this->getAmount();
+		if ($this->getSupersededId() !== null) {
+			// A reversal is shown on the side of the reversed entry with a negative amount
+			if ($amount->isPositive()) {
+				$data['credit'] = (string)$amount->negated()->getAmount();
+			} else {
+				$data['debit'] = (string)$amount->getAmount();
+			}
+			return $data;
+		}
+
 		$absoluteAmount = (string)$amount->abs()->getAmount();
 		if ($amount->isPositive()) {
 			$data['debit'] = $absoluteAmount;

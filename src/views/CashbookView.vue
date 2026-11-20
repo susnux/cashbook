@@ -5,6 +5,7 @@
 
 <script setup lang="ts">
 import type { ICashbook } from '../models/Cashbook.ts'
+import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 import type { Period } from '../utils/period.ts'
 
 import { mdiAlertCircleOutline, mdiCashRemove, mdiFileExportOutline, mdiPlus, mdiPrinterOutline, mdiRefresh } from '@mdi/js'
@@ -20,6 +21,7 @@ import CashbookSummary from '../components/CashbookSummary.vue'
 import CashbookTable from '../components/CashbookTable.vue'
 import NewEntryDialog from '../components/NewEntryDialog.vue'
 import PeriodSelector from '../components/PeriodSelector.vue'
+import ReverseEntryDialog from '../components/ReverseEntryDialog.vue'
 import { useCashbookEntries } from '../composables/useCashbookEntries.ts'
 import { useCashbookStore } from '../store/cashbookStore.ts'
 import { getPeriod, periodFromQuery, periodToQuery } from '../utils/period.ts'
@@ -63,10 +65,33 @@ async function onAddEntry() {
 		cashbook: cashbook.value!,
 		onConflict: (current: ICashbook) => store.updateCashbook(current),
 	})
-	if (!entry) {
-		return
+	if (entry) {
+		showAddedEntry(entry)
 	}
+}
 
+/**
+ * Show the dialog to reverse an entry, then show the period containing the reversal.
+ *
+ * @param entry - The entry to reverse
+ */
+async function onReverseEntry(entry: ICashbookEntry) {
+	const reversal = await spawnDialog(ReverseEntryDialog, {
+		cashbook: cashbook.value!,
+		entry,
+		onConflict: (current: ICashbook) => store.updateCashbook(current),
+	})
+	if (reversal) {
+		showAddedEntry(reversal)
+	}
+}
+
+/**
+ * Update the cashbook with an added entry, which reloads the entries, and show the period containing the entry.
+ *
+ * @param entry - The added entry
+ */
+function showAddedEntry(entry: ICashbookEntry) {
 	store.updateCashbook({ ...cashbook.value!, lastSequence: entry.sequence, balance: entry.balance })
 	const day = getDay(entry.date, cashbook.value!.timezone)
 	if (day < period.value.begin || day >= period.value.end) {
@@ -201,7 +226,11 @@ watchEffect(() => {
 		</NcEmptyContent>
 
 		<template v-else>
-			<CashbookTable :cashbook :entries />
+			<CashbookTable
+				:cashbook
+				:entries
+				:readonly="isExport"
+				@reverse="onReverseEntry" />
 			<CashbookSummary :cashbook :entries />
 		</template>
 	</div>

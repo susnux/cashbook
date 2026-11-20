@@ -76,16 +76,33 @@ interface BaseEntry {
 	tax: number | null
 
 	reason: EntryReason | null
+	/** The sequence number of the entry this entry reverses */
+	reverses: number | null
+	/** The sequence number of the entry that reverses this entry */
+	reversedBy: number | null
 }
 
 interface DebitEntry extends BaseEntry {
-	/** The income as decimal string */
+	/** The income as decimal string, negative for the reversal of an income */
 	debit: string
 }
 
 interface CreditEntry extends BaseEntry {
-	/** The expense as decimal string */
+	/** The expense as decimal string, negative for the reversal of an expense */
 	credit: string
 }
 
 export type ICashbookEntry = DebitEntry | CreditEntry | BaseEntry
+
+/**
+ * Check if an entry can be reversed: only income and expense entries with an amount that are neither a reversal nor reversed
+ *
+ * @param entry - The entry to check
+ */
+export function isReversible(entry: ICashbookEntry): boolean {
+	return entry.reason !== null
+		&& ('debit' in entry || 'credit' in entry)
+		&& (IncomeReasons.includes(entry.reason) || ExpenseReasons.includes(entry.reason))
+		&& entry.reverses === null
+		&& entry.reversedBy === null
+}

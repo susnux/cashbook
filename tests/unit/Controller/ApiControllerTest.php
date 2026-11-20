@@ -450,6 +450,111 @@ final class ApiControllerTest extends TestCase {
 		$this->assertNull($this->entryMapper->getLastEntry($cashbook));
 	}
 
+	public function testReverseCashbookEntry(): void {
+		$cashbook = $this->createCashbook('alice');
+		$sale = $this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeSales, '10', tax: 0.19)->getData();
+
+		$response = $this->createController()->reverseCashbookEntry($cashbook->getId(), $sale['id'], 1, 'Typo', 'S-1');
+		$data = $response->getData();
+		$this->assertSame(Http::STATUS_OK, $response->getStatus());
+		$this->assertSame('-10.00', $data['debit']);
+		$this->assertSame('0.00', $data['balance']);
+		$this->assertSame(1, $data['reverses']);
+		$this->assertSame('S-1', $data['reference']);
+		$this->assertSame(
+			[[null, 2], [1, null]],
+			array_map(
+				static fn (array $entry): array => [$entry['reverses'], $entry['reversedBy']],
+				$this->createController()->getCashbookEntries($cashbook->getId())->getData(),
+			),
+		);
+	}
+
+	public function testReverseCashbookEntryConflict(): void {
+		$cashbook = $this->createCashbook('alice');
+		$sale = $this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeSales, '10')->getData();
+		$this->createController()->addCashbookEntry($cashbook->getId(), 1, EntryReason::IncomeSales, '5');
+
+		$response = $this->createController()->reverseCashbookEntry($cashbook->getId(), $sale['id'], 1, 'Typo');
+		$this->assertSame(Http::STATUS_CONFLICT, $response->getStatus());
+		$this->assertSame($this->createController()->getCashbook($cashbook->getId())->getData(), $response->getData());
+	}
+
+	public static function dataReverseCashbookEntryInvalid(): array {
+		return [
+			'empty text' => ['income-sales', '', 'translated: Enter the reason for the reversal.'],
+			'day opening' => ['day-opening', 'Typo', 'Only income and expense entries can be reversed.'],
+		];
+	}
+
+	#[DataProvider('dataReverseCashbookEntryInvalid')]
+	public function testReverseCashbookEntryInvalid(string $reason, string $text, string $message): void {
+		$cashbook = $this->createCashbook('alice');
+		$entry = $this->entryMapper->insert(Entry::create(
+			$cashbook,
+			1,
+			'alice',
+			new \DateTimeImmutable('2025-01-02 10:00', new \DateTimeZone('UTC')),
+			'',
+			EntryReason::from($reason),
+			Money::of('10', 'EUR'),
+			Money::of('10', 'EUR'),
+		));
+
+		$this->expectException(OCSBadRequestException::class);
+		$this->expectExceptionMessage($message);
+		$this->createController()->reverseCashbookEntry($cashbook->getId(), $entry->getId(), 1, $text);
+	}
+
+	public function testReverseCashbookEntryNotFound(): void {
+		$cashbook = $this->createCashbook('alice');
+		$other = $this->createCashbook('alice', 'Other');
+		$sale = $this->createController()->addCashbookEntry($other->getId(), 0, EntryReason::IncomeSales, '10')->getData();
+
+		$this->expectException(OCSNotFoundException::class);
+		$this->createController()->reverseCashbookEntry($cashbook->getId(), $sale['id'], 0, 'Typo');
+	}
+
+	#[DataProvider('dataAddCashbookEntryOfOtherUser')]
+	public function testReverseCashbookEntryOfOtherUser(?string $userId): void {
+		$cashbook = $this->createCashbook('bob');
+		$entry = $this->entryMapper->insert(Entry::create(
+			$cashbook,
+			1,
+			'bob',
+			new \DateTimeImmutable('2025-01-02 10:00', new \DateTimeZone('UTC')),
+			'',
+			EntryReason::IncomeSales,
+			Money::of('10', 'EUR'),
+			Money::of('10', 'EUR'),
+		));
+
+		try {
+			$this->createController($userId)->reverseCashbookEntry($cashbook->getId(), $entry->getId(), 1, 'Typo');
+			$this->fail('Reversing an entry of a foreign cashbook should fail');
+		} catch (OCSNotFoundException) {
+			$this->assertSame(1, $this->entryMapper->getLastEntry($cashbook)?->getSequence());
+		} finally {
+			$this->entryMapper->deleteByCashbook($cashbook);
+		}
+	}
+
+	public static function dataReverseCashbookEntryOutOfRangeIds(): array {
+		return [
+			'cashbook id' => ['99999999999999999999999', null],
+			'entry id' => [null, '99999999999999999999999'],
+		];
+	}
+
+	#[DataProvider('dataReverseCashbookEntryOutOfRangeIds')]
+	public function testReverseCashbookEntryOutOfRangeIds(?string $cashbookId, ?string $entryId): void {
+		$cashbook = $this->createCashbook('alice');
+		$sale = $this->createController()->addCashbookEntry($cashbook->getId(), 0, EntryReason::IncomeSales, '10')->getData();
+
+		$this->expectException(OCSNotFoundException::class);
+		$this->createController()->reverseCashbookEntry($cashbookId ?? $cashbook->getId(), $entryId ?? $sale['id'], 1, 'Typo');
+	}
+
 	public function testCreateCashbook(): void {
 		$response = $this->createController()->createCashbook('Shop', 'EUR', '1000');
 		$data = $response->getData();

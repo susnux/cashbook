@@ -19,7 +19,17 @@ import { calculateTotals } from '../utils/totals.ts'
 const props = defineProps<{
 	cashbook: ICashbook
 	entries: ICashbookEntry[]
+	/** Hide the actions of the entries */
+	readonly?: boolean
 }>()
+
+const emit = defineEmits<{
+	/** The user wants to reverse an entry */
+	(e: 'reverse', entry: ICashbookEntry): void
+}>()
+
+const columns = computed(() => props.readonly ? 9 : 10)
+const shownSequences = computed(() => new Set(props.entries.map((entry) => entry.sequence)))
 
 /**
  * A day of the cashbook: either the entries between a day opening and its closing,
@@ -88,11 +98,14 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				<th>
 					<span>{{ t('cashbook', 'Balance') /* TRANSLATORS: The current balance of the cashbook */ }}</span>
 				</th>
+				<th v-if="!readonly" :class="$style.actionsColumn">
+					<span class="hidden-visually">{{ t('cashbook', 'Actions') }}</span>
+				</th>
 			</tr>
 		</thead>
 		<tbody v-for="(section, index) of sections" :key="section.start ? section.start.id : `section-${index}`">
 			<tr v-if="!section.start">
-				<th :class="$style.sectionHeader" colspan="9">
+				<th :class="$style.sectionHeader" :colspan="columns">
 					<div :class="$style.dayHeader">
 						<div>
 							<span :class="$style.textBold">
@@ -104,7 +117,7 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				</th>
 			</tr>
 			<tr v-else>
-				<th :class="$style.sectionHeader" colspan="9">
+				<th :class="$style.sectionHeader" :colspan="columns">
 					<div :class="$style.dayHeader">
 						<div>
 							<span :class="$style.textBold">
@@ -148,7 +161,10 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				:key="entry.id"
 				:class="{ [$style.stripedRow]: entryIndex % 2 === 1 }"
 				:cashbook="cashbook"
-				:modelValue="entry" />
+				:modelValue="entry"
+				:readonly="readonly"
+				:shownSequences="shownSequences"
+				@reverse="emit('reverse', $event)" />
 			<tr v-if="section.entries.length > 0" :class="$style.totalRow">
 				<td />
 				<th colspan="5" scope="row">
@@ -161,6 +177,7 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 					{{ formatCurrency(section.totals.expenses, cashbook.currency) }}
 				</td>
 				<td />
+				<td v-if="!readonly" :class="$style.actionsColumn" />
 			</tr>
 			<template v-for="tax of section.totals.taxes" :key="tax.rate ?? 'none'">
 				<tr v-if="tax.rate !== null" :class="$style.taxRow">
@@ -178,6 +195,7 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 						{{ formatCurrency(tax.expenses.tax!, cashbook.currency) }}
 					</td>
 					<td />
+					<td v-if="!readonly" :class="$style.actionsColumn" />
 				</tr>
 			</template>
 		</tbody>
@@ -237,8 +255,8 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 		}
 	}
 
-	/* Credit should be negative */
-	td:nth-child(8) {
+	/* Credit should be negative, reversed expenses add to the balance */
+	td:nth-child(8):not([data-reversal]) {
 		color: var(--color-error-text);
 	}
 
@@ -254,6 +272,11 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 
 	.taxRow {
 		height: auto;
+	}
+
+	.actionsColumn {
+		width: var(--default-clickable-area);
+		padding-inline: 0;
 	}
 
 	.amount {
@@ -275,10 +298,28 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 		font-size: var(--default-font-size);
 		table-layout: fixed;
 
+		/* Collapsed instead of removed, as the section headers span it */
+		.actionsColumn {
+			width: 0;
+			padding: 0;
+			border: 0;
+			visibility: hidden;
+			overflow: hidden;
+		}
+
+		thead th:first-child,
+		td:first-child {
+			padding-inline: 1mm;
+		}
+
 		thead th {
 			font-size: 12pt;
 
-			/* The text gets the remaining width */
+			/* The text gets the remaining width, the sequence number is printed as reversals refer to it */
+			&:nth-of-type(1) {
+				/* Five digits in any font, plus the padding */
+				width: calc(5ch + 2mm);
+			}
 			&:nth-of-type(2) {
 				width: 22mm;
 			}
@@ -311,10 +352,6 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				border-top: 1px solid var(--color-border-maxcontrast);
 				padding-inline: 6mm 2mm;
 			}
-		}
-
-		th:not([colspan]):first-child, td:first-child {
-			display: none;
 		}
 	}
 }

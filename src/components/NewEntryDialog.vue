@@ -81,6 +81,8 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'tertiary',
 		label: t('cashbook', 'Cancel'),
+		// the entry can not be deleted, so the dialog has to show its result
+		disabled: loading.value,
 	},
 	{
 		type: 'submit',
@@ -141,6 +143,7 @@ function onUpdateOpen(open: boolean) {
 <template>
 	<NcDialog
 		isForm
+		:noClose="loading"
 		:buttons="buttons"
 		:name="t('cashbook', 'New entry')"
 		@update:open="onUpdateOpen">

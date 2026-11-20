@@ -17,7 +17,7 @@ import { calculateTotals } from './totals.ts'
  * @param tax - The tax rate
  */
 function entry(balance: string, amount?: string, tax: number | null = null): ICashbookEntry {
-	const base = { id: '1', sequence: 1, reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), balance, text: '', reference: null, referenceDate: null, tax }
+	const base = { id: '1', sequence: 1, reason: EntryReason.IncomeSales, date: new Date(2025, 0, 2), balance, text: '', reference: null, referenceDate: null, tax, reverses: null, reversedBy: null }
 	if (amount === undefined) {
 		return { ...base, reason: EntryReason.DayOpening }
 	}
@@ -72,6 +72,29 @@ describe('calculateTotals', () => {
 					expenses: { gross: '5.00', net: null, tax: null },
 				},
 			],
+		})
+	})
+
+	it('nets reversed entries and their taxes to zero', () => {
+		const totals = calculateTotals([
+			entry('100.00'),
+			{ ...entry('110.00', '10.00', 0.19), reversedBy: 5 },
+			{ ...entry('98.10', '-11.90', 0.19), reversedBy: 6 },
+			entry('103.10', '5.00', 0.07),
+			{ ...entry('93.10', '0', 0.19), debit: '-10.00', reverses: 2 },
+			{ ...entry('105.00', '0', 0.19), credit: '-11.90', reverses: 3 },
+		])
+
+		expect(totals.openingBalance).toBe('100.00')
+		expect(totals.closingBalance).toBe('105.00')
+		expect(totals.income).toBe('5.00')
+		expect(totals.expenses).toBe('0.00')
+		expect(totals.incomeTax).toBe('0.33')
+		expect(totals.expensesTax).toBe('0.00')
+		expect(totals.taxes.find(({ rate }) => rate === 0.19)).toEqual({
+			rate: 0.19,
+			income: { gross: '0.00', net: '0.00', tax: '0.00' },
+			expenses: { gross: '0.00', net: '0.00', tax: '0.00' },
 		})
 	})
 
