@@ -163,6 +163,31 @@ describe('NewEntryDialog', () => {
 		expect(wrapper.emitted('close')).toEqual([[{ id: 1 }]])
 	})
 
+	it('can not be closed while the entry is added', async () => {
+		let resolve: (entry: unknown) => void = () => {}
+		addEntry.mockReturnValue(new Promise((resolver) => {
+			resolve = resolver
+		}))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '5')
+		await clickButton('Add entry')
+
+		const cancel = [...document.querySelectorAll('button')].find((element) => element.textContent?.trim() === 'Cancel')!
+		expect(cancel.disabled).toBe(true)
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+		await flushPromises()
+		vi.runAllTimers()
+		expect(wrapper.emitted('close')).toBeUndefined()
+
+		const entry = { id: '3', sequence: 3, date: new Date(), balance: '105.00', debit: '5.00' }
+		resolve(entry)
+		await flushPromises()
+		vi.runAllTimers()
+		await flushPromises()
+		expect(wrapper.emitted('close')).toEqual([[entry]])
+	})
+
 	it('does not send an invalid form', async () => {
 		vi.mocked(HTMLFormElement.prototype.reportValidity).mockReturnValue(false)
 		const wrapper = await mountDialog()

@@ -126,6 +126,13 @@ describe('ReverseEntryDialog', () => {
 		])
 	})
 
+	it('shows the amount of a negative income as negative income', async () => {
+		const { debit, ...base } = sale as ICashbookEntry & { debit: string }
+		await mountDialog({ ...base, credit: debit })
+
+		expect(details()).toContainEqual(['Amount', 'Income: (€10.00)'])
+	})
+
 	it('requires the reason for the reversal', async () => {
 		const wrapper = await mountDialog()
 
@@ -154,6 +161,31 @@ describe('ReverseEntryDialog', () => {
 		await clickButton('Reverse entry')
 
 		expect(reverseEntry).toHaveBeenCalledWith(cashbook, sale, { text: 'Wrong amount', reference: 'S-1' })
+		expect(wrapper.emitted('close')).toEqual([[reversal]])
+	})
+
+	it('can not be closed while the entry is reversed', async () => {
+		let resolve: (entry: ICashbookEntry) => void = () => {}
+		reverseEntry.mockReturnValue(new Promise((resolver) => {
+			resolve = resolver
+		}))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Reason for the reversal').vm.$emit('update:modelValue', 'Typo')
+		await clickButton('Reverse entry')
+
+		const keep = [...document.querySelectorAll('button')].find((element) => element.textContent?.trim() === 'Keep entry')!
+		expect(keep.disabled).toBe(true)
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+		await flushPromises()
+		vi.runAllTimers()
+		expect(wrapper.emitted('close')).toBeUndefined()
+
+		const reversal = { ...sale, id: '3', sequence: 3, debit: '-10.00', reverses: 2 }
+		resolve(reversal)
+		await flushPromises()
+		vi.runAllTimers()
+		await flushPromises()
 		expect(wrapper.emitted('close')).toEqual([[reversal]])
 	})
 

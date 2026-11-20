@@ -141,8 +141,11 @@ final class EntryService {
 			function (int $sequence, \DateTimeImmutable $datetime, Money $lastBalance) use ($cashbook, $userId, $entryId, $text, $reference): Entry {
 				$original = $this->entryMapper->getEntry($cashbook, $entryId);
 				$reason = $original->getReason();
-				if ($reason === null || (!$reason->isIncome() && !$reason->isExpense()) || $original->getSupersededId() !== null) {
+				if ($reason === null || (!$reason->isIncome() && !$reason->isExpense())) {
 					throw new InvalidArgumentException('Only income and expense entries can be reversed.');
+				}
+				if ($original->getSupersededId() !== null) {
+					throw new InvalidArgumentException('Reversals can not be reversed.');
 				}
 				if ($original->getAmount()->isZero()) {
 					throw new InvalidArgumentException('Entries without an amount can not be reversed.');

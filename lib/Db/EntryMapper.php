@@ -87,6 +87,9 @@ final class EntryMapper extends QBMapper {
 	 * @throws MultipleObjectsReturnedException
 	 */
 	public function getEntry(Cashbook $cashbook, string $id): Entry {
+		if (!SnowflakeId::isValid($id)) {
+			throw new DoesNotExistException('Invalid entry id');
+		}
 		$qb = $this->selectWithLinks();
 		$qb->where(
 			$qb->expr()->eq('e.id', $qb->createNamedParameter($id)),

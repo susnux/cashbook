@@ -255,8 +255,8 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 		}
 	}
 
-	/* Credit should be negative */
-	td:nth-child(8) {
+	/* Credit should be negative, reversed expenses add to the balance */
+	td:nth-child(8):not([data-reversal]) {
 		color: var(--color-error-text);
 	}
 
@@ -305,7 +305,10 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 		thead th {
 			font-size: 12pt;
 
-			/* The text gets the remaining width */
+			/* The text gets the remaining width, the sequence number is printed as reversals refer to it */
+			&:nth-of-type(1) {
+				width: 10mm;
+			}
 			&:nth-of-type(2) {
 				width: 22mm;
 			}
@@ -338,10 +341,6 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				border-top: 1px solid var(--color-border-maxcontrast);
 				padding-inline: 6mm 2mm;
 			}
-		}
-
-		th:not([colspan]):first-child, td:first-child {
-			display: none;
 		}
 	}
 }

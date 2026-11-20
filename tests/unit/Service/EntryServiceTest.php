@@ -372,7 +372,7 @@ final class EntryServiceTest extends TestCase {
 		$reversal = $this->service->reverse($this->cashbook, self::USER_ID, 1, $sale->getId(), 'Typo');
 
 		$this->expectException(InvalidArgumentException::class);
-		$this->expectExceptionMessage('Only income and expense entries can be reversed.');
+		$this->expectExceptionMessage('Reversals can not be reversed.');
 		$this->service->reverse($this->cashbook, self::USER_ID, 2, $reversal->getId(), 'Undo');
 	}
 

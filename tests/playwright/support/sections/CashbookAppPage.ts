@@ -115,12 +115,12 @@ export class CashbookAppPage {
 	}
 
 	/**
-	 * Get the actions menu button of the entry with the given sequence number
+	 * Get the "Reverse entry" button of the entry with the given sequence number
 	 *
 	 * @param sequence - The sequence number of the entry
 	 */
-	entryActions(sequence: number): Locator {
-		return this.entryRowBySequence(sequence).getByRole('button', { name: `Actions for entry #${sequence}` })
+	reverseEntryButton(sequence: number): Locator {
+		return this.entryRowBySequence(sequence).getByRole('button', { name: `Reverse entry #${sequence}` })
 	}
 
 	async open(): Promise<void> {
@@ -271,13 +271,12 @@ export class CashbookAppPage {
 	}
 
 	/**
-	 * Open the "Reverse entry" dialog of an entry through its actions menu
+	 * Open the "Reverse entry" dialog of an entry
 	 *
 	 * @param sequence - The sequence number of the entry to reverse
 	 */
 	async openReverseEntryDialog(sequence: number): Promise<Locator> {
-		await this.entryActions(sequence).click()
-		await this.page.getByRole('menuitem', { name: 'Reverse entry' }).click()
+		await this.reverseEntryButton(sequence).click()
 		const dialog = this.reverseEntryDialog()
 		await dialog.waitFor()
 		return dialog
@@ -302,7 +301,7 @@ export class CashbookAppPage {
 	}
 
 	/**
-	 * Reverse an entry through its actions menu and the "Reverse entry" dialog
+	 * Reverse an entry through the "Reverse entry" dialog
 	 *
 	 * @param sequence - The sequence number of the entry to reverse
 	 * @param options - The values to enter into the dialog

@@ -11,8 +11,7 @@ import { mdiUndoVariant } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
 import { useFormatTime } from '@nextcloud/vue/composables/useFormatDateTime'
 import { computed } from 'vue'
-import NcActionButton from '@nextcloud/vue/components/NcActionButton'
-import NcActions from '@nextcloud/vue/components/NcActions'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDateTime from '@nextcloud/vue/components/NcDateTime'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import { EntryReasonReadable, isReversible } from '../models/CashbookEntry.ts'
@@ -80,22 +79,23 @@ const reversalLink = computed(() => {
 		</td>
 		<td>{{ formattedTax }}</td>
 		<td>{{ 'debit' in modelValue ? formatCurrency(modelValue.debit, cashbook.currency) : '' }}</td>
-		<td>{{ 'credit' in modelValue ? formatCurrency(modelValue.credit, cashbook.currency) : '' }}</td>
+		<td :data-reversal="modelValue.reverses !== null || undefined">
+			{{ 'credit' in modelValue ? formatCurrency(modelValue.credit, cashbook.currency) : '' }}
+		</td>
 		<td :class="$style.balanceColumn">
 			{{ formatCurrency(modelValue.balance, cashbook.currency) }}
 		</td>
 		<td v-if="!readonly" :class="$style.actionsColumn">
-			<NcActions
+			<NcButton
 				v-if="isReversible(modelValue)"
-				forceMenu
-				:ariaLabel="t('cashbook', 'Actions for entry #{sequence}', { sequence: modelValue.sequence })">
-				<NcActionButton closeAfterClick @click="emit('reverse', modelValue)">
-					<template #icon>
-						<NcIconSvgWrapper :path="mdiUndoVariant" />
-					</template>
-					{{ t('cashbook', 'Reverse entry') }}
-				</NcActionButton>
-			</NcActions>
+				variant="tertiary"
+				:aria-label="t('cashbook', 'Reverse entry #{sequence}', { sequence: modelValue.sequence })"
+				:title="t('cashbook', 'Reverse entry')"
+				@click="emit('reverse', modelValue)">
+				<template #icon>
+					<NcIconSvgWrapper :path="mdiUndoVariant" />
+				</template>
+			</NcButton>
 		</td>
 	</tr>
 </template>

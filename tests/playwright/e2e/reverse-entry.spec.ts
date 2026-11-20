@@ -32,9 +32,9 @@ test.describe('Reverse entry', () => {
 		await expect(original.getByRole('cell').nth(3)).toHaveText(/^Coffee\s*Reversed by #3$/)
 
 		// reversed entries and reversals can not be reversed again
-		await expect(cashbookApp.entryActions(1)).toBeVisible()
-		await expect(cashbookApp.entryActions(2)).toHaveCount(0)
-		await expect(cashbookApp.entryActions(3)).toHaveCount(0)
+		await expect(cashbookApp.reverseEntryButton(1)).toBeVisible()
+		await expect(cashbookApp.reverseEntryButton(2)).toHaveCount(0)
+		await expect(cashbookApp.reverseEntryButton(3)).toHaveCount(0)
 
 		const summary = page.getByRole('region', { name: 'Totals of the period' })
 		await expect(summary.getByRole('definition')).toHaveText(['€0.00', '€100.00', '€0.00', '€100.00'])
@@ -54,7 +54,12 @@ test.describe('Reverse entry', () => {
 		await expect(cashbookApp.entryRowBySequence(2).getByRole('link', { name: 'Reversed by #3' })).toBeVisible()
 		await expect(cashbookApp.entryRowBySequence(3).getByRole('link', { name: 'Reverses #2' })).toBeVisible()
 		await expect(cashbookApp.entryRowBySequence(1).getByRole('cell')).toHaveCount(9)
-		await expect(page.getByRole('button', { name: /^Actions for entry/ })).toHaveCount(0)
+		await expect(page.getByRole('button', { name: /^Reverse entry/ })).toHaveCount(0)
+
+		// the sequence numbers the notes refer to are printed
+		await page.emulateMedia({ media: 'print' })
+		await expect(cashbookApp.entryRowBySequence(3).getByRole('cell').first()).toBeVisible()
+		await expect(cashbookApp.entryRowBySequence(3).getByRole('cell').first()).toHaveText('3')
 	})
 
 	test('requires the reason for the reversal and can be cancelled', async ({ cashbookApp, page }) => {
@@ -74,7 +79,7 @@ test.describe('Reverse entry', () => {
 		await expect(dialog).toBeHidden()
 		expect(requests).toBe(0)
 		await expect(cashbookApp.entryRowBySequence(3)).toHaveCount(0)
-		await expect(cashbookApp.entryActions(2)).toBeVisible()
+		await expect(cashbookApp.reverseEntryButton(2)).toBeVisible()
 	})
 
 	test('rejects a reversal exceeding the cash balance', async ({ cashbookApp }) => {

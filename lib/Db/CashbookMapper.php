@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace OCA\Cashbook\Db;
 
+use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -26,6 +27,9 @@ final class CashbookMapper extends QBMapper {
 	}
 
 	public function getCashbook(string $id): Cashbook {
+		if (!SnowflakeId::isValid($id)) {
+			throw new DoesNotExistException('Invalid cashbook id');
+		}
 		$qb = $this->selectWithLastEntry();
 		$qb->where(
 			$qb->expr()->eq('c.id', $qb->createNamedParameter($id)),

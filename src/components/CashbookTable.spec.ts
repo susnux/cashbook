@@ -8,8 +8,6 @@ import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import NcActionButton from '@nextcloud/vue/components/NcActionButton'
-import NcActions from '@nextcloud/vue/components/NcActions'
 import CashbookTable from './CashbookTable.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
 
@@ -152,6 +150,7 @@ describe('CashbookTable', () => {
 		const [income, expense] = entryRows(wrapper).map((row) => row.findAll('td').map((cell) => cell.text()))
 		expect(income!.slice(6, 8)).toEqual(['€12.50', ''])
 		expect(expense!.slice(6, 8)).toEqual(['', '€3.00'])
+		expect(entryRows(wrapper)[1]!.findAll('td')[7]!.attributes('data-reversal')).toBeUndefined()
 		expect(expense![2]).toBe('')
 	})
 
@@ -209,7 +208,7 @@ describe('CashbookTable', () => {
 			},
 		})
 
-		expect(entryRows(wrapper).map((row) => [row.get('td').text(), row.findComponent(NcActions).exists()])).toEqual([
+		expect(entryRows(wrapper).map((row) => [row.get('td').text(), row.find('button').exists()])).toEqual([
 			['2', true],
 			['3', true],
 			['4', false],
@@ -222,14 +221,9 @@ describe('CashbookTable', () => {
 
 	it('emits the entry to reverse', async () => {
 		const sale = entry(1, EntryReason.IncomeSales, 10)
-		// the menu of the actions is not rendered in the test environment
-		const wrapper = mount(CashbookTable, {
-			props: { cashbook, entries: [sale] },
-			global: { stubs: { NcActions: { props: ['ariaLabel'], template: '<div :aria-label="ariaLabel"><slot /></div>' } } },
-		})
+		const wrapper = mount(CashbookTable, { props: { cashbook, entries: [sale] } })
 
-		const actions = wrapper.get('[aria-label="Actions for entry #1"]')
-		await actions.getComponent(NcActionButton).vm.$emit('click', new MouseEvent('click'))
+		await wrapper.get('button[aria-label="Reverse entry #1"]').trigger('click')
 
 		expect(wrapper.emitted('reverse')).toEqual([[sale]])
 	})
@@ -237,7 +231,7 @@ describe('CashbookTable', () => {
 	it('hides the actions if readonly', () => {
 		const wrapper = mount(CashbookTable, { props: { cashbook, readonly: true, entries: [entry(1, EntryReason.IncomeSales, 10)] } })
 
-		expect(wrapper.findComponent(NcActions).exists()).toBe(false)
+		expect(wrapper.find('button').exists()).toBe(false)
 		expect(entryRows(wrapper)[0]!.findAll('td')).toHaveLength(9)
 	})
 
@@ -281,5 +275,7 @@ describe('CashbookTable', () => {
 		const [income, expense] = entryRows(wrapper).map((row) => row.findAll('td').map((cell) => cell.text()).slice(6, 8))
 		expect(income).toEqual(['(€10.00)', ''])
 		expect(expense).toEqual(['', '(€3.00)'])
+		// reversed expenses add to the balance, so they are not marked as expense
+		expect(entryRows(wrapper)[1]!.findAll('td')[7]!.attributes('data-reversal')).toBe('true')
 	})
 })

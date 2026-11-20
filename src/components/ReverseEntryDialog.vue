@@ -14,7 +14,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { CashbookConflictError, reverseEntry } from '../api/cashbooks.ts'
-import { EntryReasonReadable } from '../models/CashbookEntry.ts'
+import { EntryReasonReadable, ExpenseReasons } from '../models/CashbookEntry.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import { formatCurrency, formatTaxRate } from '../utils/formatter.ts'
 import logger from '../utils/logger.ts'
@@ -39,14 +39,14 @@ const reference = ref('')
 const currentCashbook = ref(props.cashbook)
 
 const formattedDate = useFormatTime(() => props.entry.date, () => ({ format: { dateStyle: 'medium', timeStyle: 'short', timeZone: props.cashbook.timezone } }))
+/** The amount as income or expense by the reason of the entry, negative amounts are shown as such */
 const formattedAmount = computed(() => {
-	if ('debit' in props.entry) {
-		return t('cashbook', 'Income: {amount}', { amount: formatCurrency(props.entry.debit, props.cashbook.currency) })
+	const { entry } = props
+	const signed = 'debit' in entry ? entry.debit : ('credit' in entry ? negate(entry.credit) : '0')
+	if (entry.reason !== null && ExpenseReasons.includes(entry.reason)) {
+		return t('cashbook', 'Expense: {amount}', { amount: formatCurrency(negate(signed), props.cashbook.currency) })
 	}
-	if ('credit' in props.entry) {
-		return t('cashbook', 'Expense: {amount}', { amount: formatCurrency(props.entry.credit, props.cashbook.currency) })
-	}
-	return ''
+	return t('cashbook', 'Income: {amount}', { amount: formatCurrency(signed, props.cashbook.currency) })
 })
 
 const fieldsElement = useTemplateRef<HTMLDivElement>('fields')
@@ -59,6 +59,8 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'tertiary',
 		label: t('cashbook', 'Keep entry'),
+		// the reversal can not be undone, so the dialog has to show its result
+		disabled: loading.value,
 	},
 	{
 		type: 'submit',
@@ -68,6 +70,15 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 		callback: onReverse,
 	},
 ])
+
+/**
+ * Negate a decimal string
+ *
+ * @param amount - The decimal string
+ */
+function negate(amount: string): string {
+	return amount.startsWith('-') ? amount.slice(1) : `-${amount}`
+}
 
 /**
  * Reverse the entry, keep the dialog open on failure.
@@ -115,6 +126,7 @@ function onUpdateOpen(open: boolean) {
 <template>
 	<NcDialog
 		isForm
+		:noClose="loading"
 		:buttons="buttons"
 		:name="t('cashbook', 'Reverse entry')"
 		@update:open="onUpdateOpen">
