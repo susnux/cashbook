@@ -19,7 +19,17 @@ import { calculateTotals } from '../utils/totals.ts'
 const props = defineProps<{
 	cashbook: ICashbook
 	entries: ICashbookEntry[]
+	/** Hide the actions of the entries */
+	readonly?: boolean
 }>()
+
+const emit = defineEmits<{
+	/** The user wants to reverse an entry */
+	(e: 'reverse', entry: ICashbookEntry): void
+}>()
+
+const columns = computed(() => props.readonly ? 9 : 10)
+const shownSequences = computed(() => new Set(props.entries.map((entry) => entry.sequence)))
 
 /**
  * A day of the cashbook: either the entries between a day opening and its closing,
@@ -88,11 +98,14 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				<th>
 					<span>{{ t('cashbook', 'Balance') /* TRANSLATORS: The current balance of the cashbook */ }}</span>
 				</th>
+				<th v-if="!readonly" :class="$style.actionsColumn">
+					<span class="hidden-visually">{{ t('cashbook', 'Actions') }}</span>
+				</th>
 			</tr>
 		</thead>
 		<tbody v-for="(section, index) of sections" :key="section.start ? section.start.id : `section-${index}`">
 			<tr v-if="!section.start">
-				<th :class="$style.sectionHeader" colspan="9">
+				<th :class="$style.sectionHeader" :colspan="columns">
 					<div :class="$style.dayHeader">
 						<div>
 							<span :class="$style.textBold">
@@ -104,7 +117,7 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				</th>
 			</tr>
 			<tr v-else>
-				<th :class="$style.sectionHeader" colspan="9">
+				<th :class="$style.sectionHeader" :colspan="columns">
 					<div :class="$style.dayHeader">
 						<div>
 							<span :class="$style.textBold">
@@ -148,7 +161,10 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 				:key="entry.id"
 				:class="{ [$style.stripedRow]: entryIndex % 2 === 1 }"
 				:cashbook="cashbook"
-				:modelValue="entry" />
+				:modelValue="entry"
+				:readonly="readonly"
+				:shownSequences="shownSequences"
+				@reverse="emit('reverse', $event)" />
 			<tr v-if="section.entries.length > 0" :class="$style.totalRow">
 				<td />
 				<th colspan="5" scope="row">
@@ -161,6 +177,7 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 					{{ formatCurrency(section.totals.expenses, cashbook.currency) }}
 				</td>
 				<td />
+				<td v-if="!readonly" :class="$style.actionsColumn" />
 			</tr>
 			<template v-for="tax of section.totals.taxes" :key="tax.rate ?? 'none'">
 				<tr v-if="tax.rate !== null" :class="$style.taxRow">
@@ -178,6 +195,7 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 						{{ formatCurrency(tax.expenses.tax!, cashbook.currency) }}
 					</td>
 					<td />
+					<td v-if="!readonly" :class="$style.actionsColumn" />
 				</tr>
 			</template>
 		</tbody>
@@ -256,6 +274,11 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 		height: auto;
 	}
 
+	.actionsColumn {
+		width: var(--default-clickable-area);
+		padding-inline: 0;
+	}
+
 	.amount {
 		text-align: end;
 	}
@@ -268,6 +291,10 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 @media print {
 	@page {
 		size: a4;
+	}
+
+	.actionsColumn {
+		display: none;
 	}
 
 	.cashbookTable {

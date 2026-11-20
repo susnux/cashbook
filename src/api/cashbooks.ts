@@ -153,18 +153,18 @@ export class CashbookConflictError extends Error {
 }
 
 /**
- * Add an income or expense entry after the last entry of a cashbook
+ * Add an entry after the last entry of a cashbook
  *
  * @param cashbook - The cashbook to add the entry to, its `lastSequence` has to be the last entry
- * @param entry - The entry to add
- * @return The added entry
+ * @param path - The path of the endpoint below the cashbook
+ * @param body - The request body, `lastSequence` is added
  * @throws {CashbookConflictError} If the cashbook has other entries than `cashbook.lastSequence`
  */
-export async function addEntry(cashbook: ICashbook, entry: NewEntryData): Promise<ICashbookEntry> {
+async function postEntry(cashbook: ICashbook, path: string, body: object): Promise<ICashbookEntry> {
 	try {
 		const { data } = await axios.post<OCSResponse<RawCashbookEntry>>(
-			generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}/entries`),
-			{ ...entry, lastSequence: cashbook.lastSequence },
+			generateApiRoute(API_ENDPOINT.Cashbook, `/${cashbook.id}${path}`),
+			{ ...body, lastSequence: cashbook.lastSequence },
 		)
 		if (data.ocs.meta.status !== 'ok') {
 			throw new Error(data.ocs.meta.message, { cause: data.ocs })
@@ -177,6 +177,38 @@ export async function addEntry(cashbook: ICashbook, entry: NewEntryData): Promis
 		}
 		throw error
 	}
+}
+
+/**
+ * Add an income or expense entry after the last entry of a cashbook
+ *
+ * @param cashbook - The cashbook to add the entry to, its `lastSequence` has to be the last entry
+ * @param entry - The entry to add
+ * @return The added entry
+ * @throws {CashbookConflictError} If the cashbook has other entries than `cashbook.lastSequence`
+ */
+export async function addEntry(cashbook: ICashbook, entry: NewEntryData): Promise<ICashbookEntry> {
+	return await postEntry(cashbook, '/entries', entry)
+}
+
+export interface ReversalData {
+	/** The reason for the reversal */
+	text: string
+	/** The receipt number of the reversal */
+	reference: string
+}
+
+/**
+ * Reverse an income or expense entry by adding an entry with the negated amount after the last entry of a cashbook
+ *
+ * @param cashbook - The cashbook of the entry, its `lastSequence` has to be the last entry
+ * @param entry - The entry to reverse
+ * @param reversal - The reason and receipt number of the reversal
+ * @return The added reversal
+ * @throws {CashbookConflictError} If the cashbook has other entries than `cashbook.lastSequence`
+ */
+export async function reverseEntry(cashbook: ICashbook, entry: ICashbookEntry, reversal: ReversalData): Promise<ICashbookEntry> {
+	return await postEntry(cashbook, `/entries/${entry.id}/reverse`, reversal)
 }
 
 /**

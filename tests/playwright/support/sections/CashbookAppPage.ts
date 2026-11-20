@@ -19,6 +19,12 @@ export interface ImportCashbookOptions {
 	report?: string
 }
 
+export interface ReverseEntryOptions {
+	/** The reason for the reversal */
+	reason: string
+	reference?: string
+}
+
 export interface NewEntryOptions {
 	type: 'Income' | 'Expense'
 	/** The readable name of the reason, the first reason of the type is used if not set */
@@ -78,6 +84,10 @@ export class CashbookAppPage {
 		return this.page.getByRole('dialog', { name: 'New entry' })
 	}
 
+	reverseEntryDialog(): Locator {
+		return this.page.getByRole('dialog', { name: 'Reverse entry' })
+	}
+
 	addEntryButton(): Locator {
 		return this.page.getByRole('main').getByRole('button', { name: 'Add entry' })
 	}
@@ -93,6 +103,24 @@ export class CashbookAppPage {
 	 */
 	entryRow(text: string): Locator {
 		return this.entriesTable().getByRole('row').filter({ has: this.page.getByRole('cell', { name: text, exact: true }) })
+	}
+
+	/**
+	 * Get the table row of the entry with the given sequence number
+	 *
+	 * @param sequence - The sequence number of the entry
+	 */
+	entryRowBySequence(sequence: number): Locator {
+		return this.entriesTable().locator(`#entry-${sequence}`)
+	}
+
+	/**
+	 * Get the actions menu button of the entry with the given sequence number
+	 *
+	 * @param sequence - The sequence number of the entry
+	 */
+	entryActions(sequence: number): Locator {
+		return this.entryRowBySequence(sequence).getByRole('button', { name: `Actions for entry #${sequence}` })
 	}
 
 	async open(): Promise<void> {
@@ -240,6 +268,49 @@ export class CashbookAppPage {
 		await this.fillNewEntryDialog(options)
 		await this.submitNewEntryDialog()
 		await this.newEntryDialog().waitFor({ state: 'hidden' })
+	}
+
+	/**
+	 * Open the "Reverse entry" dialog of an entry through its actions menu
+	 *
+	 * @param sequence - The sequence number of the entry to reverse
+	 */
+	async openReverseEntryDialog(sequence: number): Promise<Locator> {
+		await this.entryActions(sequence).click()
+		await this.page.getByRole('menuitem', { name: 'Reverse entry' }).click()
+		const dialog = this.reverseEntryDialog()
+		await dialog.waitFor()
+		return dialog
+	}
+
+	/**
+	 * Fill in the open "Reverse entry" dialog, submit it and wait for the response of the server
+	 *
+	 * @param options - The values to enter into the dialog
+	 */
+	async submitReverseEntryDialog({ reason, reference }: ReverseEntryOptions): Promise<Response> {
+		const dialog = this.reverseEntryDialog()
+		await dialog.getByRole('textbox', { name: 'Reason for the reversal' }).fill(reason)
+		if (reference) {
+			await dialog.getByRole('textbox', { name: 'Receipt number' }).fill(reference)
+		}
+
+		const reversed = this.page.waitForResponse((response) => response.request().method() === 'POST'
+			&& /\/apps\/cashbook\/api\/v1\/cashbooks\/\d+\/entries\/\d+\/reverse/.test(response.url()))
+		await dialog.getByRole('button', { name: 'Reverse entry' }).click()
+		return await reversed
+	}
+
+	/**
+	 * Reverse an entry through its actions menu and the "Reverse entry" dialog
+	 *
+	 * @param sequence - The sequence number of the entry to reverse
+	 * @param options - The values to enter into the dialog
+	 */
+	async reverseEntry(sequence: number, options: ReverseEntryOptions): Promise<void> {
+		await this.openReverseEntryDialog(sequence)
+		await this.submitReverseEntryDialog(options)
+		await this.reverseEntryDialog().waitFor({ state: 'hidden' })
 	}
 
 	/**

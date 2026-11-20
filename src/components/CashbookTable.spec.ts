@@ -8,6 +8,8 @@ import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import CashbookTable from './CashbookTable.vue'
 import { EntryReason } from '../models/CashbookEntry.ts'
 
@@ -22,7 +24,7 @@ const cashbook = { id: '1', name: 'Shop', account: '', currency: 'EUR', owner: '
  * @param tax - The tax rate
  */
 function entry(id: number, reason: EntryReason | null, amount?: number, tax: number | null = null): ICashbookEntry {
-	const base = { id: String(id), sequence: id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, referenceDate: null, tax }
+	const base = { id: String(id), sequence: id, reason, date: new Date(2025, 0, 2, 10, id), balance: '100.00', text: `Entry ${id}`, reference: null, referenceDate: null, tax, reverses: null, reversedBy: null }
 	if (amount === undefined) {
 		return base
 	}
@@ -112,12 +114,13 @@ describe('CashbookTable', () => {
 		expect(times).toEqual(['Jan 1, 2025, 11:59 PM', 'Jan 2, 2025, 12:00 AM', 'Jan 2, 2025, 11:00 PM'])
 	})
 
-	it('spans the day header over all columns', () => {
+	it.each([false, true])('spans the day header over all columns (readonly: %s)', (readonly) => {
 		const wrapper = mount(CashbookTable, {
-			props: { cashbook, entries: [entry(1, EntryReason.DayOpening), entry(2, EntryReason.IncomeSales, 1, 0.19)] },
+			props: { cashbook, readonly, entries: [entry(1, EntryReason.DayOpening), entry(2, EntryReason.IncomeSales, 1, 0.19)] },
 		})
 
 		const columns = wrapper.findAll('thead th').length
+		expect(columns).toBe(readonly ? 9 : 10)
 		expect(wrapper.get('tbody th').attributes('colspan')).toBe(String(columns))
 		for (const row of wrapper.findAll('tbody tr').slice(1)) {
 			const cells = row.findAll('td, th').reduce((sum, cell) => sum + Number(cell.attributes('colspan') ?? 1), 0)
@@ -181,10 +184,100 @@ describe('CashbookTable', () => {
 		const [day, emptyDay] = wrapper.findAll('tbody')
 		const totals = day!.findAll('tr').slice(-3).map((row) => row.findAll('td, th').map((cell) => cell.text()))
 		expect(totals).toEqual([
-			['', 'Total of the day', '€40.00', '€5.00', ''],
-			['', 'Included tax', '19%', '€4.79', '€0.00', ''],
-			['', 'Included tax', '7%', '€0.65', '€0.00', ''],
+			['', 'Total of the day', '€40.00', '€5.00', '', ''],
+			['', 'Included tax', '19%', '€4.79', '€0.00', '', ''],
+			['', 'Included tax', '7%', '€0.65', '€0.00', '', ''],
 		])
 		expect(emptyDay!.text()).not.toContain('Total of the day')
+	})
+
+	it('offers to reverse only income and expense entries that are not reversed', () => {
+		const wrapper = mount(CashbookTable, {
+			props: {
+				cashbook,
+				entries: [
+					entry(1, EntryReason.DayOpening),
+					entry(2, EntryReason.IncomeSales, 10),
+					entry(3, EntryReason.ExpenseGoods, -5),
+					entry(4, EntryReason.Correction, 1),
+					entry(5, null, 1),
+					{ ...entry(6, EntryReason.IncomeMisc, 3), reversedBy: 7 },
+					{ ...entry(7, EntryReason.IncomeMisc), debit: '-3.00', reverses: 6 },
+					entry(8, EntryReason.DayClosing),
+				],
+			},
+		})
+
+		expect(entryRows(wrapper).map((row) => [row.get('td').text(), row.findComponent(NcActions).exists()])).toEqual([
+			['2', true],
+			['3', true],
+			['4', false],
+			['5', false],
+			['6', false],
+			['7', false],
+		])
+	})
+
+	it('emits the entry to reverse', async () => {
+		const sale = entry(1, EntryReason.IncomeSales, 10)
+		// the menu of the actions is not rendered in the test environment
+		const wrapper = mount(CashbookTable, {
+			props: { cashbook, entries: [sale] },
+			global: { stubs: { NcActions: { props: ['ariaLabel'], template: '<div :aria-label="ariaLabel"><slot /></div>' } } },
+		})
+
+		const actions = wrapper.get('[aria-label="Actions for entry #1"]')
+		await actions.getComponent(NcActionButton).vm.$emit('click', new MouseEvent('click'))
+
+		expect(wrapper.emitted('reverse')).toEqual([[sale]])
+	})
+
+	it('hides the actions if readonly', () => {
+		const wrapper = mount(CashbookTable, { props: { cashbook, readonly: true, entries: [entry(1, EntryReason.IncomeSales, 10)] } })
+
+		expect(wrapper.findComponent(NcActions).exists()).toBe(false)
+		expect(entryRows(wrapper)[0]!.findAll('td')).toHaveLength(9)
+	})
+
+	it.each([false, true])('links reversals and reversed entries (readonly: %s)', (readonly) => {
+		const wrapper = mount(CashbookTable, {
+			props: {
+				cashbook,
+				readonly,
+				entries: [
+					{ ...entry(2, EntryReason.IncomeSales, 10), reversedBy: 4 },
+					{ ...entry(3, EntryReason.IncomeSales, 5), reversedBy: 9 },
+					{ ...entry(4, EntryReason.IncomeSales), debit: '-10.00', reverses: 2 },
+					{ ...entry(5, EntryReason.IncomeSales), debit: '-1.00', reverses: 1 },
+				],
+			},
+		})
+
+		const rows = entryRows(wrapper)
+		expect(rows.map((row) => row.attributes('id'))).toEqual(['entry-2', 'entry-3', 'entry-4', 'entry-5'])
+		expect(rows.map((row) => row.findAll('td')[3]!.text())).toEqual([
+			'Entry 2Reversed by #4',
+			'Entry 3Reversed by #9',
+			'Entry 4Reverses #2',
+			'Entry 5Reverses #1',
+		])
+		// only entries that are shown are linked
+		expect(rows.map((row) => row.find('a').exists() ? row.get('a').attributes('href') : null)).toEqual(['#entry-4', null, '#entry-2', null])
+	})
+
+	it('shows reversals as negative amounts on the side of the reversed entry', () => {
+		const wrapper = mount(CashbookTable, {
+			props: {
+				cashbook,
+				entries: [
+					{ ...entry(1, EntryReason.IncomeSales), debit: '-10.00', reverses: 7 },
+					{ ...entry(2, EntryReason.ExpenseGoods), credit: '-3.00', reverses: 8 },
+				],
+			},
+		})
+
+		const [income, expense] = entryRows(wrapper).map((row) => row.findAll('td').map((cell) => cell.text()).slice(6, 8))
+		expect(income).toEqual(['(€10.00)', ''])
+		expect(expense).toEqual(['', '(€3.00)'])
 	})
 })
