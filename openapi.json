@@ -136,17 +136,18 @@
                 "enum": [
                     "day-opening",
                     "day-closing",
-                    "correction",
                     "income-bank",
                     "income-sales",
                     "income-misc",
+                    "income-correction",
                     "expense-bank",
                     "expense-goods",
                     "expense-salary",
                     "expense-tips",
                     "expense-change",
                     "expense-refund",
-                    "expense-misc"
+                    "expense-misc",
+                    "expense-correction"
                 ]
             },
             "OCSMeta": {
@@ -1092,19 +1093,20 @@
                                         "enum": [
                                             "day-opening",
                                             "day-closing",
-                                            "correction",
                                             "income-bank",
                                             "income-sales",
                                             "income-misc",
+                                            "income-correction",
                                             "expense-bank",
                                             "expense-goods",
                                             "expense-salary",
                                             "expense-tips",
                                             "expense-change",
                                             "expense-refund",
-                                            "expense-misc"
+                                            "expense-misc",
+                                            "expense-correction"
                                         ],
-                                        "description": "The reason of the entry, only income and expense reasons are allowed"
+                                        "description": "The reason of the entry, only income and expense reasons except adjusting entries are allowed"
                                     },
                                     "amount": {
                                         "type": "string",
@@ -1313,7 +1315,7 @@
             "post": {
                 "operationId": "api-reverse-cashbook-entry",
                 "summary": "Reverse an income or expense entry of a cashbook",
-                "description": "Adds an entry after the last entry of the cashbook that negates the amount of the reversed entry and keeps its reason and tax rate. The reversed entry stays unchanged. Day openings and closings, adjusting entries and reversals can not be reversed, and every entry can only be reversed once. If the cashbook was changed since `lastSequence` was loaded, the reversal is rejected with the current cashbook.",
+                "description": "Adds an entry after the last entry of the cashbook that negates the amount of the reversed entry and keeps its reason and tax rate. The reversed entry stays unchanged. Day openings and closings and reversals can not be reversed, and every entry can only be reversed once. If the cashbook was changed since `lastSequence` was loaded, the reversal is rejected with the current cashbook.",
                 "tags": [
                     "api"
                 ],

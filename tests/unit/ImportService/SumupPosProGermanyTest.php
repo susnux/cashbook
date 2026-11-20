@@ -195,6 +195,21 @@ final class SumupPosProGermanyTest extends TestCase {
 		], $entries);
 	}
 
+	public function testImportKeepsSideOfAdjustingEntries(): void {
+		$cashbook = $this->createImporter()->import($this->files('Kassenbuch_adjusting_entries.csv'));
+
+		$entries = array_map(
+			static fn (Entry $entry): array => array_intersect_key($entry->jsonSerialize(), array_flip(['reason', 'text', 'tax', 'debit', 'credit', 'balance'])),
+			$this->getEntries($cashbook),
+		);
+		$this->assertSame([
+			['balance' => '110.50', 'text' => 'Coffee', 'reason' => 'income-sales', 'tax' => 0.19, 'debit' => '10.50'],
+			['balance' => '110.00', 'text' => 'Coffee', 'reason' => 'income-correction', 'tax' => 0.19, 'debit' => '-0.50'],
+			['balance' => '90.00', 'text' => 'Paper', 'reason' => 'expense-goods', 'tax' => 0.07, 'credit' => '20.00'],
+			['balance' => '90.50', 'text' => 'Paper', 'reason' => 'expense-correction', 'tax' => 0.07, 'credit' => '-0.50'],
+		], $entries);
+	}
+
 	public function testImportWithoutUnreadColumns(): void {
 		// Without `Belegnummer` and `Betrag MwSt`
 		$file = $this->createCsv(static fn (array $columns): array => array_values(array_diff_key($columns, [3 => true, 10 => true])));

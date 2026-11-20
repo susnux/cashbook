@@ -198,7 +198,7 @@ describe('CashbookTable', () => {
 					entry(1, EntryReason.DayOpening),
 					entry(2, EntryReason.IncomeSales, 10),
 					entry(3, EntryReason.ExpenseGoods, -5),
-					entry(4, EntryReason.Correction, 1),
+					{ ...entry(4, EntryReason.IncomeCorrection), debit: '-1.00' },
 					entry(5, null, 1),
 					{ ...entry(6, EntryReason.IncomeMisc, 3), reversedBy: 7 },
 					{ ...entry(7, EntryReason.IncomeMisc), debit: '-3.00', reverses: 6 },
@@ -211,7 +211,7 @@ describe('CashbookTable', () => {
 		expect(entryRows(wrapper).map((row) => [row.get('td').text(), row.find('button').exists()])).toEqual([
 			['2', true],
 			['3', true],
-			['4', false],
+			['4', true],
 			['5', false],
 			['6', false],
 			['7', false],

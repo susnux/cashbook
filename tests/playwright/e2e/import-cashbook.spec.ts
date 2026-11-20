@@ -43,6 +43,28 @@ test.describe('Import cashbook', () => {
 		await expect(cashbookApp.entriesTable().getByRole('columnheader', { name: /^Opened:/ })).toHaveCount(0)
 	})
 
+	test('imports adjusting entries on their side and reverses them', async ({ cashbookApp, page }) => {
+		const response = await cashbookApp.importCashbook({ cashbook: join(SUMUP_FIXTURES, 'Kassenbuch_adjusting_entries.csv') })
+		expect(response.ok()).toBe(true)
+		await expect(cashbookApp.cashbookHeading()).toHaveText('Test Shop')
+
+		await cashbookApp.showMonth('2025-01')
+		await expect(cashbookApp.entryRowBySequence(2).getByRole('cell')).toHaveText(['2', /\S/, 'Adjusting entry', 'Coffee', '', '19%', '(€0.50)', '', '€110.00', ''])
+		await expect(cashbookApp.entryRowBySequence(4).getByRole('cell')).toHaveText(['4', /\S/, 'Adjusting entry', 'Paper', '', '7%', '', '(€0.50)', '€90.50', ''])
+
+		const summary = page.getByRole('region', { name: 'Totals of the period' })
+		await expect(summary.getByRole('definition')).toHaveText(['€100.00', '€10.00', '€19.50', '€90.50'])
+		await expect(summary.getByRole('row', { name: /^19%/ })).toContainText('€10.00')
+		await expect(summary.getByRole('row', { name: /^7%/ })).toContainText('€19.50')
+
+		const dialog = await cashbookApp.openReverseEntryDialog(2)
+		await expect(dialog.getByRole('definition')).toHaveText(['#2', /\S/, 'Adjusting entry', 'Income: (€0.50)', '19%', 'Coffee'])
+		expect((await cashbookApp.submitReverseEntryDialog({ reason: 'Typo' })).status()).toBe(200)
+		await expect(dialog).toBeHidden()
+
+		await expect(cashbookApp.entryRowBySequence(5).getByRole('cell')).toHaveText(['5', /\S/, 'Adjusting entry', /^Typo\s*Reverses #2$/, '', '19%', '€0.50', '', '€91.00', ''])
+	})
+
 	test('requires the cashbook export and allows removing the daily closing report', async ({ cashbookApp }) => {
 		const dialog = await cashbookApp.openImportCashbookDialog()
 		const importButton = dialog.getByRole('button', { name: 'Import cashbook' })

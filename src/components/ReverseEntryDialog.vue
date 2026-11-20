@@ -14,7 +14,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { CashbookConflictError, reverseEntry } from '../api/cashbooks.ts'
-import { EntryReasonReadable, ExpenseReasons } from '../models/CashbookEntry.ts'
+import { EntryReasonReadable, isExpenseReason } from '../models/CashbookEntry.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import { formatCurrency, formatTaxRate } from '../utils/formatter.ts'
 import logger from '../utils/logger.ts'
@@ -43,7 +43,7 @@ const formattedDate = useFormatTime(() => props.entry.date, () => ({ format: { d
 const formattedAmount = computed(() => {
 	const { entry } = props
 	const signed = 'debit' in entry ? entry.debit : ('credit' in entry ? negate(entry.credit) : '0')
-	if (entry.reason !== null && ExpenseReasons.includes(entry.reason)) {
+	if (isExpenseReason(entry.reason)) {
 		return t('cashbook', 'Expense: {amount}', { amount: formatCurrency(negate(signed), props.cashbook.currency) })
 	}
 	return t('cashbook', 'Income: {amount}', { amount: formatCurrency(signed, props.cashbook.currency) })

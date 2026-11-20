@@ -320,6 +320,17 @@ final class Entry extends SnowflakeAwareEntity implements JsonSerializable {
 		];
 
 		$amount = $this->getAmount();
+		$reason = $this->getReason();
+		if (($reason?->isCorrection() ?? false) && !$amount->isZero()) {
+			// An adjusting entry (and its reversal) is shown on its own side, with a negative amount if it lowers the income or expenses
+			if ($reason === EntryReason::IncomeCorrection) {
+				$data['debit'] = (string)$amount->getAmount();
+			} else {
+				$data['credit'] = (string)$amount->negated()->getAmount();
+			}
+			return $data;
+		}
+
 		if ($this->getSupersededId() !== null) {
 			// A reversal is shown on the side of the reversed entry with a negative amount
 			if ($amount->isPositive()) {

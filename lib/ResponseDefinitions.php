@@ -26,10 +26,12 @@ namespace OCA\Cashbook;
  *     balance: string,
  * }
  *
- * @psalm-type CashbookEntryReason = 'day-opening'|'day-closing'|'correction'|'income-bank'|'income-sales'|'income-misc'|'expense-bank'|'expense-goods'|'expense-salary'|'expense-tips'|'expense-change'|'expense-refund'|'expense-misc'
+ * @psalm-type CashbookEntryReason = 'day-opening'|'day-closing'|'income-bank'|'income-sales'|'income-misc'|'income-correction'|'expense-bank'|'expense-goods'|'expense-salary'|'expense-tips'|'expense-change'|'expense-refund'|'expense-misc'|'expense-correction'
  *
  * Amounts of money are decimal strings (e.g. `"12.50"`) to keep their precision,
  * `debit` is set for income and `credit` for expenses, both are omitted for entries without an amount.
+ * An adjusting entry (`income-correction` or `expense-correction`) keeps the sign it was booked with,
+ * so it is shown with a negative amount if it lowers the income or expense (e.g. `debit: "-0.50"`).
  * `referenceDate` is the date of the receipt (`YYYY-MM-DD`).
  * `sequence` is the gapless number of the entry within its cashbook, starting at 1.
  * A reversal negates the amount of the entry it reverses and is shown on the same side with a negative amount

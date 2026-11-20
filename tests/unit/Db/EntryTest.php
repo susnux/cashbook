@@ -79,6 +79,39 @@ final class EntryTest extends TestCase {
 		$this->assertSame($expected, array_intersect_key($data, ['debit' => true, 'credit' => true]));
 	}
 
+	public static function dataAdjustingEntrySides(): array {
+		return [
+			'lowering income' => [EntryReason::IncomeCorrection, '-0.5', ['debit' => '-0.50']],
+			'raising income' => [EntryReason::IncomeCorrection, '0.5', ['debit' => '0.50']],
+			'lowering expenses' => [EntryReason::ExpenseCorrection, '0.5', ['credit' => '-0.50']],
+			'raising expenses' => [EntryReason::ExpenseCorrection, '-0.5', ['credit' => '0.50']],
+			'zero' => [EntryReason::IncomeCorrection, '0', []],
+		];
+	}
+
+	#[DataProvider('dataAdjustingEntrySides')]
+	public function testJsonSerializeAdjustingEntrySides(EntryReason $reason, string $amount, array $expected): void {
+		$data = $this->createEntry($amount, '100', reason: $reason)->jsonSerialize();
+		$this->assertSame($expected, array_intersect_key($data, ['debit' => true, 'credit' => true]));
+	}
+
+	public static function dataReversalOfAdjustingEntry(): array {
+		return [
+			'income' => [EntryReason::IncomeCorrection, '-0.5', ['debit' => '0.50']],
+			'expenses' => [EntryReason::ExpenseCorrection, '0.5', ['credit' => '0.50']],
+		];
+	}
+
+	#[DataProvider('dataReversalOfAdjustingEntry')]
+	public function testReversalOfAdjustingEntryStaysOnItsSide(EntryReason $reason, string $amount, array $expected): void {
+		$original = $this->createEntry($amount, '100', reason: $reason);
+		$reversal = Entry::createReversal($original->getCashbook(), $original, 8, 'alice', new \DateTimeImmutable(), 'Text', Money::of('100', 'EUR'));
+
+		$data = $reversal->jsonSerialize();
+		$this->assertSame($reason->value, $data['reason']);
+		$this->assertSame($expected, array_intersect_key($data, ['debit' => true, 'credit' => true]));
+	}
+
 	public function testCreateReversal(): void {
 		$original = $this->createEntry('10', '10');
 		$reversal = Entry::createReversal(

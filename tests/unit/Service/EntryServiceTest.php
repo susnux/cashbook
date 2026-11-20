@@ -204,7 +204,8 @@ final class EntryServiceTest extends TestCase {
 		return [
 			'day opening' => [EntryReason::DayOpening, '1', [], 'Only income and expense entries can be added.'],
 			'day closing' => [EntryReason::DayClosing, '1', [], 'Only income and expense entries can be added.'],
-			'correction' => [EntryReason::Correction, '1', [], 'Only income and expense entries can be added.'],
+			'income adjusting entry' => [EntryReason::IncomeCorrection, '1', [], 'Only income and expense entries can be added.'],
+			'expense adjusting entry' => [EntryReason::ExpenseCorrection, '1', [], 'Only income and expense entries can be added.'],
 			'empty amount' => [EntryReason::IncomeMisc, '', [], 'The amount must be a positive decimal number.'],
 			'zero amount' => [EntryReason::IncomeMisc, '0.00', [], 'The amount must be a positive decimal number.'],
 			'negative amount' => [EntryReason::IncomeMisc, '-1', [], 'The amount must be a positive decimal number.'],
@@ -324,7 +325,6 @@ final class EntryServiceTest extends TestCase {
 		return [
 			'day opening' => [EntryReason::DayOpening],
 			'day closing' => [EntryReason::DayClosing],
-			'adjusting entry' => [EntryReason::Correction],
 			'no reason' => [null],
 		];
 	}
@@ -341,6 +341,25 @@ final class EntryServiceTest extends TestCase {
 			$this->assertSame('Only income and expense entries can be reversed.', $error->getMessage());
 		}
 		$this->assertCount(2, $this->entryMapper->getEntries($this->cashbook));
+	}
+
+	public static function dataReverseAdjustingEntry(): array {
+		return [
+			'lowering income' => [EntryReason::IncomeCorrection, '-0.5', '19.50', '20.00', ['debit' => '0.50']],
+			'lowering expenses' => [EntryReason::ExpenseCorrection, '0.5', '20.50', '20.00', ['credit' => '0.50']],
+		];
+	}
+
+	#[DataProvider('dataReverseAdjustingEntry')]
+	public function testReverseAdjustingEntry(EntryReason $reason, string $amount, string $balance, string $reversedBalance, array $expected): void {
+		$this->insertEntry('2026-03-01 10:00', '20', '20');
+		$entry = $this->insertEntry('2026-03-01 11:00', $amount, $balance, $reason);
+
+		$data = $this->service->reverse($this->cashbook, self::USER_ID, 2, $entry->getId(), 'Typo')->jsonSerialize();
+
+		$this->assertSame($reason->value, $data['reason']);
+		$this->assertSame($reversedBalance, $data['balance']);
+		$this->assertSame($expected, array_intersect_key($data, ['debit' => true, 'credit' => true]));
 	}
 
 	public function testReverseEntryWithoutAmount(): void {

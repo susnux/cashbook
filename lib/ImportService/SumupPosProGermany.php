@@ -256,7 +256,8 @@ final class SumupPosProGermany implements IImportService {
 				break;
 			}
 
-			$amount = $this->parseRecordAmount($record);
+			$reason = $this->mapReason($record);
+			$amount = $this->parseRecordAmount($record, $reason);
 			$balance = $this->parseMoney($record['total']);
 			if ($this->balance !== null && !$this->balance->plus($amount)->isEqualTo($balance)) {
 				$this->logBalanceMismatch($record['datetime'], $this->balance->plus($amount), $balance);
@@ -278,7 +279,7 @@ final class SumupPosProGermany implements IImportService {
 				$this->getUserId(),
 				$datetime,
 				$record['text'],
-				$this->mapReason($record['reason']),
+				$reason,
 				$amount,
 				$balance,
 				$this->parseTax($record['tax']),
@@ -382,12 +383,17 @@ final class SumupPosProGermany implements IImportService {
 	 * Get the signed amount of a cashbook record.
 	 *
 	 * Expenses are subtracted regardless of whether the export lists them as negative or positive numbers.
+	 * Adjusting entries keep the sign they were booked with, e.g. -0.50 in the income column lowers the income.
 	 *
 	 * @param CsvRecord $record
 	 */
-	protected function parseRecordAmount(array $record): Money {
-		return $this->parseAmount($record['debit'])
-			->minus($this->parseAmount($record['credit'])->abs());
+	protected function parseRecordAmount(array $record, ?EntryReason $reason): Money {
+		$debit = $this->parseAmount($record['debit']);
+		$credit = $this->parseAmount($record['credit']);
+		if ($reason?->isCorrection() ?? false) {
+			return $debit->plus($credit);
+		}
+		return $debit->minus($credit->abs());
 	}
 
 	/**
@@ -421,9 +427,14 @@ final class SumupPosProGermany implements IImportService {
 	}
 
 	/**
-	 * Mapping from string value of the CSV to the `EntryReason` enum.
+	 * Mapping from the reason of a CSV record to the `EntryReason` enum.
+	 *
+	 * An adjusting entry is on the income side if it has an amount in the income column.
+	 *
+	 * @param CsvRecord $record
 	 */
-	protected function mapReason(string $reason): ?EntryReason {
+	protected function mapReason(array $record): ?EntryReason {
+		$reason = $record['reason'];
 		$mapped = match($reason) {
 			'Einkauf von Material und Waren' => EntryReason::ExpenseGoods,
 			'Trinkgeldauszahlung' => EntryReason::ExpenseTips,
@@ -438,7 +449,7 @@ final class SumupPosProGermany implements IImportService {
 			'Transfer von Kasse zur Bank' => EntryReason::ExpenseBankTransfer,
 			'Transfer von Bank zur Kasse' => EntryReason::IncomeBankTransfer,
 
-			'Änderungseintrag' => EntryReason::Correction,
+			'Änderungseintrag' => $this->parseAmount($record['debit'])->isZero() ? EntryReason::ExpenseCorrection : EntryReason::IncomeCorrection,
 
 			default => null,
 		};

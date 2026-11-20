@@ -145,7 +145,7 @@ final class ApiController extends OCSController {
 	 *
 	 * @param string $id The id of the cashbook
 	 * @param int<0, max> $lastSequence The sequence number of the last entry of the cashbook, 0 if it has no entries
-	 * @param EntryReason $reason The reason of the entry, only income and expense reasons are allowed
+	 * @param EntryReason $reason The reason of the entry, only income and expense reasons except adjusting entries are allowed
 	 * @param string $amount The positive amount as decimal string (e.g. `"12.50"`), expenses are subtracted from the balance
 	 * @param string $text The posting text (up to 1000 characters)
 	 * @param ?float $tax The tax rate included in the amount (e.g. `0.19` for 19%)
@@ -196,7 +196,7 @@ final class ApiController extends OCSController {
 	 *
 	 * Adds an entry after the last entry of the cashbook that negates the amount of the reversed entry
 	 * and keeps its reason and tax rate. The reversed entry stays unchanged.
-	 * Day openings and closings, adjusting entries and reversals can not be reversed, and every entry can only be reversed once.
+	 * Day openings and closings and reversals can not be reversed, and every entry can only be reversed once.
 	 * If the cashbook was changed since `lastSequence` was loaded, the reversal is rejected with the current cashbook.
 	 *
 	 * @param string $id The id of the cashbook

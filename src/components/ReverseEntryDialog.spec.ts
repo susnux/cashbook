@@ -126,6 +126,29 @@ describe('ReverseEntryDialog', () => {
 		])
 	})
 
+	it.each([
+		[EntryReason.IncomeCorrection, { debit: '-0.50' }, 'Income: (€0.50)'],
+		[EntryReason.ExpenseCorrection, { credit: '-0.50' }, 'Expense: (€0.50)'],
+	])('shows the side and sign of an adjusting entry (%s)', async (reason, amount, expected) => {
+		await mountDialog({
+			id: '4',
+			sequence: 2,
+			date: sale.date,
+			balance: '99.50',
+			text: 'Coffee',
+			reference: null,
+			referenceDate: null,
+			tax: 0.19,
+			reason,
+			reverses: null,
+			reversedBy: null,
+			...amount,
+		})
+
+		expect(details()).toContainEqual(['Reason', 'Adjusting entry'])
+		expect(details()).toContainEqual(['Amount', expected])
+	})
+
 	it('shows the amount of a negative income as negative income', async () => {
 		const { debit, ...base } = sale as ICashbookEntry & { debit: string }
 		await mountDialog({ ...base, credit: debit })

@@ -74,7 +74,7 @@ final class EntryService {
 		?string $reference = null,
 		?string $referenceDate = null,
 	): Entry {
-		if (!$reason->isIncome() && !$reason->isExpense()) {
+		if ((!$reason->isIncome() && !$reason->isExpense()) || $reason->isCorrection()) {
 			throw new InvalidArgumentException('Only income and expense entries can be added.');
 		}
 
@@ -111,7 +111,7 @@ final class EntryService {
 	 * Reverse an income or expense entry by adding an entry with the negated amount after the last entry of a cashbook.
 	 *
 	 * The reversal keeps the reason and tax rate of the reversed entry. Day openings and closings,
-	 * adjusting entries, reversals and entries without an amount can not be reversed, and every entry can only be reversed once.
+	 * reversals and entries without an amount can not be reversed, and every entry can only be reversed once.
 	 *
 	 * @param int $lastSequence The sequence number of the last entry known to the client, 0 for an empty cashbook
 	 * @param string $entryId The id of the entry to reverse

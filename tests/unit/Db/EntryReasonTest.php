@@ -30,14 +30,20 @@ final class EntryReasonTest extends TestCase {
 
 	public static function dataDirection(): array {
 		return array_map(
-			static fn (EntryReason $reason): array => [$reason, str_starts_with($reason->name, 'Income'), str_starts_with($reason->name, 'Expense')],
+			static fn (EntryReason $reason): array => [
+				$reason,
+				str_starts_with($reason->name, 'Income'),
+				str_starts_with($reason->name, 'Expense'),
+				str_ends_with($reason->name, 'Correction'),
+			],
 			array_combine(array_column(EntryReason::cases(), 'value'), EntryReason::cases()),
 		);
 	}
 
 	#[DataProvider('dataDirection')]
-	public function testDirection(EntryReason $reason, bool $income, bool $expense): void {
+	public function testDirection(EntryReason $reason, bool $income, bool $expense, bool $correction): void {
 		$this->assertSame($income, $reason->isIncome());
 		$this->assertSame($expense, $reason->isExpense());
+		$this->assertSame($correction, $reason->isCorrection());
 	}
 }
