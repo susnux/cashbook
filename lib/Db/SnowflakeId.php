@@ -20,7 +20,7 @@ final class SnowflakeId {
 	 * Larger values make the query fail on PostgreSQL instead of finding no row.
 	 */
 	public static function isValid(string $id): bool {
-		if (preg_match('/^\d{1,19}$/', $id) !== 1) {
+		if (preg_match('/^\d{1,19}$/D', $id) !== 1) {
 			return false;
 		}
 		return strlen($id) < strlen(self::MAX) || strcmp($id, self::MAX) <= 0;

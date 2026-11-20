@@ -128,7 +128,11 @@ tr > td.actionsColumn {
 
 @media print {
 	tr > td.actionsColumn {
-		display: none;
+		width: 0;
+		padding: 0;
+		border: 0;
+		visibility: hidden;
+		overflow: hidden;
 	}
 }
 </style>

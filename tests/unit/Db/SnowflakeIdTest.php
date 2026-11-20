@@ -25,6 +25,7 @@ final class SnowflakeIdTest extends TestCase {
 			'empty' => ['', false],
 			'negative' => ['-1', false],
 			'not a number' => ['1a', false],
+			'trailing newline' => ["1\n", false],
 		];
 	}
 

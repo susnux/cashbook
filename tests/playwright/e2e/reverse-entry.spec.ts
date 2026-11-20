@@ -62,6 +62,21 @@ test.describe('Reverse entry', () => {
 		await expect(cashbookApp.entryRowBySequence(3).getByRole('cell').first()).toHaveText('3')
 	})
 
+	test('takes no space for the actions and fits long numbers when printed', async ({ cashbookApp, page }) => {
+		await page.emulateMedia({ media: 'print' })
+
+		const actionsHeader = cashbookApp.entriesTable().locator('thead th').last()
+		expect((await actionsHeader.boundingBox())?.width ?? 0).toBeLessThan(1)
+		await expect(cashbookApp.reverseEntryButton(2)).toBeHidden()
+
+		// the sequence number of a long running cashbook fits into its column
+		const sequence = cashbookApp.entryRowBySequence(1).getByRole('cell').first()
+		await sequence.evaluate((cell) => {
+			cell.textContent = '12345'
+		})
+		expect(await sequence.evaluate((cell) => cell.scrollWidth <= cell.clientWidth)).toBe(true)
+	})
+
 	test('requires the reason for the reversal and can be cancelled', async ({ cashbookApp, page }) => {
 		let requests = 0
 		page.on('request', (request) => {

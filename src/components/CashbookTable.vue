@@ -293,21 +293,31 @@ const dateTimeFormat = computed<Intl.DateTimeFormatOptions>(() => ({ dateStyle: 
 		size: a4;
 	}
 
-	.actionsColumn {
-		display: none;
-	}
-
 	.cashbookTable {
 		--default-font-size: 11pt;
 		font-size: var(--default-font-size);
 		table-layout: fixed;
+
+		/* Collapsed instead of removed, as the section headers span it */
+		.actionsColumn {
+			width: 0;
+			padding: 0;
+			border: 0;
+			visibility: hidden;
+			overflow: hidden;
+		}
+
+		thead th:first-child,
+		td:first-child {
+			padding-inline: 1mm;
+		}
 
 		thead th {
 			font-size: 12pt;
 
 			/* The text gets the remaining width, the sequence number is printed as reversals refer to it */
 			&:nth-of-type(1) {
-				width: 10mm;
+				width: 13mm;
 			}
 			&:nth-of-type(2) {
 				width: 22mm;
