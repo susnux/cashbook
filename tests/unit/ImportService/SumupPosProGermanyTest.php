@@ -207,6 +207,17 @@ final class SumupPosProGermanyTest extends TestCase {
 		));
 	}
 
+	public function testImportIgnoresEmptyFieldsAfterLastColumn(): void {
+		$file = $this->createCsv(static fn (array $columns): array => $columns[0] === 'Geschäft' ? $columns : [...$columns, '', ' ']);
+
+		$cashbook = $this->createImporter()->import(['cashbook' => $file]);
+
+		$this->assertSame(['1300.50', '1280.50', '1285.50'], array_map(
+			static fn (Entry $entry): string => (string)$entry->getBalance()->getAmount(),
+			$this->getEntries($cashbook),
+		));
+	}
+
 	public static function dataInvalidCsv(): array {
 		return [
 			'empty file' => [static fn (array $columns): array => []],
@@ -325,6 +336,14 @@ final class SumupPosProGermanyTest extends TestCase {
 			'store name too long' => ['Kassenbuch_long_store.csv', null, 'store name or ID'],
 			'balance does not match previous balance' => ['Kassenbuch_balance_mismatch.csv', null, 'entry of 02.01.2025 11:00:00 does not match the previous cash balance'],
 			'negative balance' => ['Kassenbuch_negative_balance.csv', null, 'negative after the entry of 02.01.2025 11:00:00'],
+			'incomplete first row' => ['Kassenbuch_incomplete_first_row.csv', null, 'Row 2 of the cashbook export is incomplete.'],
+			'incomplete row' => ['Kassenbuch_incomplete_row.csv', null, 'Row 3 of the cashbook export is incomplete.'],
+			'incomplete report row' => ['Kassenbuch_report.csv', 'Tagesabschluss_incomplete_row.csv', 'Row 3 of the daily closing report is incomplete.'],
+			'empty date' => ['Kassenbuch_empty_date.csv', null, 'Row 3 of the cashbook export is incomplete.'],
+			'empty report balance' => ['Kassenbuch_report.csv', 'Tagesabschluss_empty_balance.csv', 'Row 3 of the daily closing report is incomplete.'],
+			'too many fields' => ['Kassenbuch_extra_field.csv', null, 'Row 3 of the cashbook export has too many columns.'],
+			'too many report fields' => ['Kassenbuch_report.csv', 'Tagesabschluss_extra_field.csv', 'Row 3 of the daily closing report has too many columns.'],
+			'other currency' => ['Kassenbuch_other_currency.csv', null, 'The entry of 02.01.2025 11:00:00 uses a different currency than the other entries.'],
 		];
 	}
 
