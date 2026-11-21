@@ -325,6 +325,9 @@ final class SumupPosProGermanyTest extends TestCase {
 			'store name too long' => ['Kassenbuch_long_store.csv', null, 'store name or ID'],
 			'balance does not match previous balance' => ['Kassenbuch_balance_mismatch.csv', null, 'entry of 02.01.2025 11:00:00 does not match the previous cash balance'],
 			'negative balance' => ['Kassenbuch_negative_balance.csv', null, 'negative after the entry of 02.01.2025 11:00:00'],
+			'incomplete first row' => ['Kassenbuch_incomplete_first_row.csv', null, 'Row 2 of the cashbook export is incomplete.'],
+			'incomplete row' => ['Kassenbuch_incomplete_row.csv', null, 'Row 3 of the cashbook export is incomplete.'],
+			'incomplete report row' => ['Kassenbuch_report.csv', 'Tagesabschluss_incomplete_row.csv', 'Row 3 of the daily closing report is incomplete.'],
 		];
 	}
 

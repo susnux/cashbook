@@ -120,12 +120,20 @@ final class SumupPosProGermany implements IImportService {
 			self::CSV_HEADER_MAPPING,
 			'The selected cashbook export is not a valid SumUp cashbook export.',
 			$this->l10n->t('The selected cashbook export is not a valid SumUp cashbook export.'),
+			fn (int $row): InvalidInputException => new InvalidInputException(
+				sprintf('Row %d of the cashbook export is incomplete.', $row),
+				$this->l10n->t('Row %s of the cashbook export is incomplete.', [$row]),
+			),
 		);
 		$this->reportIterator = !isset($files[self::FILE_REPORT]) ? null : $this->readCsv(
 			$files[self::FILE_REPORT],
 			self::CSV_REPORT_HEADER_MAPPING,
 			'The selected daily closing report is not a valid SumUp daily closing report.',
 			$this->l10n->t('The selected daily closing report is not a valid SumUp daily closing report.'),
+			fn (int $row): InvalidInputException => new InvalidInputException(
+				sprintf('Row %d of the daily closing report is incomplete.', $row),
+				$this->l10n->t('Row %s of the daily closing report is incomplete.', [$row]),
+			),
 		);
 
 		if ($this->cashbookIterator->valid() === false) {
@@ -307,10 +315,12 @@ final class SumupPosProGermany implements IImportService {
 	 * @param array<string, string> $headerMapping The columns of the file, all of them are required
 	 * @param string $invalidMessage The English message if the file is not a CSV file with all columns
 	 * @param string $invalidHint The translated hint if the file is not a CSV file with all columns
+	 * @param \Closure(int): InvalidInputException $incompleteRow Creates the exception for a row (1-based, including the header) with fewer fields than the header
 	 * @return Iterator<array-key, CsvRecord>
-	 * @throws InvalidInputException If the file is not a CSV file, misses a column or has more than `MAX_ROWS` rows
+	 * @throws InvalidInputException If the file is not a CSV file, misses a column or has more than `MAX_ROWS` rows,
+	 *                               iterating throws the exception of `$incompleteRow` for incomplete rows
 	 */
-	protected function readCsv(string $path, array $headerMapping, string $invalidMessage, string $invalidHint): Iterator {
+	protected function readCsv(string $path, array $headerMapping, string $invalidMessage, string $invalidHint, \Closure $incompleteRow): Iterator {
 		try {
 			$csv = Reader::from($path, 'r');
 			$csv->setHeaderOffset(0);
@@ -331,12 +341,36 @@ final class SumupPosProGermany implements IImportService {
 			}
 
 			$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csvHeader);
-			/** @var Iterator<array-key, CsvRecord> $records */
+			/** @var Iterator<int, array<string, ?string>> $records */
 			$records = $csv->getRecords($header);
+			$records = $this->requireColumns($records, array_values($headerMapping), $incompleteRow);
 			$records->rewind();
 			return $records;
 		} catch (CsvException $error) {
 			throw new InvalidInputException($invalidMessage, $invalidHint, previous: $error);
+		}
+	}
+
+	/**
+	 * Ensure every record has a value for all required columns.
+	 *
+	 * League CSV fills the fields missing in a row with null.
+	 *
+	 * @param Iterator<int, array<string, ?string>> $records Records keyed by their offset in the file, the header has offset 0
+	 * @param list<string> $columns The required columns
+	 * @param \Closure(int): InvalidInputException $incompleteRow
+	 * @return \Generator<int, CsvRecord>
+	 * @throws InvalidInputException If a record misses a required value
+	 */
+	private function requireColumns(Iterator $records, array $columns, \Closure $incompleteRow): \Generator {
+		foreach ($records as $offset => $record) {
+			foreach ($columns as $column) {
+				if (!isset($record[$column])) {
+					throw $incompleteRow($offset + 1);
+				}
+			}
+			/** @var CsvRecord $record */
+			yield $offset => $record;
 		}
 	}
 
