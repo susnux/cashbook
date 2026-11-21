@@ -8,7 +8,7 @@ import type { ICashbook } from '../models/Cashbook.ts'
 
 import { mdiClose } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
@@ -16,6 +16,7 @@ import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import { importSumupCashbook } from '../api/cashbooks.ts'
+import { useInputChange } from '../composables/useInputChange.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
 import { getBrowserTimezone, UTC_TIMEZONE } from '../utils/timezone.ts'
@@ -59,9 +60,9 @@ const timezonePickerId = 'cashbook-import-timezone'
 const error = ref('')
 const imported = ref<ICashbook>()
 
-watch([files, timezone], () => {
+const rememberInput = useInputChange([files, timezone], () => {
 	error.value = ''
-}, { deep: true })
+})
 
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
@@ -86,12 +87,15 @@ async function onImport() {
 	}
 
 	error.value = ''
+	const isRememberedInput = rememberInput()
 	try {
 		imported.value = await importSumupCashbook({ cashbook, report }, timezone.value)
 	} catch (e) {
 		logger.error('Failed to import cashbook', { error: e })
-		error.value = getOcsErrorMessage(e)
-			?? t('cashbook', 'Could not import the cashbook. Please make sure you selected the cashbook export (Kassenbuch_….csv) and optionally the matching daily closing report.')
+		if (isRememberedInput()) {
+			error.value = getOcsErrorMessage(e)
+				?? t('cashbook', 'Could not import the cashbook. Please make sure you selected the cashbook export (Kassenbuch_….csv) and optionally the matching daily closing report.')
+		}
 		return false
 	}
 }

@@ -97,13 +97,17 @@ test.describe('Reverse entry', () => {
 		await expect(cashbookApp.reverseEntryButton(2)).toBeVisible()
 	})
 
-	test('rejects a reversal exceeding the cash balance', async ({ cashbookApp }) => {
+	test('rejects a reversal exceeding the cash balance until the input is changed', async ({ cashbookApp }) => {
 		await cashbookApp.addEntry({ type: 'Expense', amount: '105', text: 'Bank deposit' })
 
-		await cashbookApp.openReverseEntryDialog(1)
+		const dialog = await cashbookApp.openReverseEntryDialog(1)
 		const response = await cashbookApp.submitReverseEntryDialog({ reason: 'Typo' })
 		expect(response.status()).toBe(400)
-		await expect(cashbookApp.reverseEntryDialog().getByText('The reversal exceeds the cash balance.')).toBeVisible()
+		const error = dialog.getByText('The reversal exceeds the cash balance.')
+		await expect(error).toBeVisible()
+
+		await dialog.getByRole('textbox', { name: 'Reason for the reversal' }).fill('Wrong amount')
+		await expect(error).toBeHidden()
 	})
 
 	test('reloads the cashbook if it was changed in the meantime', async ({ cashbookApp, page }) => {
@@ -114,7 +118,10 @@ test.describe('Reverse entry', () => {
 
 		const conflict = await cashbookApp.submitReverseEntryDialog({ reason: 'Wrong amount' })
 		expect(conflict.status()).toBe(409)
-		await expect(dialog.getByText('The cashbook was changed in the meantime.')).toBeVisible()
+		const warning = dialog.getByText('The cashbook was changed in the meantime.')
+		await expect(warning).toBeVisible()
+		await dialog.getByRole('textbox', { name: 'Receipt number' }).fill('R-1')
+		await expect(warning).toBeHidden()
 
 		const reversed = await cashbookApp.submitReverseEntryDialog({ reason: 'Wrong amount' })
 		expect(reversed.status()).toBe(200)

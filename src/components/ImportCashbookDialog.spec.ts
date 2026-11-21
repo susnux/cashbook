@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type * as Timezone from '../utils/timezone.ts'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, useId } from 'vue'
@@ -12,6 +14,10 @@ import ImportCashbookDialog from './ImportCashbookDialog.vue'
 
 const { importSumupCashbook } = vi.hoisted(() => ({ importSumupCashbook: vi.fn() }))
 vi.mock('../api/cashbooks.ts', () => ({ importSumupCashbook }))
+vi.mock('../utils/timezone.ts', async (importOriginal) => ({
+	...await importOriginal<typeof Timezone>(),
+	getBrowserTimezone: () => 'Europe/Berlin',
+}))
 
 const cashbookFile = new File(['cashbook'], 'Kassenbuch_2025.csv', { type: 'text/csv' })
 const reportFile = new File(['report'], 'Tagesabschluss_2025.csv', { type: 'text/csv' })
@@ -176,5 +182,25 @@ describe('ImportCashbookDialog', () => {
 		expect(document.body.textContent).toContain(message)
 		await wrapper.findComponent(NcTimezonePicker).vm.$emit('update:modelValue', 'UTC')
 		expect(document.body.textContent).not.toContain(message)
+	})
+
+	it('does not show the error of files that were changed during the import', async () => {
+		let rejectImport!: (error: unknown) => void
+		importSumupCashbook.mockReturnValue(new Promise((resolve, reject) => {
+			rejectImport = reject
+		}))
+		const wrapper = await mountDialog()
+
+		await pickFile(wrapper, 0, reportFile)
+		await clickButton('Import cashbook')
+		await pickFile(wrapper, 0, cashbookFile)
+		rejectImport(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'The selected cashbook export is not a valid SumUp cashbook export.' } } } },
+		}))
+		await flushPromises()
+
+		expect(document.body.textContent).not.toContain('The selected cashbook export is not a valid SumUp cashbook export.')
+		expect(wrapper.emitted('close')).toBeUndefined()
 	})
 })

@@ -107,6 +107,25 @@ describe('NewCashbookDialog', () => {
 		expect(document.body.textContent).not.toContain('Unknown currency.')
 	})
 
+	it('does not show the error of an input that was changed while saving', async () => {
+		let rejectCreate!: (error: unknown) => void
+		createCashbook.mockReturnValue(new Promise((resolve, reject) => {
+			rejectCreate = reject
+		}))
+		const wrapper = await mountFilledDialog()
+
+		await clickButton('Create cashbook')
+		await wrapper.findComponent(NcSelect).vm.$emit('update:modelValue', { value: 'EUR', label: 'Euro (EUR)' })
+		rejectCreate(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'Unknown currency.' } } } },
+		}))
+		await flushPromises()
+
+		expect(document.body.textContent).not.toContain('Unknown currency.')
+		expect(wrapper.emitted('close')).toBeUndefined()
+	})
+
 	it('shows the canonical timezone of an existing cashbook with the ID of the browser', async () => {
 		const cashbook = { id: '1', name: 'Shop', account: '', currency: 'INR', owner: 'alice', timezone: 'Asia/Kolkata', lastSequence: 0, balance: '0.00' }
 		const wrapper = mount(NewCashbookDialog, { attachTo: document.body, props: { cashbook } })

@@ -226,4 +226,37 @@ describe('NewEntryDialog', () => {
 		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '50')
 		expect(document.body.textContent).not.toContain('The expense exceeds the cash balance.')
 	})
+
+	it('does not show the error of an input that was changed while adding', async () => {
+		let rejectAdd!: (error: unknown) => void
+		addEntry.mockReturnValue(new Promise((resolve, reject) => {
+			rejectAdd = reject
+		}))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '500')
+		await clickButton('Add entry')
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '50')
+		rejectAdd(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'The expense exceeds the cash balance.' } } } },
+		}))
+		await flushPromises()
+
+		expect(document.body.textContent).not.toContain('The expense exceeds the cash balance.')
+		expect(wrapper.emitted('close')).toBeUndefined()
+	})
+
+	it('clears the conflict warning when the input is changed', async () => {
+		addEntry.mockRejectedValue(new CashbookConflictError({ ...cashbook, lastSequence: 3, balance: '90.00' }))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '5')
+		await clickButton('Add entry')
+		expect(document.body.textContent).toContain('The cashbook was changed in the meantime.')
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '4')
+		expect(document.body.textContent).not.toContain('The cashbook was changed in the meantime.')
+		expect(document.body.textContent).toContain('Cash balance: €90.00')
+	})
 })

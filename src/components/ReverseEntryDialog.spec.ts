@@ -246,4 +246,36 @@ describe('ReverseEntryDialog', () => {
 		await textField(wrapper, 'Receipt number').vm.$emit('update:modelValue', 'R-1')
 		expect(document.body.textContent).not.toContain('Could not reverse the entry.')
 	})
+
+	it('does not show the error of an input that was changed while reversing', async () => {
+		let rejectReverse!: (error: unknown) => void
+		reverseEntry.mockReturnValue(new Promise((resolve, reject) => {
+			rejectReverse = reject
+		}))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Reason for the reversal').vm.$emit('update:modelValue', 'Typo')
+		await clickButton('Reverse entry')
+		await textField(wrapper, 'Receipt number').vm.$emit('update:modelValue', 'R-1')
+		rejectReverse(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'Could not reverse the entry.' } } } },
+		}))
+		await flushPromises()
+
+		expect(document.body.textContent).not.toContain('Could not reverse the entry.')
+		expect(wrapper.emitted('close')).toBeUndefined()
+	})
+
+	it('clears the conflict warning when the input is changed', async () => {
+		reverseEntry.mockRejectedValue(new CashbookConflictError({ ...cashbook, lastSequence: 3, balance: '90.00' }))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Reason for the reversal').vm.$emit('update:modelValue', 'Typo')
+		await clickButton('Reverse entry')
+		expect(document.body.textContent).toContain('The cashbook was changed in the meantime.')
+
+		await textField(wrapper, 'Reason for the reversal').vm.$emit('update:modelValue', 'Wrong amount')
+		expect(document.body.textContent).not.toContain('The cashbook was changed in the meantime.')
+	})
 })
