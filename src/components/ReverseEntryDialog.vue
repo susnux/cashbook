@@ -14,6 +14,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { CashbookConflictError, reverseEntry } from '../api/cashbooks.ts'
+import { useInputChange } from '../composables/useInputChange.ts'
 import { EntryReasonReadable, ExpenseReasons } from '../models/CashbookEntry.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import { formatCurrency, formatTaxRate } from '../utils/formatter.ts'
@@ -55,6 +56,11 @@ const error = ref('')
 const conflict = ref(false)
 const loading = ref(false)
 
+const rememberInput = useInputChange([text, reference], () => {
+	error.value = ''
+	conflict.value = false
+})
+
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'tertiary',
@@ -92,6 +98,7 @@ async function onReverse() {
 	error.value = ''
 	conflict.value = false
 	loading.value = true
+	const isRememberedInput = rememberInput()
 	try {
 		saved.value = await reverseEntry(currentCashbook.value, props.entry, {
 			text: text.value,
@@ -106,7 +113,9 @@ async function onReverse() {
 			return false
 		}
 		logger.error('Failed to reverse cashbook entry', { error: e })
-		error.value = getOcsErrorMessage(e) ?? t('cashbook', 'Could not reverse the entry.')
+		if (isRememberedInput()) {
+			error.value = getOcsErrorMessage(e) ?? t('cashbook', 'Could not reverse the entry.')
+		}
 		return false
 	} finally {
 		loading.value = false

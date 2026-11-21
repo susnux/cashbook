@@ -61,13 +61,17 @@ test.describe('Import cashbook', () => {
 		await expect(importButton).toBeEnabled()
 	})
 
-	test('keeps the dialog open if the files are swapped', async ({ cashbookApp }) => {
+	test('keeps the dialog open if the files are swapped and clears the error on a new selection', async ({ cashbookApp }) => {
 		const response = await cashbookApp.importCashbook({ cashbook: DAILY_CLOSING_REPORT, report: CASHBOOK_EXPORT })
 
 		expect(response.status()).toBe(400)
 		const dialog = cashbookApp.importCashbookDialog()
+		const error = dialog.getByText('The selected cashbook export is not a valid SumUp cashbook export.')
 		await expect(dialog).toBeVisible()
-		await expect(dialog.getByText('The selected cashbook export is not a valid SumUp cashbook export.')).toBeVisible()
+		await expect(error).toBeVisible()
 		await expect(cashbookApp.cashbookList().getByRole('listitem')).toHaveCount(0)
+
+		await cashbookApp.selectImportFile('Select cashbook export', CASHBOOK_EXPORT)
+		await expect(error).toBeHidden()
 	})
 })

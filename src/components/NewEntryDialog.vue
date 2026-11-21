@@ -17,6 +17,7 @@ import NcRadioGroupButton from '@nextcloud/vue/components/NcRadioGroupButton'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { addEntry, CashbookConflictError } from '../api/cashbooks.ts'
+import { useInputChange } from '../composables/useInputChange.ts'
 import { EntryReason, EntryReasonReadable, ExpenseReasons, IncomeReasons } from '../models/CashbookEntry.ts'
 import { getCurrencyStep } from '../utils/currencies.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
@@ -77,6 +78,11 @@ const error = ref('')
 const conflict = ref(false)
 const loading = ref(false)
 
+const rememberInput = useInputChange([type, reason, amount, taxPercent, text, reference, receiptDate], () => {
+	error.value = ''
+	conflict.value = false
+})
+
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'tertiary',
@@ -105,6 +111,7 @@ async function onAddEntry() {
 	error.value = ''
 	conflict.value = false
 	loading.value = true
+	const isRememberedInput = rememberInput()
 	try {
 		saved.value = await addEntry(currentCashbook.value, {
 			reason: reason.value,
@@ -123,7 +130,9 @@ async function onAddEntry() {
 			return false
 		}
 		logger.error('Failed to add cashbook entry', { error: e })
-		error.value = getOcsErrorMessage(e) ?? t('cashbook', 'Could not add the entry.')
+		if (isRememberedInput()) {
+			error.value = getOcsErrorMessage(e) ?? t('cashbook', 'Could not add the entry.')
+		}
 		return false
 	} finally {
 		loading.value = false

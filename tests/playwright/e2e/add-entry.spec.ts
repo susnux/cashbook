@@ -94,12 +94,16 @@ test.describe('Add entry', () => {
 		await expect(cashbookApp.entryRow('Late purchase').getByRole('cell').first()).toHaveText('3')
 	})
 
-	test('rejects an expense exceeding the cash balance', async ({ cashbookApp }) => {
+	test('rejects an expense exceeding the cash balance until the amount is changed', async ({ cashbookApp }) => {
 		const dialog = await cashbookApp.fillNewEntryDialog({ type: 'Expense', amount: '5', text: 'Too much' })
 		const response = await cashbookApp.submitNewEntryDialog()
 		expect(response.status()).toBe(400)
 
-		await expect(dialog.getByText('The expense exceeds the cash balance.')).toBeVisible()
+		const error = dialog.getByText('The expense exceeds the cash balance.')
+		await expect(error).toBeVisible()
+		await dialog.getByRole('spinbutton', { name: /^Amount/ }).fill('4')
+		await expect(error).toBeHidden()
+
 		await dialog.getByRole('button', { name: 'Cancel' }).click()
 		await expect(dialog).toBeHidden()
 		await expect(cashbookApp.emptyContent('No entries')).toBeVisible()

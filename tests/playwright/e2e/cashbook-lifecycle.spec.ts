@@ -36,7 +36,7 @@ test.describe('Cashbook lifecycle', () => {
 		await expect(cashbookApp.emptyContent('No cashbook selected')).toBeVisible()
 	})
 
-	test('keeps the dialog open when creating the cashbook fails', async ({ cashbookApp, page }) => {
+	test('keeps the dialog open when creating the cashbook fails until the input is changed', async ({ cashbookApp, page }) => {
 		await page.route('**/apps/cashbook/api/v1/cashbooks', (route) => route.request().method() === 'POST'
 			? route.fulfill({
 					status: 400,
@@ -47,9 +47,14 @@ test.describe('Cashbook lifecycle', () => {
 
 		await cashbookApp.createCashbook({ name: 'Broken' })
 
-		await expect(cashbookApp.newCashbookDialog()).toBeVisible()
-		await expect(cashbookApp.newCashbookDialog().getByText('Invalid currency')).toBeVisible()
+		const dialog = cashbookApp.newCashbookDialog()
+		const error = dialog.getByText('Invalid currency')
+		await expect(dialog).toBeVisible()
+		await expect(error).toBeVisible()
 		await expect(cashbookApp.cashbookNavigationItem('Broken')).toHaveCount(0)
+
+		await dialog.getByRole('textbox', { name: 'Cashbook name' }).fill('Fixed')
+		await expect(error).toBeHidden()
 	})
 
 	test('shows not found for an unknown cashbook', async ({ cashbookApp, page }) => {

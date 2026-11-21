@@ -15,6 +15,7 @@ import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import { createCashbook, updateCashbook } from '../api/cashbooks.ts'
+import { useInputChange } from '../composables/useInputChange.ts'
 import { getCurrencyOptions } from '../utils/currencies.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
@@ -60,6 +61,10 @@ const saved = ref<ICashbook>()
 const error = ref('')
 const loading = ref(false)
 
+const rememberInput = useInputChange(newCashbook, () => {
+	error.value = ''
+})
+
 const isEditing = computed(() => props.cashbook !== undefined)
 
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
@@ -82,15 +87,18 @@ const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 async function onSaveCashbook() {
 	error.value = ''
 	loading.value = true
+	const isRememberedInput = rememberInput()
 	try {
 		saved.value = props.cashbook
 			? await updateCashbook(props.cashbook.id, newCashbook.value)
 			: await createCashbook(newCashbook.value)
 	} catch (e) {
 		logger.error('Failed to save cashbook', { error: e })
-		error.value = getOcsErrorMessage(e) ?? (isEditing.value
-			? t('cashbook', 'Could not save the cashbook.')
-			: t('cashbook', 'Could not create the cashbook.'))
+		if (isRememberedInput()) {
+			error.value = getOcsErrorMessage(e) ?? (isEditing.value
+				? t('cashbook', 'Could not save the cashbook.')
+				: t('cashbook', 'Could not create the cashbook.'))
+		}
 		return false
 	} finally {
 		loading.value = false

@@ -3,14 +3,21 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import type * as Timezone from '../utils/timezone.ts'
+
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, useId } from 'vue'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
+import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import ImportCashbookDialog from './ImportCashbookDialog.vue'
 
 const { importSumupCashbook } = vi.hoisted(() => ({ importSumupCashbook: vi.fn() }))
 vi.mock('../api/cashbooks.ts', () => ({ importSumupCashbook }))
+vi.mock('../utils/timezone.ts', async (importOriginal) => ({
+	...await importOriginal<typeof Timezone>(),
+	getBrowserTimezone: () => 'Europe/Berlin',
+}))
 
 const cashbookFile = new File(['cashbook'], 'Kassenbuch_2025.csv', { type: 'text/csv' })
 const reportFile = new File(['report'], 'Tagesabschluss_2025.csv', { type: 'text/csv' })
@@ -148,6 +155,52 @@ describe('ImportCashbookDialog', () => {
 		await clickButton('Import cashbook')
 
 		expect(document.body.textContent).toContain('The selected cashbook export is not a valid SumUp cashbook export.')
+		expect(wrapper.emitted('close')).toBeUndefined()
+	})
+
+	it('clears the error when the files or the timezone are changed', async () => {
+		const message = 'The selected cashbook export is not a valid SumUp cashbook export.'
+		importSumupCashbook.mockRejectedValue(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message } } } },
+		}))
+		const wrapper = await mountDialog()
+
+		await pickFile(wrapper, 0, reportFile)
+		await pickFile(wrapper, 1, reportFile)
+		await clickButton('Import cashbook')
+		expect(document.body.textContent).toContain(message)
+		await pickFile(wrapper, 0, cashbookFile)
+		expect(document.body.textContent).not.toContain(message)
+
+		await clickButton('Import cashbook')
+		expect(document.body.textContent).toContain(message)
+		await clickButton('Remove daily closing report')
+		expect(document.body.textContent).not.toContain(message)
+
+		await clickButton('Import cashbook')
+		expect(document.body.textContent).toContain(message)
+		await wrapper.findComponent(NcTimezonePicker).vm.$emit('update:modelValue', 'UTC')
+		expect(document.body.textContent).not.toContain(message)
+	})
+
+	it('does not show the error of files that were changed during the import', async () => {
+		let rejectImport!: (error: unknown) => void
+		importSumupCashbook.mockReturnValue(new Promise((resolve, reject) => {
+			rejectImport = reject
+		}))
+		const wrapper = await mountDialog()
+
+		await pickFile(wrapper, 0, reportFile)
+		await clickButton('Import cashbook')
+		await pickFile(wrapper, 0, cashbookFile)
+		rejectImport(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'The selected cashbook export is not a valid SumUp cashbook export.' } } } },
+		}))
+		await flushPromises()
+
+		expect(document.body.textContent).not.toContain('The selected cashbook export is not a valid SumUp cashbook export.')
 		expect(wrapper.emitted('close')).toBeUndefined()
 	})
 })
