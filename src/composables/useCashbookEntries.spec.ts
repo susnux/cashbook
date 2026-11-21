@@ -50,22 +50,24 @@ describe('useCashbookEntries', () => {
 
 	it('provides the entries of the days within the period in the timezone of the cashbook', async () => {
 		// a day opened on January 31st and closed on February 1st in Berlin
-		const opening = { id: '1', date: new Date('2025-01-31T19:00:00Z') }
-		const january = { id: '2', date: new Date('2025-01-31T22:30:00Z') }
-		const february = { id: '3', date: new Date('2025-01-31T23:30:00Z') }
-		const closing = { id: '4', date: new Date('2025-02-01T01:00:00Z') }
+		const opening = { id: '1', date: new Date('2025-01-31T19:00:00Z'), balance: '100.00' }
+		const january = { id: '2', date: new Date('2025-01-31T22:30:00Z'), balance: '120.00' }
+		const february = { id: '3', date: new Date('2025-01-31T23:30:00Z'), balance: '115.00' }
+		const closing = { id: '4', date: new Date('2025-02-01T01:00:00Z'), balance: '115.00' }
 		fetchEntriesByDate.mockResolvedValue([opening, january, february, closing])
 		const period = ref(getPeriod('month', '2025-02-01'))
 
 		const scope = effectScope()
-		const { entries, periodEntries } = scope.run(() => useCashbookEntries(cashbookA, period))!
+		const { entries, periodEntries, balanceBeforePeriod } = scope.run(() => useCashbookEntries(cashbookA, period))!
 		await flushPromises()
 		expect(entries.value).toEqual([opening, january, february, closing])
 		expect(periodEntries.value).toEqual([february, closing])
+		expect(balanceBeforePeriod.value).toBe('120.00')
 
 		period.value = getPeriod('month', '2025-01-01')
 		await flushPromises()
 		expect(periodEntries.value).toEqual([opening, january])
+		expect(balanceBeforePeriod.value).toBeUndefined()
 		scope.stop()
 	})
 

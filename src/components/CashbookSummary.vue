@@ -15,10 +15,17 @@ import { calculateTotals } from '../utils/totals.ts'
 const props = defineProps<{
 	cashbook: ICashbook
 	entries: ICashbookEntry[]
+	/** The balance before the entries, shown as opening and closing balance if there are no entries */
+	balance?: string
 }>()
 
 const headingId = useId()
-const totals = computed(() => calculateTotals(props.entries))
+const totals = computed(() => {
+	const totals = calculateTotals(props.entries)
+	return totals.openingBalance === null && props.balance !== undefined
+		? { ...totals, openingBalance: props.balance, closingBalance: props.balance }
+		: totals
+})
 
 /**
  * Format an optional amount in the currency of the cashbook

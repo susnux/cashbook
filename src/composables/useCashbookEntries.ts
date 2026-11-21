@@ -20,7 +20,8 @@ import { getDay } from '../utils/timezone.ts'
  * Load the entries of a cashbook within a period.
  *
  * If the period starts or ends within an open day, `entries` contains the whole day,
- * while `periodEntries` only contains the entries of the days within the period.
+ * while `periodEntries` only contains the entries of the days within the period
+ * and `balanceBeforePeriod` is the balance after the last loaded entry before the period.
  * The entries are loaded again when the cashbook gets new entries (its `lastSequence` changes).
  * Changing the cashbook or period aborts pending requests, so only entries of the current selection are shown.
  *
@@ -39,6 +40,12 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 		const timezone = toValue(cashbook)?.timezone
 		const currentPeriod = toValue(period)
 		return entries.value.filter((entry) => isInPeriod(getDay(entry.date, timezone), currentPeriod))
+	})
+
+	const balanceBeforePeriod = computed(() => {
+		const timezone = toValue(cashbook)?.timezone
+		const { begin } = toValue(period)
+		return entries.value.findLast((entry) => getDay(entry.date, timezone) < begin)?.balance
 	})
 
 	watch(
@@ -92,6 +99,7 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 	return {
 		entries,
 		periodEntries,
+		balanceBeforePeriod,
 		loading,
 		failed,
 		errorMessage,

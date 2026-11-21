@@ -43,7 +43,7 @@ const period = computed<Period>({
 	set: (value) => router.replace({ query: { ...route.query, ...periodToQuery(value) } }),
 })
 
-const { entries, periodEntries, loading, failed, errorMessage, reload } = useCashbookEntries(cashbook, period)
+const { entries, periodEntries, balanceBeforePeriod, loading, failed, errorMessage, reload } = useCashbookEntries(cashbook, period)
 
 /** The timezone is always printed, in the app it is only shown if it differs from the timezone of the browser */
 const showTimezone = computed(() => props.isExport
@@ -231,7 +231,7 @@ watchEffect(() => {
 				:entries
 				:readonly="isExport"
 				@reverse="onReverseEntry" />
-			<CashbookSummary :cashbook :entries="periodEntries" />
+			<CashbookSummary :cashbook :entries="periodEntries" :balance="balanceBeforePeriod" />
 		</template>
 	</div>
 </template>
