@@ -24,7 +24,7 @@ import PeriodSelector from '../components/PeriodSelector.vue'
 import ReverseEntryDialog from '../components/ReverseEntryDialog.vue'
 import { useCashbookEntries } from '../composables/useCashbookEntries.ts'
 import { useCashbookStore } from '../store/cashbookStore.ts'
-import { getPeriod, periodFromQuery, periodToQuery } from '../utils/period.ts'
+import { getPeriod, isInPeriod, periodFromQuery, periodToQuery } from '../utils/period.ts'
 import { getDay, getToday, toBrowserTimezoneId } from '../utils/timezone.ts'
 
 const props = defineProps<{
@@ -43,7 +43,7 @@ const period = computed<Period>({
 	set: (value) => router.replace({ query: { ...route.query, ...periodToQuery(value) } }),
 })
 
-const { entries, loading, failed, errorMessage, reload } = useCashbookEntries(cashbook, period)
+const { entries, periodEntries, balanceBeforePeriod, loading, failed, errorMessage, reload } = useCashbookEntries(cashbook, period)
 
 /** The timezone is always printed, in the app it is only shown if it differs from the timezone of the browser */
 const showTimezone = computed(() => props.isExport
@@ -94,7 +94,7 @@ async function onReverseEntry(entry: ICashbookEntry) {
 function showAddedEntry(entry: ICashbookEntry) {
 	store.updateCashbook({ ...cashbook.value!, lastSequence: entry.sequence, balance: entry.balance })
 	const day = getDay(entry.date, cashbook.value!.timezone)
-	if (day < period.value.begin || day >= period.value.end) {
+	if (!isInPeriod(day, period.value)) {
 		period.value = getPeriod(period.value.type, day)
 	}
 }
@@ -231,7 +231,7 @@ watchEffect(() => {
 				:entries
 				:readonly="isExport"
 				@reverse="onReverseEntry" />
-			<CashbookSummary :cashbook :entries />
+			<CashbookSummary :cashbook :entries="periodEntries" :balance="balanceBeforePeriod" />
 		</template>
 	</div>
 </template>

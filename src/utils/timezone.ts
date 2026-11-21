@@ -31,6 +31,32 @@ export function toBrowserTimezoneId(timezone: string): string {
 	return new Intl.DateTimeFormat('en-US', { timeZone: timezone }).resolvedOptions().timeZone
 }
 
+const dayFormatters = new Map<string, Intl.DateTimeFormat>()
+
+/**
+ * Get the formatter for calendar days in a timezone.
+ * Only formatters of explicit timezones are cached, as the timezone of the browser can change.
+ *
+ * @param timeZone - The IANA timezone ID, the timezone of the browser if not set
+ */
+function getDayFormatter(timeZone?: string): Intl.DateTimeFormat {
+	let formatter = timeZone === undefined ? undefined : dayFormatters.get(timeZone)
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat('en-US', {
+			timeZone,
+			calendar: 'gregory',
+			numberingSystem: 'latn',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+		})
+		if (timeZone !== undefined) {
+			dayFormatters.set(timeZone, formatter)
+		}
+	}
+	return formatter
+}
+
 /**
  * Get the calendar day of a date in a timezone
  *
@@ -39,14 +65,7 @@ export function toBrowserTimezoneId(timezone: string): string {
  * @return The day as `YYYY-MM-DD`
  */
 export function getDay(date: Date, timeZone?: string): string {
-	const parts = new Intl.DateTimeFormat('en-US', {
-		timeZone,
-		calendar: 'gregory',
-		numberingSystem: 'latn',
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-	}).formatToParts(date)
+	const parts = getDayFormatter(timeZone).formatToParts(date)
 	const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((entry) => entry.type === type)!.value
 	return `${part('year').padStart(4, '0')}-${part('month')}-${part('day')}`
 }

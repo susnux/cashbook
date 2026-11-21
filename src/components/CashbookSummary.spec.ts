@@ -33,6 +33,18 @@ describe('CashbookSummary', () => {
 		})
 	})
 
+	it('shows the balance before the period without entries', () => {
+		const wrapper = mount(CashbookSummary, { props: { cashbook, entries: [], balance: '135.00' } })
+
+		expect(wrapper.findAll('dd').map((item) => item.text())).toEqual(['€135.00', '€0.00', '€0.00', '€135.00'])
+	})
+
+	it('ignores the balance before the period with entries', () => {
+		const wrapper = mount(CashbookSummary, { props: { cashbook, entries, balance: '50.00' } })
+
+		expect(wrapper.findAll('dd').map((item) => item.text())).toEqual(['€100.00', '€40.00', '€5.00', '€135.00'])
+	})
+
 	it('shows the taxes per rate', () => {
 		const wrapper = mount(CashbookSummary, { props: { cashbook, entries } })
 

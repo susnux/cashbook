@@ -84,6 +84,16 @@ export function getPeriod(type: PeriodType, day: string): Period {
 }
 
 /**
+ * Check if a day is within a period
+ *
+ * @param day - The day (`YYYY-MM-DD`)
+ * @param period - The period
+ */
+export function isInPeriod(day: string, period: Period): boolean {
+	return day >= period.begin && day < period.end
+}
+
+/**
  * Get the previous or next period of the same type
  *
  * Custom periods are moved by their length.

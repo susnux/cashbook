@@ -11,18 +11,24 @@ import { join } from 'node:path'
 export const SUMUP_FIXTURES = join(import.meta.dirname, '..', '..', '..', 'fixtures', 'sumup')
 
 /**
- * Import the SumUp fixture with day reports (`Kassenbuch_report.csv` and `Tagesabschluss_report.csv`)
- * as a new cashbook of the user the request context is authenticated as.
+ * Import a SumUp fixture with day reports as a new cashbook of the user the request context is authenticated as.
  *
  * @param request - The request context of the user
  * @param timezone - The timezone of the dates in the fixture
+ * @param files - The file names of the cashbook export and the daily closing report
+ * @param files.cashbook - The cashbook export, `Kassenbuch_report.csv` by default
+ * @param files.report - The daily closing report, `Tagesabschluss_report.csv` by default
  * @return The id of the imported cashbook
  */
-export async function importReportFixture(request: APIRequestContext, timezone: string): Promise<string> {
+export async function importReportFixture(
+	request: APIRequestContext,
+	timezone: string,
+	{ cashbook = 'Kassenbuch_report.csv', report = 'Tagesabschluss_report.csv' }: { cashbook?: string, report?: string } = {},
+): Promise<string> {
 	const form = new FormData()
 	form.append('import', 'sumup-pos-pro-de')
 	form.append('timezone', timezone)
-	for (const [field, name] of Object.entries({ cashbook: 'Kassenbuch_report.csv', report: 'Tagesabschluss_report.csv' })) {
+	for (const [field, name] of Object.entries({ cashbook, report })) {
 		form.append(`files[${field}]`, new Blob([await readFile(join(SUMUP_FIXTURES, name))], { type: 'text/csv' }), name)
 	}
 
