@@ -8,7 +8,7 @@ import type { ICashbook } from '../models/Cashbook.ts'
 
 import { mdiClose } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
@@ -58,6 +58,10 @@ const timezone = ref(getBrowserTimezone())
 const timezonePickerId = 'cashbook-import-timezone'
 const error = ref('')
 const imported = ref<ICashbook>()
+
+watch([files, timezone], () => {
+	error.value = ''
+}, { deep: true })
 
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{

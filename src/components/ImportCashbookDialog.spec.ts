@@ -7,6 +7,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, useId } from 'vue'
 import NcFilePicker from '@nextcloud/vue/components/NcFilePicker'
+import NcTimezonePicker from '@nextcloud/vue/components/NcTimezonePicker'
 import ImportCashbookDialog from './ImportCashbookDialog.vue'
 
 const { importSumupCashbook } = vi.hoisted(() => ({ importSumupCashbook: vi.fn() }))
@@ -149,5 +150,31 @@ describe('ImportCashbookDialog', () => {
 
 		expect(document.body.textContent).toContain('The selected cashbook export is not a valid SumUp cashbook export.')
 		expect(wrapper.emitted('close')).toBeUndefined()
+	})
+
+	it('clears the error when the files or the timezone are changed', async () => {
+		const message = 'The selected cashbook export is not a valid SumUp cashbook export.'
+		importSumupCashbook.mockRejectedValue(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message } } } },
+		}))
+		const wrapper = await mountDialog()
+
+		await pickFile(wrapper, 0, reportFile)
+		await pickFile(wrapper, 1, reportFile)
+		await clickButton('Import cashbook')
+		expect(document.body.textContent).toContain(message)
+		await pickFile(wrapper, 0, cashbookFile)
+		expect(document.body.textContent).not.toContain(message)
+
+		await clickButton('Import cashbook')
+		expect(document.body.textContent).toContain(message)
+		await clickButton('Remove daily closing report')
+		expect(document.body.textContent).not.toContain(message)
+
+		await clickButton('Import cashbook')
+		expect(document.body.textContent).toContain(message)
+		await wrapper.findComponent(NcTimezonePicker).vm.$emit('update:modelValue', 'UTC')
+		expect(document.body.textContent).not.toContain(message)
 	})
 })

@@ -9,7 +9,7 @@ import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 
 import { t } from '@nextcloud/l10n'
 import { useFormatTime } from '@nextcloud/vue/composables/useFormatDateTime'
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
@@ -54,6 +54,10 @@ const saved = ref<ICashbookEntry>()
 const error = ref('')
 const conflict = ref(false)
 const loading = ref(false)
+
+watch([text, reference], () => {
+	error.value = ''
+})
 
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{

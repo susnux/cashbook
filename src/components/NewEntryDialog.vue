@@ -77,6 +77,10 @@ const error = ref('')
 const conflict = ref(false)
 const loading = ref(false)
 
+watch([type, reason, amount, taxPercent, text, reference, receiptDate], () => {
+	error.value = ''
+})
+
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [
 	{
 		variant: 'tertiary',

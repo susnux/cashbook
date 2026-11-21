@@ -60,6 +60,10 @@ const saved = ref<ICashbook>()
 const error = ref('')
 const loading = ref(false)
 
+watch(newCashbook, () => {
+	error.value = ''
+}, { deep: true })
+
 const isEditing = computed(() => props.cashbook !== undefined)
 
 const buttons = computed<InstanceType<typeof NcDialog>['buttons']>(() => [

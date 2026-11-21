@@ -211,4 +211,19 @@ describe('NewEntryDialog', () => {
 		expect(document.body.textContent).toContain('The expense exceeds the cash balance.')
 		expect(wrapper.emitted('close')).toBeUndefined()
 	})
+
+	it('clears the error when the input is changed', async () => {
+		addEntry.mockRejectedValue(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'The expense exceeds the cash balance.' } } } },
+		}))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '500')
+		await clickButton('Add entry')
+		expect(document.body.textContent).toContain('The expense exceeds the cash balance.')
+
+		await textField(wrapper, 'Amount (EUR)').vm.$emit('update:modelValue', '50')
+		expect(document.body.textContent).not.toContain('The expense exceeds the cash balance.')
+	})
 })

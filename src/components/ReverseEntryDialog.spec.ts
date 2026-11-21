@@ -231,4 +231,19 @@ describe('ReverseEntryDialog', () => {
 		expect(document.body.textContent).toContain('This entry was already reversed.')
 		expect(wrapper.emitted('close')).toBeUndefined()
 	})
+
+	it('clears the error when the input is changed', async () => {
+		reverseEntry.mockRejectedValue(Object.assign(new Error('failed'), {
+			isAxiosError: true,
+			response: { data: { ocs: { meta: { message: 'Could not reverse the entry.' } } } },
+		}))
+		const wrapper = await mountDialog()
+
+		await textField(wrapper, 'Reason for the reversal').vm.$emit('update:modelValue', 'Typo')
+		await clickButton('Reverse entry')
+		expect(document.body.textContent).toContain('Could not reverse the entry.')
+
+		await textField(wrapper, 'Receipt number').vm.$emit('update:modelValue', 'R-1')
+		expect(document.body.textContent).not.toContain('Could not reverse the entry.')
+	})
 })
