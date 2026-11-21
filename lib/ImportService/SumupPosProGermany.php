@@ -271,7 +271,7 @@ final class SumupPosProGermany implements IImportService {
 	 * Every entry is checked against the balance of the previous entry, the balance before the first entry is not known.
 	 *
 	 * @param ?\DateTimeImmutable $limit Stop before the first entry at or after this date (null to import all remaining entries)
-	 * @throws InvalidInputException If the balance of an entry does not match or is negative
+	 * @throws InvalidInputException If the currency of an entry differs from the cashbook or its balance does not match or is negative
 	 */
 	protected function iterateCashbook(?\DateTimeImmutable $limit = null): void {
 		while ($this->cashbookIterator->valid()) {
@@ -280,6 +280,13 @@ final class SumupPosProGermany implements IImportService {
 
 			if (($limit !== null && $datetime >= $limit)) {
 				break;
+			}
+
+			if ($record['currency'] !== $this->cashbook->getCurrency()) {
+				throw new InvalidInputException(
+					sprintf('The entry of %s uses a different currency than the other entries.', $record['datetime']),
+					$this->l10n->t('The entry of %s uses a different currency than the other entries.', [$record['datetime']]),
+				);
 			}
 
 			$amount = $this->parseRecordAmount($record);

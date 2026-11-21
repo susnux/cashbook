@@ -342,7 +342,9 @@ final class SumupPosProGermanyTest extends TestCase {
 			'empty date' => ['Kassenbuch_empty_date.csv', null, 'Row 3 of the cashbook export is incomplete.'],
 			'empty report balance' => ['Kassenbuch_report.csv', 'Tagesabschluss_empty_balance.csv', 'Row 3 of the daily closing report is incomplete.'],
 			'too many fields' => ['Kassenbuch_extra_field.csv', null, 'Row 3 of the cashbook export has too many columns.'],
-			'too many report fields' => ['Kassenbuch_report.csv', 'Tagesabschluss_extra_field.csv', 'Row 3 of the daily closing report has too many columns.'],		];
+			'too many report fields' => ['Kassenbuch_report.csv', 'Tagesabschluss_extra_field.csv', 'Row 3 of the daily closing report has too many columns.'],
+			'other currency' => ['Kassenbuch_other_currency.csv', null, 'The entry of 02.01.2025 11:00:00 uses a different currency than the other entries.'],
+		];
 	}
 
 	#[DataProvider('dataInvalidImport')]
