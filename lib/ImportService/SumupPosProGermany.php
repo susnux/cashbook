@@ -78,6 +78,9 @@ final class SumupPosProGermany implements IImportService {
 		'Kassenbestand' => 'total',
 	];
 
+	/** Columns of the cashbook export which must not be empty in any row */
+	protected const array CSV_VALUE_COLUMNS = ['datetime', 'currency', 'total'];
+
 	/** Columns of the daily closing report read by the importer, all of them are required */
 	protected const array CSV_REPORT_HEADER_MAPPING = [
 		'Eröffnungsdatum' => 'opening',
@@ -86,6 +89,9 @@ final class SumupPosProGermany implements IImportService {
 		'Anfangskasse' => 'balanceStart',
 		'Kassen Endbestand' => 'balanceEnd',
 	];
+
+	/** Columns of the daily closing report which must not be empty in any row */
+	protected const array CSV_REPORT_VALUE_COLUMNS = ['opening', 'closing', 'balanceStart', 'balanceEnd'];
 
 	public function __construct(
 		protected ?string $userId,
@@ -120,20 +126,32 @@ final class SumupPosProGermany implements IImportService {
 			self::CSV_HEADER_MAPPING,
 			'The selected cashbook export is not a valid SumUp cashbook export.',
 			$this->l10n->t('The selected cashbook export is not a valid SumUp cashbook export.'),
-			fn (int $row): InvalidInputException => new InvalidInputException(
-				sprintf('Row %d of the cashbook export is incomplete.', $row),
-				$this->l10n->t('Row %s of the cashbook export is incomplete.', [$row]),
-			),
+			self::CSV_VALUE_COLUMNS,
+			fn (int $row, bool $tooManyFields): InvalidInputException => $tooManyFields
+				? new InvalidInputException(
+					sprintf('Row %d of the cashbook export has too many columns.', $row),
+					$this->l10n->t('Row %s of the cashbook export has too many columns.', [$row]),
+				)
+				: new InvalidInputException(
+					sprintf('Row %d of the cashbook export is incomplete.', $row),
+					$this->l10n->t('Row %s of the cashbook export is incomplete.', [$row]),
+				),
 		);
 		$this->reportIterator = !isset($files[self::FILE_REPORT]) ? null : $this->readCsv(
 			$files[self::FILE_REPORT],
 			self::CSV_REPORT_HEADER_MAPPING,
 			'The selected daily closing report is not a valid SumUp daily closing report.',
 			$this->l10n->t('The selected daily closing report is not a valid SumUp daily closing report.'),
-			fn (int $row): InvalidInputException => new InvalidInputException(
-				sprintf('Row %d of the daily closing report is incomplete.', $row),
-				$this->l10n->t('Row %s of the daily closing report is incomplete.', [$row]),
-			),
+			self::CSV_REPORT_VALUE_COLUMNS,
+			fn (int $row, bool $tooManyFields): InvalidInputException => $tooManyFields
+				? new InvalidInputException(
+					sprintf('Row %d of the daily closing report has too many columns.', $row),
+					$this->l10n->t('Row %s of the daily closing report has too many columns.', [$row]),
+				)
+				: new InvalidInputException(
+					sprintf('Row %d of the daily closing report is incomplete.', $row),
+					$this->l10n->t('Row %s of the daily closing report is incomplete.', [$row]),
+				),
 		);
 
 		if ($this->cashbookIterator->valid() === false) {
@@ -315,12 +333,14 @@ final class SumupPosProGermany implements IImportService {
 	 * @param array<string, string> $headerMapping The columns of the file, all of them are required
 	 * @param string $invalidMessage The English message if the file is not a CSV file with all columns
 	 * @param string $invalidHint The translated hint if the file is not a CSV file with all columns
-	 * @param \Closure(int): InvalidInputException $incompleteRow Creates the exception for a row (1-based, including the header) with fewer fields than the header
+	 * @param list<string> $valueColumns The internal keys of the columns which must not be empty in any row
+	 * @param \Closure(int, bool): InvalidInputException $invalidRow Creates the exception for an invalid row (1-based, including the header),
+	 *                                                               the flag is true if the row has more fields than the header
 	 * @return Iterator<array-key, CsvRecord>
 	 * @throws InvalidInputException If the file is not a CSV file, misses a column or has more than `MAX_ROWS` rows,
-	 *                               iterating throws the exception of `$incompleteRow` for incomplete rows
+	 *                               iterating throws the exception of `$invalidRow` for invalid rows
 	 */
-	protected function readCsv(string $path, array $headerMapping, string $invalidMessage, string $invalidHint, \Closure $incompleteRow): Iterator {
+	protected function readCsv(string $path, array $headerMapping, string $invalidMessage, string $invalidHint, array $valueColumns, \Closure $invalidRow): Iterator {
 		try {
 			$csv = Reader::from($path, 'r');
 			$csv->setHeaderOffset(0);
@@ -340,10 +360,17 @@ final class SumupPosProGermany implements IImportService {
 				);
 			}
 
-			$header = array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csvHeader);
-			/** @var Iterator<int, array<string, ?string>> $records */
-			$records = $csv->getRecords($header);
-			$records = $this->requireColumns($records, array_values($headerMapping), $incompleteRow);
+			$header = array_values(array_map(static fn (string $name): string => $headerMapping[$name] ?? $name, $csvHeader));
+			if ($header !== array_unique($header)) {
+				$this->logger->debug('The CSV file contains duplicate columns after mapping its header', ['header' => $header]);
+				throw new InvalidInputException($invalidMessage, $invalidHint);
+			}
+
+			// League CSV drops the fields after the last header column, so the records are combined with the header by combineRecords()
+			$csv->setHeaderOffset(null);
+			/** @var Iterator<int, list<string>> $records */
+			$records = $csv->getRecords();
+			$records = $this->combineRecords($records, $header, array_values($headerMapping), $valueColumns, $invalidRow);
 			$records->rewind();
 			return $records;
 		} catch (CsvException $error) {
@@ -352,21 +379,35 @@ final class SumupPosProGermany implements IImportService {
 	}
 
 	/**
-	 * Ensure every record has a value for all required columns.
+	 * Combine the records of a CSV file with its header and ensure they have all required values.
 	 *
-	 * League CSV fills the fields missing in a row with null.
+	 * Fields missing at the end of a row count as missing values, empty fields after the last header column are ignored.
 	 *
-	 * @param Iterator<int, array<string, ?string>> $records Records keyed by their offset in the file, the header has offset 0
-	 * @param list<string> $columns The required columns
-	 * @param \Closure(int): InvalidInputException $incompleteRow
+	 * @param Iterator<int, list<string>> $records Records keyed by their offset in the file, the header has offset 0
+	 * @param list<string> $header The internal keys of the columns
+	 * @param list<string> $requiredColumns The internal keys of the columns every row must contain
+	 * @param list<string> $valueColumns The internal keys of the columns which must not be empty
+	 * @param \Closure(int, bool): InvalidInputException $invalidRow
 	 * @return \Generator<int, CsvRecord>
-	 * @throws InvalidInputException If a record misses a required value
+	 * @throws InvalidInputException If a record misses a required value or has more fields than the header
 	 */
-	private function requireColumns(Iterator $records, array $columns, \Closure $incompleteRow): \Generator {
-		foreach ($records as $offset => $record) {
-			foreach ($columns as $column) {
-				if (!isset($record[$column])) {
-					throw $incompleteRow($offset + 1);
+	private function combineRecords(Iterator $records, array $header, array $requiredColumns, array $valueColumns, \Closure $invalidRow): \Generator {
+		$columnCount = count($header);
+		foreach ($records as $offset => $fields) {
+			if ($offset === 0) {
+				continue;
+			}
+
+			$extraFields = array_slice($fields, $columnCount);
+			if (array_filter($extraFields, static fn (string $field): bool => trim($field) !== '') !== []) {
+				throw $invalidRow($offset + 1, true);
+			}
+
+			$record = array_combine($header, array_pad(array_slice($fields, 0, $columnCount), $columnCount, null));
+			foreach ($requiredColumns as $column) {
+				$value = $record[$column];
+				if ($value === null || (trim($value) === '' && in_array($column, $valueColumns, true))) {
+					throw $invalidRow($offset + 1, false);
 				}
 			}
 			/** @var CsvRecord $record */
