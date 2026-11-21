@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nextcloud 3.14159\n"
 "Report-Msgid-Bugs-To: translations\\@example.com\n"
-"POT-Creation-Date: 2026-11-20 22:47+0100\n"
+"POT-Creation-Date: 2026-11-21 14:17+0100\n"
 "PO-Revision-Date: 2026-11-20 22:50+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -26,35 +26,55 @@ msgstr "Die hochgeladene Datei ist zu groß."
 msgid "The upload of the files failed."
 msgstr "Das Hochladen der Dateien ist fehlgeschlagen."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:122
+#: cashbook/lib/ImportService/SumupPosProGermany.php:128
 msgid "The selected cashbook export is not a valid SumUp cashbook export."
 msgstr ""
 "Der ausgewählte Kassenbuch-Export ist kein gültiger SumUp-Kassenbuch-Export."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:128
+#: cashbook/lib/ImportService/SumupPosProGermany.php:133
+#, php-format
+msgid "Row %s of the cashbook export has too many columns."
+msgstr "Zeile %s des Kassenbuch-Exports hat zu viele Spalten."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:137
+#, php-format
+msgid "Row %s of the cashbook export is incomplete."
+msgstr "Zeile %s des Kassenbuch-Exports ist unvollständig."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:144
 msgid ""
 "The selected daily closing report is not a valid SumUp daily closing report."
 msgstr ""
 "Der ausgewählte Tagesabschlussbericht ist kein gültiger SumUp-"
 "Tagesabschlussbericht."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:132
+#: cashbook/lib/ImportService/SumupPosProGermany.php:149
+#, php-format
+msgid "Row %s of the daily closing report has too many columns."
+msgstr "Zeile %s des Tagesabschlussberichts hat zu viele Spalten."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:153
+#, php-format
+msgid "Row %s of the daily closing report is incomplete."
+msgstr "Zeile %s des Tagesabschlussberichts ist unvollständig."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:158
 msgid "The cashbook export does not contain any entries."
 msgstr "Der Kassenbuch-Export enthält keine Einträge."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:147
+#: cashbook/lib/ImportService/SumupPosProGermany.php:173
 msgid "The cashbook export contains invalid values."
 msgstr "Der Kassenbuch-Export enthält ungültige Werte."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:166
+#: cashbook/lib/ImportService/SumupPosProGermany.php:192
 msgid "The cashbook export uses an unknown currency."
 msgstr "Der Kassenbuch-Export verwendet eine unbekannte Währung."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:172
+#: cashbook/lib/ImportService/SumupPosProGermany.php:198
 msgid "The store name or ID of the cashbook export is invalid."
 msgstr "Der Name oder die ID der Filiale im Kassenbuch-Export ist ungültig."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:201
+#: cashbook/lib/ImportService/SumupPosProGermany.php:227
 #, php-format
 msgid ""
 "The cash balance at the day opening of %s does not match the cashbook export."
@@ -62,7 +82,7 @@ msgstr ""
 "Der Kassenbestand bei der Tageseröffnung vom %s stimmt nicht mit dem "
 "Kassenbuch-Export überein."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:222
+#: cashbook/lib/ImportService/SumupPosProGermany.php:248
 #, php-format
 msgid ""
 "The cash balance at the day closing of %s does not match the cashbook export."
@@ -70,7 +90,13 @@ msgstr ""
 "Der Kassenbestand beim Tagesabschluss vom %s stimmt nicht mit dem Kassenbuch-"
 "Export überein."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:265
+#: cashbook/lib/ImportService/SumupPosProGermany.php:288
+#, php-format
+msgid "The entry of %s uses a different currency than the other entries."
+msgstr ""
+"Der Eintrag vom %s verwendet eine andere Währung als die anderen Einträge."
+
+#: cashbook/lib/ImportService/SumupPosProGermany.php:298
 #, php-format
 msgid ""
 "The cash balance of the entry of %s does not match the previous cash balance."
@@ -78,19 +104,19 @@ msgstr ""
 "Der Kassenbestand des Eintrags vom %s stimmt nicht mit dem vorherigen "
 "Kassenbestand überein."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:271
+#: cashbook/lib/ImportService/SumupPosProGermany.php:304
 #, php-format
 msgid "The cash balance is negative after the entry of %s."
 msgstr "Nach dem Eintrag vom %s ist der Kassenbestand negativ."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:329
+#: cashbook/lib/ImportService/SumupPosProGermany.php:366
 #, php-format
 msgid "The selected files contain more than %s rows. Export a shorter period."
 msgstr ""
 "Die ausgewählten Dateien enthalten mehr als %s Zeilen. Exportiere einen "
 "kürzeren Zeitraum."
 
-#: cashbook/lib/ImportService/SumupPosProGermany.php:376
+#: cashbook/lib/ImportService/SumupPosProGermany.php:458
 msgid "Unexpected end of the CSV file."
 msgstr "Unerwartetes Ende der CSV-Datei."
 
