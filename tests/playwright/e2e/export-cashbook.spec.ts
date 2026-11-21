@@ -113,3 +113,30 @@ test.describe('Export cashbook', () => {
 		}
 	})
 })
+
+test.describe('Export cashbook with a day across two periods', () => {
+	let cashbookId: string
+
+	test.beforeEach(async ({ page }) => {
+		// the day is opened on January 31st and closed on February 1st
+		cashbookId = await importReportFixture(page.request, TIMEZONE, {
+			cashbook: 'Kassenbuch_overnight.csv',
+			report: 'Tagesabschluss_overnight.csv',
+		})
+	})
+
+	test('shows the whole day but only totals the entries of the period', async ({ page }) => {
+		await page.goto(`apps/cashbook/${cashbookId}/export?${JANUARY_2025}`)
+
+		const table = page.getByRole('main').getByRole('table').first()
+		await expect(table.getByRole('row').filter({ hasText: 'Cleaning' })).toHaveCount(1)
+		const summary = page.getByRole('region', { name: 'Totals of the period' })
+		await expect(summary.getByRole('definition')).toHaveText(['€90.00', '€30.00', '€0.00', '€120.00'])
+
+		await page.getByRole('button', { name: 'Next period' }).click()
+
+		await expect(page).toHaveURL(/period=month&from=2025-02-01&to=2025-02-28/)
+		await expect(table.getByRole('row').filter({ hasText: 'Jan 31, 2025, 9:00 PM' })).toHaveCount(1)
+		await expect(summary.getByRole('definition')).toHaveText(['€120.00', '€1.00', '€5.00', '€116.00'])
+	})
+})

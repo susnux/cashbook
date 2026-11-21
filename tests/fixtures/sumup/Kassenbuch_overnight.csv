@@ -1,0 +1,5 @@
+Geschäft;Geschäfts ID;Datum und Uhrzeit;Belegnummer;Grund;Buchungstext;Währung;Einnahmen;Ausgaben;Mehrwertsteuersatz;Betrag MwSt;Kassenbestand
+Test Shop;1234;30.01.2025 12:00:00;1;Sonstige Einnahme;;EUR;10,00;;19;1,60;100,00
+Test Shop;1234;31.01.2025 21:00:00;2;Sonstige Einnahme;;EUR;20,00;;19;3,19;120,00
+Test Shop;1234;01.02.2025 01:00:00;3;Andere Ausgaben;Cleaning;EUR;;-5,00;;;115,00
+Test Shop;1234;03.02.2025 10:00:00;4;Sonstige Einnahme;;EUR;1,00;;7;0,07;116,00

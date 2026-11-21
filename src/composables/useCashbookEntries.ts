@@ -9,14 +9,18 @@ import type { ICashbookEntry } from '../models/CashbookEntry.ts'
 import type { Period } from '../utils/period.ts'
 
 import { isCancel } from '@nextcloud/axios'
-import { ref, toValue, watch } from 'vue'
+import { computed, ref, toValue, watch } from 'vue'
 import { fetchEntriesByDate } from '../api/cashbooks.ts'
 import { getOcsErrorMessage } from '../utils/errors.ts'
 import logger from '../utils/logger.ts'
+import { isInPeriod } from '../utils/period.ts'
+import { getDay } from '../utils/timezone.ts'
 
 /**
  * Load the entries of a cashbook within a period.
  *
+ * If the period starts or ends within an open day, `entries` contains the whole day,
+ * while `periodEntries` only contains the entries of the days within the period.
  * The entries are loaded again when the cashbook gets new entries (its `lastSequence` changes).
  * Changing the cashbook or period aborts pending requests, so only entries of the current selection are shown.
  *
@@ -30,6 +34,12 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 	/** The error message of the server if loading failed */
 	const errorMessage = ref<string>()
 	const reloadCounter = ref(0)
+
+	const periodEntries = computed(() => {
+		const timezone = toValue(cashbook)?.timezone
+		const currentPeriod = toValue(period)
+		return entries.value.filter((entry) => isInPeriod(getDay(entry.date, timezone), currentPeriod))
+	})
 
 	watch(
 		[
@@ -81,6 +91,7 @@ export function useCashbookEntries(cashbook: MaybeRefOrGetter<ICashbook | undefi
 
 	return {
 		entries,
+		periodEntries,
 		loading,
 		failed,
 		errorMessage,

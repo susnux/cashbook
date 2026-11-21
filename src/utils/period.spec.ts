@@ -6,7 +6,7 @@
 import type { Period } from './period.ts'
 
 import { describe, expect, it, vi } from 'vitest'
-import { addDays, formatPeriod, getPeriod, parseDay, periodFromQuery, periodToQuery, shiftPeriod } from './period.ts'
+import { addDays, formatPeriod, getPeriod, isInPeriod, parseDay, periodFromQuery, periodToQuery, shiftPeriod } from './period.ts'
 
 vi.mock('@nextcloud/l10n', () => ({
 	getCanonicalLocale: () => 'en-US',
@@ -44,6 +44,17 @@ describe('getPeriod', () => {
 		['custom', { period: 'custom', from: '2025-02-14', to: '2025-02-14' }],
 	] as const)('%s', (type, expected) => {
 		expect(days(getPeriod(type, '2025-02-14'))).toEqual(expected)
+	})
+})
+
+describe('isInPeriod', () => {
+	it.each([
+		['2025-01-31', false],
+		['2025-02-01', true],
+		['2025-02-28', true],
+		['2025-03-01', false],
+	])('%s', (day, expected) => {
+		expect(isInPeriod(day, getPeriod('month', '2025-02-14'))).toBe(expected)
 	})
 })
 
